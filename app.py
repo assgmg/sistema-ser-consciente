@@ -76,6 +76,9 @@ REGRAS_CLINICA = [
 ]
 
 # --- FUNÇÃO GERADORA DE QR CODE PIX ---
+def gerenciar_qrcode_pix(valor): 
+    pass
+
 def gerar_qrcode_pix(valor):
     payload = f"00020126580014BR.GOV.BCB.PIX0136{CHAVE_PIX_INSTITUTO}5204000053039865802BR5925{NOME_BENEFICIARIO}6009{CIDADE_BENEFICIARIO}62070503***6304"
     qr = qrcode.QRCode(version=1, box_size=8, border=2)
@@ -88,7 +91,8 @@ def gerar_qrcode_pix(valor):
 
 # --- TELA DE LOGIN ---
 def tela_login():
-    st.markdown("<h2 style='text-align: center;'>🦋 Instituto Ser Consciente</h2>", unsafe_allow_html=True)
+    st.markdown("<h2 style='text-align: center;'>🦋</h2>", unsafe_allow_html=True)
+    st.markdown("<h2 style='text-align: center;'>Instituto Ser Consciente</h2>", unsafe_allow_html=True)
     st.markdown("<h4 style='text-align: center; color: gray;'>Sistema de Gestão e Faturamento</h4>", unsafe_allow_html=True)
     
     col1, col2, col3 = st.columns([1, 2, 1])
@@ -401,7 +405,7 @@ def app_principal():
         st.session_state.usuario_logado = None
         st.rerun()
         
-    # Logomarca restaurada no topo do painel
+    # Logomarca com emoji mantida no título principal exatamente como estava antes
     st.markdown("## 🦋 Painel Gerencial - Instituto Ser Consciente")
         
     if user['perfil'] == 'admin':

@@ -76,9 +76,6 @@ REGRAS_CLINICA = [
 ]
 
 # --- FUNÇÃO GERADORA DE QR CODE PIX ---
-def gerenciar_qrcode_pix(valor): 
-    pass
-
 def gerar_qrcode_pix(valor):
     payload = f"00020126580014BR.GOV.BCB.PIX0136{CHAVE_PIX_INSTITUTO}5204000053039865802BR5925{NOME_BENEFICIARIO}6009{CIDADE_BENEFICIARIO}62070503***6304"
     qr = qrcode.QRCode(version=1, box_size=8, border=2)
@@ -91,7 +88,13 @@ def gerar_qrcode_pix(valor):
 
 # --- TELA DE LOGIN ---
 def tela_login():
-    st.markdown("<h2 style='text-align: center;'>🦋</h2>", unsafe_allow_html=True)
+    if os.path.exists("logo.png"):
+        col_lg1, col_lg2, col_lg3 = st.columns([2, 1, 2])
+        with col_lg2:
+            st.image("logo.png", width=120)
+    else:
+        st.markdown("<h2 style='text-align: center;'>🦋</h2>", unsafe_allow_html=True)
+        
     st.markdown("<h2 style='text-align: center;'>Instituto Ser Consciente</h2>", unsafe_allow_html=True)
     st.markdown("<h4 style='text-align: center; color: gray;'>Sistema de Gestão e Faturamento</h4>", unsafe_allow_html=True)
     
@@ -405,8 +408,15 @@ def app_principal():
         st.session_state.usuario_logado = None
         st.rerun()
         
-    # Logomarca com emoji mantida no título principal exatamente como estava antes
-    st.markdown("## 🦋 Painel Gerencial - Instituto Ser Consciente")
+    # Renderização correta da imagem logo.png do repositório ao lado do título principal
+    col_head1, col_head2 = st.columns([0.08, 0.92])
+    with col_head1:
+        if os.path.exists("logo.png"):
+            st.image("logo.png", width=50)
+        else:
+            st.markdown("## 🦋")
+    with col_head2:
+        st.markdown("## Painel Gerencial - Instituto Ser Consciente")
         
     if user['perfil'] == 'admin':
         aba_lancamentos, aba_relatorios, aba_parceiros, aba_usuarios = st.tabs(["📝 Lançamentos", "📈 Relatórios & Extratos", "👥 Parceiros", "🔐 Acessos"])

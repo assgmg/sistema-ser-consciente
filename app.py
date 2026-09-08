@@ -4,6 +4,8 @@ from datetime import datetime, time, timedelta
 import qrcode
 from io import BytesIO
 import base64
+import json
+import os
 
 # Configuração da Página
 st.set_page_config(page_title="Instituto Ser Consciente - Gestão", layout="wide", page_icon="🦋")
@@ -13,27 +15,56 @@ CHAVE_PIX_INSTITUTO = "pix@institutoserconsciente.com.br"
 NOME_BENEFICIARIO = "Instituto Ser Consciente Ltda"
 CIDADE_BENEFICIARIO = "Contagem"
 
-# --- SIMULAÇÃO DE BANCO DE DADOS NA NUVEM ---
+# --- ARQUIVO DE PERSISTÊNCIA HISTÓRICA (JSON) ---
+ARQUIVO_DADOS = "dados_instituto.json"
+
+def carregar_dados_persistencia():
+    if os.path.exists(ARQUIVO_DADOS):
+        try:
+            with open(ARQUIVO_DADOS, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except Exception:
+            pass
+    return None
+
+def salvar_dados_persistencia():
+    dados = {
+        "usuarios": st.session_state.usuarios,
+        "parceiros": st.session_state.parceiros_df.to_dict(orient="records"),
+        "atendimentos": st.session_state.atendimentos
+    }
+    with open(ARQUIVO_DADOS, "w", encoding="utf-8") as f:
+        json.dump(dados, f, ensure_ascii=False, indent=4)
+
+# --- INICIALIZAÇÃO DE ESTADO COM HISTÓRICO ACUMULATIVO ---
+dados_salvos = carregar_dados_persistencia()
+
 if 'usuarios' not in st.session_state:
-    st.session_state.usuarios = [
-        {"username": "recepcao", "nome": "Recepção Central", "senha": "Senha@123", "perfil": "recepcao", "primeiro_acesso": True},
-        {"username": "admin", "nome": "Administração (Antônio / Direção)", "senha": "Admin@123", "perfil": "admin", "primeiro_acesso": False}
-    ]
+    if dados_salvos and "usuarios" in dados_salvos:
+        st.session_state.usuarios = dados_salvos["usuarios"]
+    else:
+        st.session_state.usuarios = [
+            {"username": "recepcao", "nome": "Recepção Central", "senha": "Senha@123", "perfil": "recepcao", "primeiro_acesso": True},
+            {"username": "admin", "nome": "Administração (Antônio / Direção)", "senha": "Admin@123", "perfil": "admin", "primeiro_acesso": False}
+        ]
 
 if 'parceiros_df' not in st.session_state:
-    st.session_state.parceiros_df = pd.DataFrame([
-        {"id": 1, "nome": "Ana Carolina Ribeiro", "regra": "Percentual (70% Profissional / 30% Clínica)", "status": "Ativo"},
-        {"id": 2, "nome": "Anderson Psicólogo", "regra": "Bloco de Horas (6h)", "status": "Ativo"}
-    ])
+    if dados_salvos and "parceiros" in dados_salvos:
+        st.session_state.parceiros_df = pd.DataFrame(dados_salvos["parceiros"])
+    else:
+        st.session_state.parceiros_df = pd.DataFrame([
+            {"id": 1, "nome": "Ana Carolina Ribeiro", "regra": "Percentual (70% Profissional / 30% Clínica)", "status": "Ativo"},
+            {"id": 2, "nome": "Anderson Psicólogo", "regra": "Bloco de Horas (6h)", "status": "Ativo"}
+        ])
 
 if 'atendimentos' not in st.session_state:
-    st.session_state.atendimentos = []
+    if dados_salvos and "atendimentos" in dados_salvos:
+        st.session_state.atendimentos = dados_salvos["atendimentos"]
+    else:
+        st.session_state.atendimentos = []
 
 if 'usuario_logado' not in st.session_state:
     st.session_state.usuario_logado = None
-
-if 'ultima_fatura' not in st.session_state:
-    st.session_state.ultima_fatura = None
 
 # --- REGRAS OFICIAIS DO INSTITUTO ---
 REGRAS_CLINICA = [
@@ -45,7 +76,7 @@ REGRAS_CLINICA = [
 ]
 
 # --- FUNÇÃO GERADORA DE QR CODE PIX ---
-def gerar_qrcode_pix(valor, identificador):
+def gerar_qrcode_pix(valor):
     payload = f"00020126580014BR.GOV.BCB.PIX0136{CHAVE_PIX_INSTITUTO}5204000053039865802BR5925{NOME_BENEFICIARIO}6009{CIDADE_BENEFICIARIO}62070503***6304"
     qr = qrcode.QRCode(version=1, box_size=8, border=2)
     qr.add_data(payload)
@@ -79,12 +110,10 @@ def tela_login():
 # --- GESTÃO DE PARCEIROS ---
 def gerenciar_parceiros():
     st.markdown("### 👥 Cadastro, Regras e Controle de Parceiros")
-    
     df = st.session_state.parceiros_df
     st.dataframe(df, use_container_width=True)
     
     col_cad, col_edit = st.columns(2)
-    
     with col_cad:
         st.markdown("#### ➕ Cadastrar Novo Profissional")
         with st.form(key="form_novo_parceiro"):
@@ -97,16 +126,17 @@ def gerenciar_parceiros():
                     novo_id = int(df['id'].max() + 1) if not df.empty else 1
                     novo_registro = pd.DataFrame([{"id": novo_id, "nome": novo_cad_nome, "regra": novo_cad_regra, "status": "Ativo"}])
                     st.session_state.parceiros_df = pd.concat([df, novo_registro], ignore_index=True)
-                    st.success(f"Profissional '{novo_cad_nome}' cadastrado com sucesso!")
+                    salvar_dados_persistencia()
+                    st.success(f"Profissional '{novo_cad_nome}' cadastrado!")
                     st.rerun()
                 else:
-                    st.error("Informe o nome do profissional.")
+                    st.error("Informe o nome.")
 
     with col_edit:
         st.markdown("#### ⚙️ Editar / Inativar Profissional")
         if not df.empty:
             opcoes_parceiros = df['nome'].tolist()
-            parceiro_selecionado = st.selectbox("Selecione o profissional:", opcoes_parceiros)
+            parceiro_selecionado = st.selectbox("Selecione:", opcoes_parceiros)
             dados_atuais = df[df['nome'] == parceiro_selecionado].iloc[0]
             
             with st.form(key="form_edicao_parceiro"):
@@ -126,24 +156,24 @@ def gerenciar_parceiros():
                     df.loc[df['nome'] == novo_nome, 'regra'] = nova_regra
                     df.loc[df['nome'] == novo_nome, 'status'] = novo_status
                     st.session_state.parceiros_df = df
-                    st.success("Atualizado com sucesso!")
+                    salvar_dados_persistencia()
+                    st.success("Atualizado!")
                     st.rerun()
                 if btn_excluir:
                     st.session_state.parceiros_df = df[df['nome'] != parceiro_selecionado].reset_index(drop=True)
-                    st.warning("Excluído com sucesso!")
+                    salvar_dados_persistencia()
+                    st.warning("Excluído!")
                     st.rerun()
 
-# --- MÓDULO VISUAL DE LANÇAMENTOS E FATURAS ---
+# --- MÓDULO DE LANÇAMENTOS E HISTÓRICO COM ALTERAÇÃO DE STATUS ---
 def modulo_lancamentos():
-    st.subheader("📝 Lançamento Rápido e Emissão de Faturas / Recibos")
-    
+    st.subheader("📝 Lançamento de Atendimentos e Locações (Histórico Acumulado)")
     parceiros_ativos = st.session_state.parceiros_df[st.session_state.parceiros_df['status'] == 'Ativo']
     
     if parceiros_ativos.empty:
         st.warning("Não há profissionais ativos cadastrados.")
         return
 
-    # Layout mais compacto em colunas para evitar rolagem excessiva
     with st.form("form_novo_atendimento"):
         col1, col2, col3 = st.columns(3)
         with col1:
@@ -154,22 +184,18 @@ def modulo_lancamentos():
             nome_paciente_cliente = st.text_input("Paciente / Cliente")
             
         regra_prof = parceiros_ativos[parceiros_ativos['nome'] == profissional_escolhido]['regra'].values[0]
-        st.caption(f"📌 Regra ativa para este profissional: **{regra_prof}**")
+        st.caption(f"📌 Regra ativa: **{regra_prof}**")
         
-        # Parâmetros dinâmicos divididos em colunas limpas
-        col_p1, col_p2, col_p3, col_p4 = st.columns(4)
-        
-        valor_consulta = 0.0
-        qtd_blocos = 1
-        hora_chegada = time(8, 0)
-        hora_devolucao = time(9, 0)
+        col_p1, col_p2, col_p3 = st.columns(3)
+        valor_consulta, qtd_blocos = 0.0, 1
+        hora_chegada, hora_devolucao = time(8, 0), time(9, 0)
         forma_pagto = "Pix"
         
         with col_p1:
             if "Percentual" in regra_prof:
                 valor_consulta = st.number_input("Valor da Consulta (R$)", min_value=0.0, value=150.0, step=10.0)
             elif "Bloco de Horas" in regra_prof:
-                qtd_blocos = st.number_input("Qtd Blocos (6h) no mês", min_value=1, value=1, step=1)
+                qtd_blocos = st.number_input("Qtd Blocos (6h)", min_value=1, value=1, step=1)
             elif "Locação por Hora" in regra_prof:
                 hora_chegada = st.time_input("Início (Chave)", value=time(8, 0))
                 
@@ -183,137 +209,177 @@ def modulo_lancamentos():
             if "Locação por Hora" in regra_prof:
                 forma_pagto = st.selectbox("Pagamento", ["Pix", "Dinheiro", "Transferência"])
 
-        btn_lancar = st.form_submit_button("⚡ Calcular e Gerar Fatura / Recibo", use_container_width=True)
+        btn_lancar = st.form_submit_button("⚡ Salvar Lançamento no Histórico", use_container_width=True)
         
         if btn_lancar:
             if nome_paciente_cliente.strip():
-                taxa_clinica = 0.0
-                repasse_prof = 0.0
-                detalhes_calculo = ""
+                taxa_clinica, repasse_prof, detalhes_calculo = 0.0, 0.0, ""
                 
                 if regra_prof == "Percentual (70% Profissional / 30% Clínica)":
-                    repasse_prof = valor_consulta * 0.70
-                    taxa_clinica = valor_consulta * 0.30
+                    repasse_prof, taxa_clinica = valor_consulta * 0.70, valor_consulta * 0.30
                     detalhes_calculo = "70% Profissional / 30% Clínica"
                 elif regra_prof == "Percentual (80% Profissional / 20% Clínica)":
-                    repasse_prof = valor_consulta * 0.80
-                    taxa_clinica = valor_consulta * 0.20
+                    repasse_prof, taxa_clinica = valor_consulta * 0.80, valor_consulta * 0.20
                     detalhes_calculo = "80% Profissional / 20% Clínica"
                 elif "Bloco de Horas" in regra_prof:
-                    if qtd_blocos == 1:
-                        taxa_clinica = 300.0 * qtd_blocos
-                        detalhes_calculo = f"1 Bloco único (R$ 300,00)"
-                    else:
-                        taxa_clinica = 250.0 * qtd_blocos
-                        detalhes_calculo = f"{qtd_blocos} Blocos (R$ 250,00 cada)"
+                    taxa_clinica = (300.0 if qtd_blocos == 1 else 250.0) * qtd_blocos
+                    detalhes_calculo = "1 Bloco (R$ 300)" if qtd_blocos == 1 else f"{qtd_blocos} Blocos (R$ 250/cada)"
                     repasse_prof = 0.0
                 elif "Locação por Hora" in regra_prof:
                     valor_hora_base = 50.0 if "50,00" in regra_prof else 42.0
                     dt_ini = datetime.combine(datetime.today(), hora_chegada)
                     dt_fim = datetime.combine(datetime.today(), hora_devolucao)
-                    if dt_fim < dt_ini:
-                        dt_fim += timedelta(days=1)
+                    if dt_fim < dt_ini: dt_fim += timedelta(days=1)
                     diff_minutos = (dt_fim - dt_ini).total_seconds() / 60.0
                     
                     horas_cobradas = 0
                     if diff_minutos > 0:
-                        horas_inteiras = int(diff_minutos // 60)
-                        minutos_restantes = diff_minutos % 60
-                        if minutos_restantes > 5:
-                            horas_cobradas = horas_inteiras + 1
-                        else:
-                            horas_cobradas = max(1, horas_inteiras) if horas_inteiras > 0 else 1
-                            
+                        h_int, m_rest = int(diff_minutos // 60), diff_minutos % 60
+                        horas_cobradas = (h_int + 1) if m_rest > 5 else max(1, h_int)
                     taxa_clinica = horas_cobradas * valor_hora_base
                     repasse_prof = 0.0
-                    detalhes_calculo = f"{horas_cobradas}h cobradas (R$ {valor_hora_base}/h) | {hora_chedaq_str if 'hora_chedaq_str' in locals() else hora_chegada.strftime('%H:%M')} às {hora_devolucao.strftime('%H:%M')}"
-
-                valor_total_fatura = taxa_clinica + repasse_prof if "Percentual" in regra_prof else taxa_clinica
+                    detalhes_calculo = f"{horas_cobradas}h cobradas (R$ {valor_hora_base}/h)"
 
                 novo_id = len(st.session_state.atendimentos) + 1
-                novo_atend = {
-                    "id": novo_id,
-                    "data": str(data_atendimento),
-                    "cliente_paciente": nome_paciente_cliente,
-                    "profissional": profissional_escolhido,
-                    "regra_aplicada": regra_prof,
-                    "detalhes": detalhes_calculo,
-                    "valor_total_envolvido": valor_total_fatura,
-                    "taxa_clinica": taxa_clinica,
-                    "repasse_profissional": repasse_prof,
-                    "pagamento": forma_pagto,
-                    "status": "Pendente"
-                }
-                st.session_state.atendimentos.append(novo_atend)
-                st.session_state.ultima_fatura = novo_atend
-                st.success("Lançamento efetuado e Fatura gerada com sucesso!")
+                st.session_state.atendimentos.append({
+                    "id": novo_id, "data": str(data_atendimento), "cliente_paciente": nome_paciente_cliente,
+                    "profissional": profissional_escolhido, "regra_aplicada": regra_prof, "detalhes": detalhes_calculo,
+                    "valor_total_envolvido": (taxa_clinica + repasse_prof) if "Percentual" in regra_prof else taxa_clinica,
+                    "taxa_clinica": taxa_clinica, "repasse_profissional": repasse_prof, "pagamento": forma_pagto, "status": "Pendente"
+                })
+                salvar_dados_persistencia()
+                st.success("Lançamento salvo e acumulado no histórico com sucesso!")
                 st.rerun()
             else:
-                st.error("Informe o nome do paciente ou cliente.")
+                st.error("Informe o nome do paciente/cliente.")
 
-    # --- SEÇÃO VISUAL DA FATURA / RECIBO GERADO ---
-    if st.session_state.ultima_fatura:
-        fat = st.session_state.ultima_fatura
-        st.markdown("---")
-        st.markdown("### 📄 Fatura / Recibo de Pagamento Gerado")
+    st.markdown("---")
+    st.markdown("#### 📋 Histórico Geral Acumulado (Gerenciamento de Status)")
+    if st.session_state.atendimentos:
+        df_atend = pd.DataFrame(st.session_state.atendimentos)
         
-        col_f1, col_f2 = st.columns([2, 1])
+        for idx, row in df_atend.iterrows():
+            col_t1, col_t2, col_t3, col_t4 = st.columns([2, 2, 2, 1])
+            with col_t1:
+                st.text(f"{row['data']} | {row['profissional']}")
+            with col_t2:
+                st.text(f"Cliente: {row['cliente_paciente']} ({row['detalhes']})")
+            with col_t3:
+                st.text(f"R$ {row['valor_total_envolvido']:,.2f} [{row['status']}]")
+            with col_t4:
+                novo_status_btn = "✅ Pagar" if row['status'] == "Pendente" else "🔄 Pendente"
+                if st.button(novo_status_btn, key=f"btn_st_{row['id']}"):
+                    st.session_state.atendimentos[idx]['status'] = "Pago" if row['status'] == "Pendente" else "Pendente"
+                    salvar_dados_persistencia()
+                    st.rerun()
+    else:
+        st.info("Nenhum lançamento registrado no histórico.")
+
+# --- MÓDULO DE RELATÓRIOS E FATURAS CONSOLIDADAS ---
+def modulo_relatorios():
+    st.subheader("📊 Central de Relatórios e Extratos Históricos Acumulados")
+    
+    if not st.session_state.atendimentos:
+        st.info("Nenhum dado disponível no histórico para relatórios.")
+        return
         
-        with col_f1:
+    df = pd.DataFrame(st.session_state.atendimentos)
+    df['data_dt'] = pd.to_datetime(df['data'])
+    
+    tipo_rel = st.selectbox("Selecione o Tipo de Relatório:", ["Relatório Diário", "Extrato Consolidado por Profissional", "Relatório Periódico (Mensal/Trimestral/Anual)"])
+    
+    if tipo_rel == "Relatório Diário":
+        st.markdown("#### 📅 Fechamento de Caixa Diário")
+        data_escolhida = st.date_input("Escolha a Data:", value=datetime.today())
+        df_dia = df[df['data_dt'].dt.date == data_escolhida]
+        
+        if not df_dia.empty:
+            c1, c2, c3 = st.columns(3)
+            c1.metric("Volume do Dia", f"R$ {df_dia['valor_total_envolvido'].sum():,.2f}")
+            c2.metric("Receita Clínica", f"R$ {df_dia['taxa_clinica'].sum():,.2f}")
+            c3.metric("Repasses", f"R$ {df_dia['repasse_profissional'].sum():,.2f}")
+            st.dataframe(df_dia[['id', 'profissional', 'cliente_paciente', 'detalhes', 'valor_total_envolvido', 'status']], use_container_width=True)
+        else:
+            st.info("Nenhum atendimento registrado nesta data.")
+            
+    elif tipo_rel == "Extrato Consolidado por Profissional":
+        st.markdown("#### 📄 Extrato Mensal Acumulado para Prestação de Contas")
+        profissionais = df['profissional'].unique().tolist()
+        prof_sel = st.selectbox("Selecione o Profissional:", profissionais)
+        
+        df_prof = df[df['profissional'] == prof_sel]
+        total_envolvido = df_prof['valor_total_envolvido'].sum()
+        total_clinica = df_prof['taxa_clinica'].sum()
+        total_repasse = df_prof['repasse_profissional'].sum()
+        
+        col_e1, col_e2 = st.columns([2, 1])
+        with col_e1:
             st.info(f"""
             **INSTITUTO SER CONSCIENTE LTDA**  
             CNPJ: 04.000.917/0001-47 | Contagem - MG  
             --------------------------------------------------  
-            **Fatura Nº:** {fat['id']} | **Data:** {fat['data']}  
-            **Profissional:** {fat['profissional']}  
-            **Paciente/Cliente:** {fat['cliente_paciente']}  
-            **Modalidade / Regra:** {fat['regra_aplicada']}  
-            **Detalhamento:** {fat['detalhes']}  
+            **Profissional:** {prof_sel}  
+            **Total Histórico de Atendimentos:** {len(df_prof)} registros  
+            **Valor Total Acumulado:** R$ {total_envolvido:,.2f}  
+            **Taxa da Clínica / Locação:** R$ {total_clinica:,.2f}  
+            **Repasse Devido ao Profissional:** R$ {total_repasse:,.2f}  
             --------------------------------------------------  
-            💵 **Valor a Pagar / Repassar:** **R$ {fat['valor_total_envolvido']:,.2f}**  
-            💳 **Forma de Pagamento:** {fat['pagamento']}  
-            📌 **Status:** {fat['status']}  
             """)
+            st.dataframe(df_prof[['data', 'cliente_paciente', 'detalhes', 'valor_total_envolvido', 'status']], use_container_width=True)
             
-        with col_f2:
-            st.markdown("#### 📱 Pagamento via Pix")
-            qr_b64 = gerar_qrcode_pix(fat['valor_total_envolvido'], fat['id'])
+        with col_e2:
+            st.markdown("#### 📱 Pagamento / Pix Único")
+            qr_b64 = gerar_qrcode_pix(total_envolvido)
             st.markdown(f'<img src="data:image/png;base64,{qr_b64}" width="180">', unsafe_allow_html=True)
             st.code(CHAVE_PIX_INSTITUTO, language="text")
-
-    st.markdown("---")
-    st.markdown("#### 📋 Histórico de Lançamentos")
-    df_atend = pd.DataFrame(st.session_state.atendimentos)
-    if not df_atend.empty:
-        st.dataframe(df_atend, use_container_width=True)
-    else:
-        st.info("Nenhum lançamento registrado ainda.")
+            
+    elif tipo_rel == "Relatório Periódico (Mensal/Trimestral/Anual)":
+        st.markdown("#### 📈 Balanço Financeiro Histórico por Período")
+        periodo = st.selectbox("Período:", ["Mensal", "Trimestral", "Semestral", "Anual"])
+        ano = st.number_input("Ano de Referência:", min_value=2024, max_value=2030, value=datetime.today().year)
+        
+        if periodo == "Mensal":
+            mes = st.selectbox("Mês:", list(range(1, 13)), format_func=lambda x: datetime(2000, x, 1).strftime('%B'))
+            df_p = df[(df['data_dt'].dt.year == ano) & (df['data_dt'].dt.month == mes)]
+        elif periodo == "Trimestral":
+            trimestre = st.selectbox("Trimestre:", [1, 2, 3, 4])
+            meses_tri = {1: [1,2,3], 2: [4,5,6], 3: [7,8,9], 4: [10,11,12]}[trimestre]
+            df_p = df[(df['data_dt'].dt.year == ano) & (df['data_dt'].dt.month.isin(meses_tri))]
+        elif periodo == "Semestral":
+            semestre = st.selectbox("Semestre:", [1, 2])
+            meses_sem = {1: [1,2,3,4,5,6], 2: [7,8,9,10,11,12]}[semestre]
+            df_p = df[(df['data_dt'].dt.year == ano) & (df['data_dt'].dt.month.isin(meses_sem))]
+        else:
+            df_p = df[df['data_dt'].dt.year == ano]
+            
+        if not df_p.empty:
+            kpi1, kpi2, kpi3 = st.columns(3)
+            kpi1.metric("Faturamento Acumulado", f"R$ {df_p['valor_total_envolvido'].sum():,.2f}")
+            kpi2.metric("Receita da Clínica", f"R$ {df_p['taxa_clinica'].sum():,.2f}")
+            kpi3.metric("Total Repasses", f"R$ {df_p['repasse_profissional'].sum():,.2f}")
+            st.dataframe(df_p, use_container_width=True)
+        else:
+            st.info("Nenhum lançamento encontrado para o período selecionado.")
 
 # --- GESTÃO DE USUÁRIOS ---
 def gerenciar_usuarios():
     st.subheader("🔐 Controle de Acessos")
-    usuarios_df = pd.DataFrame(st.session_state.usuarios)
-    st.dataframe(usuarios_df[['username', 'nome', 'perfil']], use_container_width=True)
-    
+    st.dataframe(pd.DataFrame(st.session_state.usuarios)[['username', 'nome', 'perfil']], use_container_width=True)
     with st.form("form_novo_usuario"):
         st.markdown("#### ➕ Criar Novo Usuário")
-        col_u1, col_u2, col_u3 = st.columns(3)
-        with col_u1:
-            novo_user = st.text_input("Usuário (Login)")
-        with col_u2:
-            novo_nome_completo = st.text_input("Nome / Função")
-        with col_u3:
-            nova_senha = st.text_input("Senha", type="password")
+        c1, c2, c3 = st.columns(3)
+        with c1: novo_user = st.text_input("Usuário")
+        with c2: novo_nome_completo = st.text_input("Nome / Função")
+        with c3: nova_senha = st.text_input("Senha", type="password")
         novo_perfil = st.selectbox("Perfil", ["recepcao", "admin"])
-        
-        btn_criar_user = st.form_submit_button("Criar Usuário")
-        if btn_criar_user:
+        if st.form_submit_button("Criar Usuário"):
             if novo_user and nova_senha:
                 st.session_state.usuarios.append({"username": novo_user, "nome": novo_nome_completo, "senha": nova_senha, "perfil": novo_perfil, "primeiro_acesso": True})
-                st.success("Usuário criado!")
+                salvar_dados_persistencia()
+                st.success("Criado com sucesso!")
                 st.rerun()
             else:
-                st.error("Preencha usuário e senha.")
+                st.error("Preencha todos os campos.")
 
 # --- APLICATIVO PRINCIPAL ---
 def app_principal():
@@ -323,32 +389,15 @@ def app_principal():
     
     if st.sidebar.button("Sair / Logout"):
         st.session_state.usuario_logado = None
-        st.session_state.ultima_fatura = None
         st.rerun()
         
     if user['perfil'] == 'admin':
         st.header("📊 Painel Gerencial - Instituto Ser Consciente")
-        aba_geral, aba_lancamentos, aba_parceiros, aba_usuarios = st.tabs(["📈 Visão Geral", "📝 Lançamentos & Faturas", "👥 Gestão de Parceiros", "🔐 Acessos"])
-        
-        with aba_geral:
-            df_geral = pd.DataFrame(st.session_state.atendimentos)
-            if not df_geral.empty:
-                col1, col2, col3 = st.columns(3)
-                with col1:
-                    st.metric("Volume Total", f"R$ {df_geral['valor_total_envolvido'].sum():,.2f}")
-                with col2:
-                    st.metric("Receita Clínica", f"R$ {df_geral['taxa_clinica'].sum():,.2f}")
-                with col3:
-                    st.metric("Repasses Profissionais", f"R$ {df_geral['repasse_profissional'].sum():,.2f}")
-                st.dataframe(df_geral, use_container_width=True)
-            else:
-                st.info("Nenhum dado registrado.")
-        with aba_lancamentos:
-            modulo_lancamentos()
-        with aba_parceiros:
-            gerenciar_parceiros()
-        with aba_usuarios:
-            gerenciar_usuarios()
+        aba_lancamentos, aba_relatorios, aba_parceiros, aba_usuarios = st.tabs(["📝 Lançamentos", "📈 Relatórios & Extratos", "👥 Parceiros", "🔐 Acessos"])
+        with aba_lancamentos: modulo_lancamentos()
+        with aba_relatorios: modulo_relatorios()
+        with aba_parceiros: gerenciar_parceiros()
+        with aba_usuarios: gerenciar_usuarios()
     else:
         st.header("🗂️ Módulo de Atendimento e Recepção")
         modulo_lancamentos()

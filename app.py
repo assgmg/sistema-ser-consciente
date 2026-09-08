@@ -158,7 +158,7 @@ def app_principal():
     
     # Exibir logomarca na barra lateral
     if os.path.exists("logo.png"):
-        st.sidebar.image("logo.png", use_column_width=True)
+        st.sidebar.image("logo.png", use_container_width=True)
     
     st.sidebar.title(f"Logado: {user['nome']}")
     st.sidebar.markdown(f"**Perfil:** `{user['perfil'].upper()}`")

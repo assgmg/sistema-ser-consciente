@@ -136,34 +136,35 @@ def gerenciar_parceiros():
         st.markdown("#### ⚙️ Editar / Inativar Profissional")
         if not df.empty:
             opcoes_parceiros = df['nome'].tolist()
-            parceiro_selecionado = st.selectbox("Selecione:", opcoes_parceiros)
-            dados_atuais = df[df['nome'] == parceiro_selecionado].iloc[0]
-            
-            with st.form(key="form_edicao_parceiro"):
-                novo_nome = st.text_input("Nome", value=dados_atuais['nome'])
-                regra_atual_idx = REGRAS_CLINICA.index(dados_atuais['regra']) if dados_atuais['regra'] in REGRAS_CLINICA else 0
-                nova_regra = st.selectbox("Regra", REGRAS_CLINICA, index=regra_atual_idx)
-                status_disponiveis = ["Ativo", "Inativo"]
-                status_atual_idx = status_disponiveis.index(dados_atuais['status']) if dados_atuais['status'] in status_disponiveis else 0
-                novo_status = st.selectbox("Status", status_disponiveis, index=status_atual_idx)
+            parceiro_selecionado = st.selectbox("Selecione:", ["Selecione o profissional..."] + opcoes_parceiros)
+            if parceiro_selecionado != "Selecione o profissional...":
+                dados_atuais = df[df['nome'] == parceiro_selecionado].iloc[0]
                 
-                col_b1, col_b2 = st.columns(2)
-                btn_salvar = col_b1.form_submit_button("💾 Salvar", use_container_width=True)
-                btn_excluir = col_b2.form_submit_button("🗑️ Excluir", use_container_width=True)
-                
-                if btn_salvar:
-                    df.loc[df['nome'] == parceiro_selecionado, 'nome'] = novo_nome
-                    df.loc[df['nome'] == novo_nome, 'regra'] = nova_regra
-                    df.loc[df['nome'] == novo_nome, 'status'] = novo_status
-                    st.session_state.parceiros_df = df
-                    salvar_dados_persistencia()
-                    st.success("Atualizado!")
-                    st.rerun()
-                if btn_excluir:
-                    st.session_state.parceiros_df = df[df['nome'] != parceiro_selecionado].reset_index(drop=True)
-                    salvar_dados_persistencia()
-                    st.warning("Excluído!")
-                    st.rerun()
+                with st.form(key="form_edicao_parceiro"):
+                    novo_nome = st.text_input("Nome", value=dados_atuais['nome'])
+                    regra_atual_idx = REGRAS_CLINICA.index(dados_atuais['regra']) if dados_atuais['regra'] in REGRAS_CLINICA else 0
+                    nova_regra = st.selectbox("Regra", REGRAS_CLINICA, index=regra_atual_idx)
+                    status_disponiveis = ["Ativo", "Inativo"]
+                    status_atual_idx = status_disponiveis.index(dados_atuais['status']) if dados_atuais['status'] in status_disponiveis else 0
+                    novo_status = st.selectbox("Status", status_disponiveis, index=status_atual_idx)
+                    
+                    col_b1, col_b2 = st.columns(2)
+                    btn_salvar = col_b1.form_submit_button("💾 Salvar", use_container_width=True)
+                    btn_excluir = col_b2.form_submit_button("🗑️ Excluir", use_container_width=True)
+                    
+                    if btn_salvar:
+                        df.loc[df['nome'] == parceiro_selecionado, 'nome'] = novo_nome
+                        df.loc[df['nome'] == novo_nome, 'regra'] = nova_regra
+                        df.loc[df['nome'] == novo_nome, 'status'] = novo_status
+                        st.session_state.parceiros_df = df
+                        salvar_dados_persistencia()
+                        st.success("Atualizado!")
+                        st.rerun()
+                    if btn_excluir:
+                        st.session_state.parceiros_df = df[df['nome'] != parceiro_selecionado].reset_index(drop=True)
+                        salvar_dados_persistencia()
+                        st.warning("Excluído!")
+                        st.rerun()
 
 # --- MÓDULO DE LANÇAMENTOS E HISTÓRICO COM ALTERAÇÃO DE STATUS ---
 def modulo_lancamentos():
@@ -179,12 +180,17 @@ def modulo_lancamentos():
         with col1:
             data_atendimento = st.date_input("Data", value=datetime.today())
         with col2:
-            profissional_escolhido = st.selectbox("Profissional / Parceiro", parceiros_ativos['nome'].tolist())
+            lista_profissionais = ["Selecione o profissional..."] + parceiros_ativos['nome'].tolist()
+            profissional_escolhido = st.selectbox("Profissional / Parceiro", lista_profissionais)
         with col3:
-            nome_paciente_cliente = st.text_input("Paciente / Cliente")
+            nome_paciente_cliente = st.text_input("Paciente / Cliente", placeholder="Digite o nome...")
             
-        regra_prof = parceiros_ativos[parceiros_ativos['nome'] == profissional_escolhido]['regra'].values[0]
-        st.caption(f"📌 Regra ativa: **{regra_prof}**")
+        regra_prof = ""
+        if profissional_escolhido != "Selecione o profissional...":
+            regra_prof = parceiros_ativos[parceiros_ativos['nome'] == profissional_escolhido]['regra'].values[0]
+            st.caption(f"📌 Regra ativa: **{regra_prof}**")
+        else:
+            st.caption("📌 Selecione um profissional acima para visualizar a regra ativa.")
         
         col_p1, col_p2, col_p3 = st.columns(3)
         valor_consulta, qtd_blocos = 0.0, 1
@@ -193,7 +199,7 @@ def modulo_lancamentos():
         
         with col_p1:
             if "Percentual" in regra_prof:
-                valor_consulta = st.number_input("Valor da Consulta (R$)", min_value=0.0, value=150.0, step=10.0)
+                valor_consulta = st.number_input("Valor da Consulta (R$)", min_value=0.0, value=0.0, step=10.0, format="%.2f")
             elif "Bloco de Horas" in regra_prof:
                 qtd_blocos = st.number_input("Qtd Blocos (6h)", min_value=1, value=1, step=1)
             elif "Locação por Hora" in regra_prof:
@@ -212,7 +218,13 @@ def modulo_lancamentos():
         btn_lancar = st.form_submit_button("⚡ Salvar Lançamento no Histórico", use_container_width=True)
         
         if btn_lancar:
-            if nome_paciente_cliente.strip():
+            if profissional_escolhido == "Selecione o profissional...":
+                st.error("Por favor, selecione um profissional válido.")
+            elif not nome_paciente_cliente.strip():
+                st.error("Informe o nome do paciente/cliente.")
+            elif "Percentual" in regra_prof and valor_consulta <= 0:
+                st.error("Informe um valor de consulta maior que zero.")
+            else:
                 taxa_clinica, repasse_prof, detalhes_calculo = 0.0, 0.0, ""
                 
                 if regra_prof == "Percentual (70% Profissional / 30% Clínica)":
@@ -250,8 +262,6 @@ def modulo_lancamentos():
                 salvar_dados_persistencia()
                 st.success("Lançamento salvo e acumulado no histórico com sucesso!")
                 st.rerun()
-            else:
-                st.error("Informe o nome do paciente/cliente.")
 
     st.markdown("---")
     st.markdown("#### 📋 Histórico Geral Acumulado (Gerenciamento de Status)")

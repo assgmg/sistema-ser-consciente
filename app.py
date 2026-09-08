@@ -401,6 +401,13 @@ def gerenciar_usuarios():
 # --- APLICATIVO PRINCIPAL ---
 def app_principal():
     user = st.session_state.usuario_logado
+    
+    # Logomarca posicionada no topo do menu lateral
+    if os.path.exists("logo.png"):
+        st.sidebar.image("logo.png", width=100)
+    else:
+        st.sidebar.markdown("### 🦋")
+        
     st.sidebar.markdown(f"**Logado:** {user['nome']}")
     st.sidebar.markdown(f"**Perfil:** {user['perfil'].upper()}")
     
@@ -408,15 +415,7 @@ def app_principal():
         st.session_state.usuario_logado = None
         st.rerun()
         
-    # Renderização correta da imagem logo.png do repositório ao lado do título principal
-    col_head1, col_head2 = st.columns([0.08, 0.92])
-    with col_head1:
-        if os.path.exists("logo.png"):
-            st.image("logo.png", width=50)
-        else:
-            st.markdown("## 🦋")
-    with col_head2:
-        st.markdown("## Painel Gerencial - Instituto Ser Consciente")
+    st.markdown("## Painel Gerencial - Instituto Ser Consciente")
         
     if user['perfil'] == 'admin':
         aba_lancamentos, aba_relatorios, aba_parceiros, aba_usuarios = st.tabs(["📝 Lançamentos", "📈 Relatórios & Extratos", "👥 Parceiros", "🔐 Acessos"])

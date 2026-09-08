@@ -185,7 +185,8 @@ def modulo_lancamentos():
     with st.form("form_novo_atendimento"):
         col1, col2, col3 = st.columns(3)
         with col1:
-            data_atendimento = st.date_input("Data", value=datetime.today())
+            # Data padrão sem parâmetros restritivos que gerem conflitos de versão
+            data_atendimento_obj = st.date_input("Data", value=datetime.today())
         with col2:
             lista_profissionais = ["Selecione o profissional..."] + parceiros_ativos['nome'].tolist()
             profissional_escolhido = st.selectbox("Profissional / Parceiro", lista_profissionais)
@@ -199,28 +200,53 @@ def modulo_lancamentos():
         else:
             st.caption("📌 Selecione um profissional acima para visualizar a regra ativa.")
         
+        # Dinâmica de campos baseada na regra do profissional selecionado
         col_p1, col_p2, col_p3 = st.columns(3)
-        valor_consulta, qtd_blocos = 0.0, 1
-        hora_chegada, hora_devolucao = time(8, 0), time(9, 0)
-        forma_pagto = "Pix"
         
-        with col_p1:
-            if "Percentual" in regra_prof:
-                valor_consulta = st.number_input("Valor da Consulta (R$)", min_value=0.0, value=0.0, step=10.0, format="%.2f")
-            elif "Bloco de Horas" in regra_prof:
-                qtd_blocos = st.number_input("Qtd Blocos (6h)", min_value=1, value=1, step=1)
-            elif "Locação por Hora" in regra_prof:
-                hora_chegada = st.time_input("Início (Chave)", value=time(8, 0))
-                
-        with col_p2:
-            if "Locação por Hora" in regra_prof:
-                hora_devolucao = st.time_input("Devolução (Chave)", value=time(9, 0))
-            else:
+        valor_calculado_ou_informado = 0.0
+        detalhes_calculo = ""
+        
+        if "Bloco de Horas" in regra_prof:
+            with col_p1:
+                qtd_blocos = st.number_input("Quantidade de Blocos (6h)", min_value=1.0, value=1.0, step=1.0)
+            with col_p2:
+                valor_por_bloco = st.number_input("Valor por Bloco (R$)", min_value=0.0, value=300.0, step=50.0, format="%.2f")
+            with col_p3:
                 forma_pagto = st.selectbox("Forma de Pagamento", ["Pix", "Cartão de Crédito", "Dinheiro", "Transferência", "Boleto"])
+            
+            valor_calculado_ou_informado = qtd_blocos * valor_por_bloco
+            detalhes_calculo = f"Bloco de Horas ({qtd_blocos:.0f}x R$ {valor_por_bloco:,.2f})"
+            
+        elif "Locação por Hora" in regra_prof:
+            valor_base_hora = 50.0 if "50" in regra_prof else 42.0
+            with col_p1:
+                hora_inicio = st.time_input("Horário de Início", value=time(8, 0))
+            with col_p2:
+                hora_fim = st.time_input("Horário de Término", value=time(9, 0))
+            with col_p3:
+                valor_hora_praticado = st.number_input("Valor da Hora (R$)", min_value=0.0, value=valor_base_hora, step=5.0, format="%.2f")
+            
+            forma_pagto = st.selectbox("Forma de Pagamento", ["Pix", "Cartão de Crédito", "Dinheiro", "Transferência", "Boleto"])
+            
+            dt_inicio = datetime.combine(datetime.today(), hora_inicio)
+            dt_fim = datetime.combine(datetime.today(), hora_fim)
+            horas_dif = max(0.5, (dt_fim - dt_inicio).seconds / 3600.0)
+            
+            valor_calculado_ou_informado = horas_dif * valor_hora_praticado
+            detalhes_calculo = f"Locação por Hora ({hora_inicio.strftime('%H:%M')} às {hora_fim.strftime('%H:%M')} - {horas_dif:.1f}h)"
+            
+        else:
+            with col_p1:
+                valor_calculado_ou_informado = st.number_input("Valor da Consulta / Atendimento (R$)", min_value=0.0, value=0.0, step=10.0, format="%.2f")
+            with col_p2:
+                forma_pagto = st.selectbox("Forma de Pagamento", ["Pix", "Cartão de Crédito", "Dinheiro", "Transferência", "Boleto"])
+            with col_p3:
+                st.markdown("") 
                 
-        with col_p3:
-            if "Locação por Hora" in regra_prof:
-                forma_pagto = st.selectbox("Pagamento", ["Pix", "Dinheiro", "Transferência"])
+            if "80%" in regra_prof:
+                detalhes_calculo = "80% Profissional / 20% Clínica"
+            else:
+                detalhes_calculo = "70% Profissional / 30% Clínica"
 
         btn_lancar = st.form_submit_button("⚡ Salvar Lançamento no Histórico", use_container_width=True)
         
@@ -229,41 +255,28 @@ def modulo_lancamentos():
                 st.error("Por favor, selecione um profissional válido.")
             elif not nome_paciente_cliente.strip():
                 st.error("Informe o nome do paciente/cliente.")
-            elif "Percentual" in regra_prof and valor_consulta <= 0:
-                st.error("Informe um valor de consulta maior que zero.")
+            elif valor_calculado_ou_informado <= 0:
+                st.error("Informe um valor maior que zero.")
             else:
-                taxa_clinica, repasse_prof, detalhes_calculo = 0.0, 0.0, ""
-                
-                if regra_prof == "Percentual (70% Profissional / 30% Clínica)":
-                    repasse_prof, taxa_clinica = valor_consulta * 0.70, valor_consulta * 0.30
-                    detalhes_calculo = "70% Profissional / 30% Clínica"
-                elif regra_prof == "Percentual (80% Profissional / 20% Clínica)":
-                    repasse_prof, taxa_clinica = valor_consulta * 0.80, valor_consulta * 0.20
-                    detalhes_calculo = "80% Profissional / 20% Clínica"
-                elif "Bloco de Horas" in regra_prof:
-                    taxa_clinica = (300.0 if qtd_blocos == 1 else 250.0) * qtd_blocos
-                    detalhes_calculo = "1 Bloco (R$ 300)" if qtd_blocos == 1 else f"{qtd_blocos} Blocos (R$ 250/cada)"
+                if "Locação" in regra_prof or "Bloco" in regra_prof:
+                    taxa_clinica = valor_calculado_ou_informado
                     repasse_prof = 0.0
-                elif "Locação por Hora" in regra_prof:
-                    valor_hora_base = 50.0 if "50,00" in regra_prof else 42.0
-                    dt_ini = datetime.combine(datetime.today(), hora_chegada)
-                    dt_fim = datetime.combine(datetime.today(), hora_devolucao)
-                    if dt_fim < dt_ini: dt_fim += timedelta(days=1)
-                    diff_minutos = (dt_fim - dt_ini).total_seconds() / 60.0
-                    
-                    horas_cobradas = 0
-                    if diff_minutos > 0:
-                        h_int, m_rest = int(diff_minutos // 60), diff_minutos % 60
-                        horas_cobradas = (h_int + 1) if m_rest > 5 else max(1, h_int)
-                    taxa_clinica = horas_cobradas * valor_hora_base
-                    repasse_prof = 0.0
-                    detalhes_calculo = f"{horas_cobradas}h cobradas (R$ {valor_hora_base}/h)"
+                else:
+                    if "80%" in regra_prof:
+                        repasse_prof = valor_calculado_ou_informado * 0.80
+                        taxa_clinica = valor_calculado_ou_informado * 0.20
+                    else:
+                        repasse_prof = valor_calculado_ou_informado * 0.70
+                        taxa_clinica = valor_calculado_ou_informado * 0.30
+
+                # Formatação rigorosa para o padrão brasileiro DD/MM/AAAA
+                data_br_str = data_atendimento_obj.strftime("%d/%m/%Y")
 
                 novo_id = len(st.session_state.atendimentos) + 1
                 st.session_state.atendimentos.append({
-                    "id": novo_id, "data": str(data_atendimento), "cliente_paciente": nome_paciente_cliente,
+                    "id": novo_id, "data": data_br_str, "cliente_paciente": nome_paciente_cliente,
                     "profissional": profissional_escolhido, "regra_aplicada": regra_prof, "detalhes": detalhes_calculo,
-                    "valor_total_envolvido": (taxa_clinica + repasse_prof) if "Percentual" in regra_prof else taxa_clinica,
+                    "valor_total_envolvido": valor_calculado_ou_informado,
                     "taxa_clinica": taxa_clinica, "repasse_profissional": repasse_prof, "pagamento": forma_pagto, "status": "Pendente"
                 })
                 salvar_dados_persistencia()
@@ -301,14 +314,14 @@ def modulo_relatorios():
         return
         
     df = pd.DataFrame(st.session_state.atendimentos)
-    df['data_dt'] = pd.to_datetime(df['data'])
+    df['data_dt'] = pd.to_datetime(df['data'], format='%d/%m/%Y', errors='coerce')
     
     tipo_rel = st.selectbox("Selecione o Tipo de Relatório:", ["Relatório Diário", "Extrato Consolidado por Profissional", "Relatório Periódico (Mensal/Trimestral/Anual)"])
     
     if tipo_rel == "Relatório Diário":
         st.markdown("#### 📅 Fechamento de Caixa Diário")
-        data_escolhida = st.date_input("Escolha a Data:", value=datetime.today())
-        df_dia = df[df['data_dt'].dt.date == data_escolhida]
+        data_escolhida_obj = st.date_input("Escolha a Data:", value=datetime.today())
+        df_dia = df[df['data_dt'].dt.date == data_escolhida_obj]
         
         if not df_dia.empty:
             c1, c2, c3 = st.columns(3)
@@ -402,7 +415,6 @@ def gerenciar_usuarios():
 def app_principal():
     user = st.session_state.usuario_logado
     
-    # Logomarca posicionada no topo do menu lateral
     if os.path.exists("logo.png"):
         st.sidebar.image("logo.png", width=100)
     else:

@@ -88,8 +88,8 @@ def gerar_qrcode_pix(valor):
 
 # --- TELA DE LOGIN ---
 def tela_login():
-    st.markdown("<h2 style='text-align: center;'>🏥 Sistema de Gestão e Faturamento</h2>", unsafe_allow_html=True)
-    st.markdown("<h4 style='text-align: center; color: gray;'>Instituto Ser Consciente</h4>", unsafe_allow_html=True)
+    st.markdown("<h2 style='text-align: center;'>🦋 Instituto Ser Consciente</h2>", unsafe_allow_html=True)
+    st.markdown("<h4 style='text-align: center; color: gray;'>Sistema de Gestão e Faturamento</h4>", unsafe_allow_html=True)
     
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
@@ -401,15 +401,17 @@ def app_principal():
         st.session_state.usuario_logado = None
         st.rerun()
         
+    # Logomarca restaurada no topo do painel
+    st.markdown("## 🦋 Painel Gerencial - Instituto Ser Consciente")
+        
     if user['perfil'] == 'admin':
-        st.header("📊 Painel Gerencial - Instituto Ser Consciente")
         aba_lancamentos, aba_relatorios, aba_parceiros, aba_usuarios = st.tabs(["📝 Lançamentos", "📈 Relatórios & Extratos", "👥 Parceiros", "🔐 Acessos"])
         with aba_lancamentos: modulo_lancamentos()
         with aba_relatorios: modulo_relatorios()
         with aba_parceiros: gerenciar_parceiros()
         with aba_usuarios: gerenciar_usuarios()
     else:
-        st.header("🗂️ Módulo de Atendimento e Recepção")
+        st.markdown("#### 🗂️ Módulo de Atendimento e Recepção")
         modulo_lancamentos()
 
 # --- CONTROLE DE FLUXO ---

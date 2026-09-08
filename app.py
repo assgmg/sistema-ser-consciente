@@ -1,487 +1,233 @@
-import streamlit as st
-import pandas as pd
-from datetime import datetime, time
-import qrcode
-from io import BytesIO
-import base64
-import json
-import os
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <title>Fatura de Cessão de Espaço - Instituto Ser Consciente</title>
+    <style>
+        @page {
+            size: A4;
+            margin: 15mm 15mm;
+            background-color: #ffffff;
+        }
+        *, *::before, *::after {
+            box-sizing: border-box;
+        }
+        body {
+            font-family: Arial, sans-serif;
+            font-size: 11pt;
+            color: #222222;
+            margin: 0;
+            padding: 0;
+            line-height: 1.25;
+        }
+        .invoice-box {
+            background: #ffffff;
+            padding: 10px;
+            margin: 0 auto;
+        }
+        .header {
+            border-bottom: 2px solid #333333;
+            padding-bottom: 10px;
+            margin-bottom: 15px;
+        }
+        .header table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .header td {
+            vertical-align: top;
+        }
+        .clinic-name {
+            font-size: 16pt;
+            font-weight: bold;
+            color: #1a365d;
+            margin-bottom: 4px;
+        }
+        .clinic-info {
+            font-size: 9pt;
+            color: #555555;
+        }
+        .invoice-title {
+            text-align: right;
+            font-size: 14pt;
+            font-weight: bold;
+            color: #2c5282;
+        }
+        .invoice-number {
+            text-align: right;
+            font-size: 10pt;
+            color: #666666;
+            margin-top: 4px;
+        }
+        .section-title {
+            font-size: 12pt;
+            font-weight: bold;
+            background-color: #edf2f7;
+            color: #2d3748;
+            padding: 6px 8px;
+            margin-top: 15px;
+            margin-bottom: 8px;
+            border-left: 4px solid #3182ce;
+        }
+        table.data-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 15px;
+        }
+        table.data-table th, table.data-table td {
+            border: 1px solid #cbd5e0;
+            padding: 8px 10px;
+            text-align: left;
+            font-size: 10pt;
+        }
+        table.data-table th {
+            background-color: #f7fafc;
+            color: #2d3748;
+            font-weight: bold;
+        }
+        table.data-table td.num, table.data-table th.num {
+            text-align: right;
+        }
+        .total-section {
+            float: right;
+            width: 280px;
+            margin-bottom: 20px;
+        }
+        .total-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .total-table td {
+            border: 1px solid #cbd5e0;
+            padding: 8px;
+            font-size: 11pt;
+        }
+        .total-table td.label {
+            font-weight: bold;
+            background-color: #f7fafc;
+        }
+        .total-table td.value {
+            text-align: right;
+            font-weight: bold;
+            color: #2c5282;
+        }
+        .clear {
+            clear: both;
+        }
+        .payment-container {
+            margin-top: 25px;
+            max-width: 350px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+        .pix-section {
+            border: 1px solid #cbd5e0;
+            padding: 15px;
+            text-align: center;
+            background-color: #f7fafc;
+        }
+        .qrcode-box {
+            width: 130px;
+            height: 130px;
+            margin: 0 auto 10px auto;
+            border: 1px solid #a0aec0;
+            background-color: #ffffff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 8pt;
+            color: #718096;
+            text-align: center;
+        }
+        .instructions {
+            margin-top: 20px;
+            font-size: 9pt;
+            color: #718096;
+            line-height: 1.4;
+        }
+    </style>
+</head>
+<body>
 
-# Configuração da Página
-st.set_page_config(page_title="Instituto Ser Consciente - Gestão", layout="wide", page_icon="🦋")
+    <div class="invoice-box">
+        <div class="header">
+            <table>
+                <tr>
+                    <td>
+                        <div class="clinic-name">Instituto Ser Consciente Ltda</div>
+                        <div class="clinic-info">CNPJ: 04.000.917/0001-47</div>
+                        <div class="clinic-info">Rua Inconfidentes, Contagem - MG</div>
+                    </td>
+                    <td>
+                        <div class="invoice-title">FATURA DE CESSÃO DE ESPAÇO</div>
+                        <div class="invoice-number">Nº 2026/0402</div>
+                        <div class="invoice-number">Data de Emissão: 08/09/2026</div>
+                        <div class="invoice-number">Vencimento: 15/09/2026</div>
+                    </td>
+                </tr>
+            </table>
+        </div>
 
-# --- CONFIGURAÇÕES BANCÁRIAS DO INSTITUTO ---
-CHAVE_PIX_INSTITUTO = "pix@institutoserconsciente.com.br"
-NOME_BENEFICIARIO = "Instituto Ser Consciente Ltda"
-CIDADE_BENEFICIARIO = "Contagem"
+        <div class="section-title">Dados do Profissional / Colaborador</div>
+        <table class="data-table">
+            <tr>
+                <th style="width: 25%;">Nome / Razão Social:</th>
+                <td style="width: 75%;">Dr(a). Profissional Colaborador(a)</td>
+            </tr>
+            <tr>
+                <th>Natureza da Operação:</th>
+                <td>Cessão de Espaço Físico e Apoio Administrativo</td>
+            </tr>
+        </table>
 
-# --- ARQUIVO DE PERSISTÊNCIA HISTÓRICA (JSON) ---
-ARQUIVO_DADOS = "dados_instituto.json"
+        <div class="section-title">Discriminação da Cessão</div>
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Descrição do Item</th>
+                    <th class="num" style="width: 15%;">Qtd / Blocos</th>
+                    <th class="num" style="width: 20%;">Valor por Bloco</th>
+                    <th class="num" style="width: 20%;">Total</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>Cessão de Espaço para Atendimento Ambulatorial (Bloco de Horários)</td>
+                    <td class="num">1</td>
+                    <td class="num">R$ 300,00</td>
+                    <td class="num">R$ 300,00</td>
+                </tr>
+            </tbody>
+        </table>
 
-def carregar_dados_persistencia():
-    if os.path.exists(ARQUIVO_DADOS):
-        try:
-            with open(ARQUIVO_DADOS, "r", encoding="utf-8") as f:
-                return json.load(f)
-        except Exception:
-            pass
-    return None
+        <div class="total-section">
+            <table class="total-table">
+                <tr>
+                    <td class="label">Valor Total da Cessão:</td>
+                    <td class="value">R$ 300,00</td>
+                </tr>
+            </table>
+        </div>
+        <div class="clear"></div>
 
-def salvar_dados_persistencia():
-    dados = {
-        "usuarios": st.session_state.usuarios,
-        "parceiros": st.session_state.parceiros_df.to_dict(orient="records"),
-        "atendimentos": st.session_state.atendimentos
-    }
-    with open(ARQUIVO_DADOS, "w", encoding="utf-8") as f:
-        json.dump(dados, f, ensure_ascii=False, indent=4)
-
-# --- INICIALIZAÇÃO DE ESTADO ---
-dados_salvos = carregar_dados_persistencia()
-
-if 'usuarios' not in st.session_state:
-    if dados_salvos and "usuarios" in dados_salvos:
-        st.session_state.usuarios = dados_salvos["usuarios"]
-    else:
-        st.session_state.usuarios = [
-            {"username": "recepcao", "nome": "Recepção Central", "senha": "Senha@123", "perfil": "recepcao", "primeiro_acesso": True},
-            {"username": "admin", "nome": "Administração (Antônio / Direção)", "senha": "Admin@123", "perfil": "admin", "primeiro_acesso": False}
-        ]
-
-if 'parceiros_df' not in st.session_state:
-    if dados_salvos and "parceiros" in dados_salvos:
-        st.session_state.parceiros_df = pd.DataFrame(dados_salvos["parceiros"])
-    else:
-        st.session_state.parceiros_df = pd.DataFrame([
-            {"id": 1, "nome": "Ana Carolina Ribeiro", "regra": "Percentual (70% Profissional / 30% Clínica)", "status": "Ativo"},
-            {"id": 2, "nome": "Anderson Psicólogo", "regra": "Bloco de Horas (6h)", "status": "Ativo"}
-        ])
-
-if 'atendimentos' not in st.session_state:
-    if dados_salvos and "atendimentos" in dados_salvos:
-        st.session_state.atendimentos = dados_salvos["atendimentos"]
-    else:
-        st.session_state.atendimentos = []
-
-if 'usuario_logado' not in st.session_state:
-    st.session_state.usuario_logado = None
-
-REGRAS_CLINICA = [
-    "Percentual (70% Profissional / 30% Clínica)",
-    "Percentual (80% Profissional / 20% Clínica)",
-    "Bloco de Horas (6h)",
-    "Locação por Hora (R$ 50,00/h)",
-    "Locação por Hora (R$ 42,00/h)"
-]
-
-def gerar_qrcode_pix(valor):
-    payload = f"00020126580014BR.GOV.BCB.PIX0136{CHAVE_PIX_INSTITUTO}5204000053039865802BR5925{NOME_BENEFICIARIO}6009{CIDADE_BENEFICIARIO}62070503***6304"
-    qr = qrcode.QRCode(version=1, box_size=8, border=2)
-    qr.add_data(payload)
-    qr.make(fit=True)
-    img = qr.make_image(fill_color="black", back_color="white")
-    buffered = BytesIO()
-    img.save(buffered, format="PNG")
-    return base64.b64encode(buffered.getvalue()).decode()
-
-def tela_login():
-    if os.path.exists("logo.png"):
-        col_lg1, col_lg2, col_lg3 = st.columns([2, 1, 2])
-        with col_lg2:
-            st.image("logo.png", width=120)
-    else:
-        st.markdown("<h2 style='text-align: center;'>🦋</h2>", unsafe_allow_html=True)
-        
-    st.markdown("<h2 style='text-align: center;'>Instituto Ser Consciente</h2>", unsafe_allow_html=True)
-    st.markdown("<h4 style='text-align: center; color: gray;'>Sistema de Gestão e Faturamento</h4>", unsafe_allow_html=True)
-    
-    col1, col2, col3 = st.columns([1, 2, 1])
-    with col2:
-        with st.form("form_login"):
-            usuario = st.text_input("Usuário")
-            senha = st.text_input("Senha", type="password")
-            submit = st.form_submit_button("Entrar no Sistema", use_container_width=True)
-            
-            if submit:
-                user_encontrado = next((u for u in st.session_state.usuarios if u["username"] == usuario and u["senha"] == senha), None)
-                if user_encontrado:
-                    st.session_state.usuario_logado = user_encontrado
-                    st.success("Login realizado com sucesso!")
-                    st.rerun()
-                else:
-                    st.error("Usuário ou senha incorretos.")
-
-def gerenciar_parceiros():
-    st.markdown("### 👥 Cadastro, Regras e Controle de Parceiros")
-    df = st.session_state.parceiros_df
-    st.dataframe(df, use_container_width=True)
-    
-    col_cad, col_edit = st.columns(2)
-    with col_cad:
-        st.markdown("#### ➕ Cadastrar Novo Profissional")
-        with st.form(key="form_novo_parceiro"):
-            novo_cad_nome = st.text_input("Nome do Profissional / Especialidade", key="cad_nome")
-            novo_cad_regra = st.selectbox("Regra de Pagamento / Parceria", REGRAS_CLINICA, key="cad_regra")
-            btn_cadastrar = st.form_submit_button("Cadastrar Profissional", use_container_width=True)
-            
-            if btn_cadastrar:
-                if novo_cad_nome.strip():
-                    novo_id = int(df['id'].max() + 1) if not df.empty else 1
-                    novo_registro = pd.DataFrame([{"id": novo_id, "nome": novo_cad_nome, "regra": novo_cad_regra, "status": "Ativo"}])
-                    st.session_state.parceiros_df = pd.concat([df, novo_registro], ignore_index=True)
-                    salvar_dados_persistencia()
-                    st.success(f"Profissional '{novo_cad_nome}' cadastrado!")
-                    st.rerun()
-                else:
-                    st.error("Informe o nome.")
-
-    with col_edit:
-        st.markdown("#### ⚙️ Editar / Inativar Profissional")
-        if not df.empty:
-            opcoes_parceiros = df['nome'].tolist()
-            parceiro_selecionado = st.selectbox("Selecione:", ["Selecione o profissional..."] + opcoes_parceiros)
-            if parceiro_selecionado != "Selecione o profissional...":
-                dados_atuais = df[df['nome'] == parceiro_selecionado].iloc[0]
-                
-                with st.form(key="form_edicao_parceiro"):
-                    novo_nome = st.text_input("Nome", value=dados_atuais['nome'])
-                    regra_atual_idx = REGRAS_CLINICA.index(dados_atuais['regra']) if dados_atuais['regra'] in REGRAS_CLINICA else 0
-                    nova_regra = st.selectbox("Regra", REGRAS_CLINICA, index=regra_atual_idx)
-                    status_disponiveis = ["Ativo", "Inativo"]
-                    status_atual_idx = status_disponiveis.index(dados_atuais['status']) if dados_atuais['status'] in status_disponiveis else 0
-                    novo_status = st.selectbox("Status", status_disponiveis, index=status_atual_idx)
-                    
-                    col_b1, col_b2 = st.columns(2)
-                    btn_salvar = col_b1.form_submit_button("💾 Salvar", use_container_width=True)
-                    btn_excluir = col_b2.form_submit_button("🗑️ Excluir", use_container_width=True)
-                    
-                    if btn_salvar:
-                        df.loc[df['nome'] == parceiro_selecionado, 'nome'] = novo_nome
-                        df.loc[df['nome'] == novo_nome, 'regra'] = nova_regra
-                        df.loc[df['nome'] == novo_nome, 'status'] = novo_status
-                        st.session_state.parceiros_df = df
-                        salvar_dados_persistencia()
-                        st.success("Atualizado!")
-                        st.rerun()
-                    if btn_excluir:
-                        st.session_state.parceiros_df = df[df['nome'] != parceiro_selecionado].reset_index(drop=True)
-                        salvar_dados_persistencia()
-                        st.warning("Excluído!")
-                        st.rerun()
-
-def modulo_lancamentos():
-    st.subheader("📝 Lançamento de Atendimentos e Locações (Histórico Acumulado)")
-    parceiros_ativos = st.session_state.parceiros_df[st.session_state.parceiros_df['status'] == 'Ativo']
-    
-    if parceiros_ativos.empty:
-        st.warning("Não há profissionais ativos cadastrados.")
-        return
-
-    with st.form("form_novo_atendimento"):
-        col1, col2, col3 = st.columns(3)
-        with col1:
-            data_atendimento_obj = st.date_input("Data", value=datetime.today())
-        with col2:
-            lista_profissionais = ["Selecione o profissional..."] + parceiros_ativos['nome'].tolist()
-            profissional_escolhido = st.selectbox("Profissional / Parceiro", lista_profissionais)
-        with col3:
-            nome_paciente_cliente = st.text_input("Paciente / Cliente", placeholder="Digite o nome...")
-            
-        regra_prof = ""
-        if profissional_escolhido != "Selecione o profissional...":
-            regra_prof = parceiros_ativos[parceiros_ativos['nome'] == profissional_escolhido]['regra'].values[0]
-            st.caption(f"📌 Regra ativa: **{regra_prof}**")
-        else:
-            st.caption("📌 Selecione um profissional acima para visualizar a regra ativa.")
-        
-        col_p1, col_p2, col_p3 = st.columns(3)
-        valor_calculado_ou_informado = 0.0
-        detalhes_calculo = ""
-        
-        if "Bloco de Horas" in regra_prof:
-            with col_p1:
-                qtd_blocos = st.number_input("Quantidade de Blocos (6h)", min_value=1.0, value=1.0, step=1.0)
-            with col_p2:
-                valor_por_bloco = st.number_input("Valor por Bloco (R$)", min_value=0.0, value=300.0, step=50.0, format="%.2f")
-            with col_p3:
-                forma_pagto = st.selectbox("Forma de Pagamento", ["Pix", "Cartão de Crédito", "Dinheiro", "Transferência", "Boleto"])
-            
-            valor_calculado_ou_informado = qtd_blocos * valor_por_bloco
-            detalhes_calculo = f"Bloco de Horas ({qtd_blocos:.0f}x R$ {valor_por_bloco:,.2f})"
-            
-        elif "Locação por Hora" in regra_prof:
-            valor_base_hora = 50.0 if "50" in regra_prof else 42.0
-            with col_p1:
-                hora_inicio = st.time_input("Horário de Início", value=time(8, 0))
-            with col_p2:
-                hora_fim = st.time_input("Horário de Término", value=time(9, 0))
-            with col_p3:
-                valor_hora_praticado = st.number_input("Valor da Hora (R$)", min_value=0.0, value=valor_base_hora, step=5.0, format="%.2f")
-            
-            forma_pagto = st.selectbox("Forma de Pagamento", ["Pix", "Cartão de Crédito", "Dinheiro", "Transferência", "Boleto"])
-            dt_inicio = datetime.combine(datetime.today(), hora_inicio)
-            dt_fim = datetime.combine(datetime.today(), hora_fim)
-            horas_dif = max(0.5, (dt_fim - dt_inicio).seconds / 3600.0)
-            
-            valor_calculado_ou_informado = horas_dif * valor_hora_praticado
-            detalhes_calculo = f"Locação por Hora ({hora_inicio.strftime('%H:%M')} às {hora_fim.strftime('%H:%M')} - {horas_dif:.1f}h)"
-            
-        else:
-            with col_p1:
-                valor_calculado_ou_informado = st.number_input("Valor da Consulta / Atendimento (R$)", min_value=0.0, value=0.0, step=10.0, format="%.2f")
-            with col_p2:
-                forma_pagto = st.selectbox("Forma de Pagamento", ["Pix", "Cartão de Crédito", "Dinheiro", "Transferência", "Boleto"])
-            with col_p3:
-                st.markdown("") 
-                
-            if "80%" in regra_prof:
-                detalhes_calculo = "80% Profissional / 20% Clínica"
-            else:
-                detalhes_calculo = "70% Profissional / 30% Clínica"
-
-        btn_lancar = st.form_submit_button("⚡ Salvar Lançamento no Histórico", use_container_width=True)
-        
-        if btn_lancar:
-            if profissional_escolhido == "Selecione o profissional...":
-                st.error("Por favor, selecione um profissional válido.")
-            elif not nome_paciente_cliente.strip():
-                st.error("Informe o nome do paciente/cliente.")
-            elif valor_calculado_ou_informado <= 0:
-                st.error("Informe um valor maior que zero.")
-            else:
-                repasse_devido = valor_calculado_ou_informado
-                data_br_str = data_atendimento_obj.strftime("%d/%m/%Y")
-
-                novo_id = len(st.session_state.atendimentos) + 1
-                st.session_state.atendimentos.append({
-                    "id": novo_id, "data": data_br_str, "cliente_paciente": nome_paciente_cliente,
-                    "profissional": profissional_escolhido, "regra_aplicada": regra_prof, "detalhes": detalhes_calculo,
-                    "valor_total_envolvido": valor_calculado_ou_informado,
-                    "repasse_devido": repasse_devido, "pagamento": forma_pagto, "status": "Pendente"
-                })
-                salvar_dados_persistencia()
-                st.success("Lançamento salvo e acumulado no histórico com sucesso!")
-                st.rerun()
-
-    st.markdown("---")
-    st.markdown("#### 📋 Histórico Geral Acumulado (Gerenciamento de Status)")
-    if st.session_state.atendimentos:
-        df_atend = pd.DataFrame(st.session_state.atendimentos)
-        for idx, row in df_atend.iterrows():
-            col_t1, col_t2, col_t3, col_t4 = st.columns([2, 2, 2, 1])
-            with col_t1:
-                st.text(f"{row['data']} | {row['profissional']}")
-            with col_t2:
-                st.text(f"Cliente: {row['cliente_paciente']} ({row['detalhes']})")
-            with col_t3:
-                st.text(f"R$ {row['valor_total_envolvido']:,.2f} [{row['status']}]")
-            with col_t4:
-                novo_status_btn = "✅ Pagar" if row['status'] == "Pendente" else "🔄 Pendente"
-                if st.button(novo_status_btn, key=f"btn_st_{row['id']}"):
-                    st.session_state.atendimentos[idx]['status'] = "Pago" if row['status'] == "Pendente" else "Pendente"
-                    salvar_dados_persistencia()
-                    st.rerun()
-    else:
-        st.info("Nenhum lançamento registrado no histórico.")
-
-def modulo_relatorios():
-    st.subheader("📊 Central de Relatórios e Extratos Históricos Acumulados")
-    
-    if not st.session_state.atendimentos:
-        st.info("Nenhum dado disponível no histórico para relatórios.")
-        return
-        
-    df = pd.DataFrame(st.session_state.atendimentos)
-    df['data_dt'] = pd.to_datetime(df['data'], format='%d/%m/%Y', errors='coerce')
-    
-    tipo_rel = st.selectbox("Selecione o Tipo de Relatório:", ["Relatório Diário", "Extrato Consolidado por Profissional", "Relatório Periódico (Mensal/Trimestral/Anual)"])
-    
-    if tipo_rel == "Relatório Diário":
-        st.markdown("#### 📅 Fechamento de Caixa Diário")
-        data_escolhida_obj = st.date_input("Escolha a Data:", value=datetime.today())
-        df_dia = df[df['data_dt'].dt.date == data_escolhida_obj]
-        
-        if not df_dia.empty:
-            c1, c2 = st.columns(2)
-            c1.metric("Volume do Dia", f"R$ {df_dia['valor_total_envolvido'].sum():,.2f}")
-            c2.metric("Total Repasse Devido", f"R$ {df_dia['repasse_devido'].sum():,.2f}")
-            st.dataframe(df_dia[['id', 'profissional', 'cliente_paciente', 'detalhes', 'valor_total_envolvido', 'status']], use_container_width=True)
-        else:
-            st.info("Nenhum atendimento registrado nesta data.")
-            
-    elif tipo_rel == "Extrato Consolidado por Profissional":
-        st.markdown("#### 📄 Extrato Mensal Acumulado e Emissão de Fatura")
-        profissionais = df['profissional'].unique().tolist()
-        prof_sel = st.selectbox("Selecione o Profissional:", profissionais)
-        
-        df_prof = df[df['profissional'] == prof_sel]
-        total_envolvido = df_prof['valor_total_envolvido'].sum()
-        total_repasse = df_prof['repasse_devido'].sum()
-        
-        qr_b64 = gerar_qrcode_pix(total_repasse)
-        
-        col_e1, col_e2 = st.columns([2, 1])
-        with col_e1:
-            st.markdown(f"""
-            ### **INSTITUTO SER CONSCIENTE LTDA**  
-            **CNPJ:** 04.000.917/0001-47 | Contagem - MG  
-            ---  
-            **Profissional:** {prof_sel}  
-            **Total de Registros:** {len(df_prof)}  
-            """)
-            
-            m1, m2 = st.columns(2)
-            m1.metric("Total Acumulado", f"R$ {total_envolvido:,.2f}")
-            m2.metric("Repasse Devido", f"R$ {total_repasse:,.2f}")
-            
-            st.markdown("#### Detalhamento dos Atendimentos")
-            st.dataframe(df_prof[['data', 'cliente_paciente', 'detalhes', 'valor_total_envolvido', 'status']], use_container_width=True)
-            
-        with col_e2:
-            st.markdown("#### 📱 Pagamento / Pix")
-            st.markdown(f'<img src="data:image/png;base64,{qr_b64}" width="180">', unsafe_allow_html=True)
-            st.code(CHAVE_PIX_INSTITUTO, language="text")
-
-        st.markdown("---")
-        st.markdown("#### 🖨️ Pré-visualização e Impressão da Fatura em PDF")
-        
-        html_fatura = f"""
-        <div style="background-color: white; color: black; padding: 25px; border: 1px solid #ccc; border-radius: 8px; font-family: Arial, sans-serif;">
-            <div style="border-bottom: 2px solid #0277bd; padding-bottom: 10px; margin-bottom: 15px;">
-                <h2 style="color: #0277bd; margin: 0;">INSTITUTO SER CONSCIENTE LTDA</h2>
-                <p style="margin: 5px 0 0 0; font-size: 14px;"><b>CNPJ:</b> 04.000.917/0001-47 | Contagem - MG</p>
-            </div>
-            <p><b>Profissional / Parceiro:</b> {prof_sel}</p>
-            <p><b>Total de Atendimentos:</b> {len(df_prof)}</p>
-            <p><b>Valor Total Acumulado:</b> R$ {total_envolvido:,.2f}</p>
-            <p><b>Repasse Devido:</b> R$ {total_repasse:,.2f}</p>
-            <hr style="border: 0; border-top: 1px solid #eee; margin: 15px 0;"/>
-            <div style="text-align: center; margin-top: 15px;">
-                <p style="font-size: 14px; font-weight: bold;">Escaneie o QR Code abaixo para efetuar o pagamento via PIX:</p>
-                <img src="data:image/png;base64,{qr_b64}" width="160" style="margin-bottom: 10px;">
-                <p style="margin: 0; font-size: 13px;"><b>Chave PIX:</b> {CHAVE_PIX_INSTITUTO}</p>
+        <div class="payment-container">
+            <div class="pix-section">
+                <div style="font-size: 9pt; font-weight: bold; color: #2d3748; margin-bottom: 8px;">PAGAMENTO VIA PIX (QR CODE ESTÁTICO)</div>
+                <div class="qrcode-box">
+                    <!-- Substituir pela tag <img> com o base64 ou link do QR Code real -->
+                    [QR CODE PIX]
+                </div>
+                <div style="font-size: 9pt; color: #4a5568;">Chave Pix (CNPJ): <strong>04.000.917/0001-47</strong></div>
+                <div style="font-size: 8pt; color: #718096; margin-top: 3px;">Instituto Ser Consciente Ltda</div>
             </div>
         </div>
-        """
-        st.markdown(html_fatura, unsafe_allow_html=True)
-        
-        html_botao_print = f"""
-        <script>
-            function imprimirFatura() {{
-                var janela = window.open('', '_blank');
-                janela.document.write(`
-                    <html>
-                        <head>
-                            <meta charset="utf-8">
-                            <title>Fatura - {prof_sel}</title>
-                            <style>
-                                body {{ font-family: Arial, sans-serif; padding: 40px; color: #000; }}
-                                h2 {{ color: #0277bd; }}
-                                hr {{ border: 0; border-top: 1px solid #ccc; margin: 20px 0; }}
-                            </style>
-                        </head>
-                        <body>
-                            <h2>INSTITUTO SER CONSCIENTE LTDA</h2>
-                            <p><b>CNPJ:</b> 04.000.917/0001-47 | Contagem - MG</p>
-                            <hr/>
-                            <p><b>Profissional / Parceiro:</b> {prof_sel}</p>
-                            <p><b>Total de Atendimentos:</b> {len(df_prof)}</p>
-                            <p><b>Valor Total Acumulado:</b> R$ {total_envolvido:,.2f}</p>
-                            <p><b>Repasse Devido:</b> R$ {total_repasse:,.2f}</p>
-                            <hr/>
-                            <div style="text-align: center; margin-top: 30px;">
-                                <p><b>Escaneie o QR Code abaixo para efetuar o pagamento via PIX:</b></p>
-                                <img src="data:image/png;base64,{qr_b64}" width="180">
-                                <p><b>Chave PIX:</b> {CHAVE_PIX_INSTITUTO}</p>
-                            </div>
-                        </body>
-                    </html>
-                `);
-                janela.document.close();
-                janela.focus();
-                setTimeout(() => {{ janela.print(); }}, 500);
-            }}
-        </script>
-        <button onclick="imprimirFatura()" style="width:100%; background-color:#4CAF50; color:white; padding:12px; border:none; border-radius:5px; font-size:16px; cursor:pointer; font-weight:bold; margin-top: 10px;">
-            🖨️ Imprimir / Salvar Fatura em PDF com QR Code
-        </button>
-        """
-        st.components.v1.html(html_botao_print, height=70)
-            
-    elif tipo_rel == "Relatório Periódico (Mensal/Trimestral/Anual)":
-        st.markdown("#### 📈 Balanço Financeiro Histórico por Período")
-        periodo = st.selectbox("Período:", ["Mensal", "Trimestral", "Semestral", "Anual"])
-        ano = st.number_input("Ano de Referência:", min_value=2024, max_value=2030, value=datetime.today().year)
-        
-        if periodo == "Mensal":
-            mes = st.selectbox("Mês:", list(range(1, 13)), format_func=lambda x: datetime(2000, x, 1).strftime('%B'))
-            df_p = df[(df['data_dt'].dt.year == ano) & (df['data_dt'].dt.month == mes)]
-        elif periodo == "Trimestral":
-            trimestre = st.selectbox("Trimestre:", [1, 2, 3, 4])
-            meses_tri = {1: [1,2,3], 2: [4,5,6], 3: [7,8,9], 4: [10,11,12]}[trimestre]
-            df_p = df[(df['data_dt'].dt.year == ano) & (df['data_dt'].dt.month.isin(meses_tri))]
-        elif periodo == "Semestral":
-            semestre = st.selectbox("Semestre:", [1, 2])
-            meses_sem = {1: [1,2,3,4,5,6], 2: [7,8,9,10,11,12]}[semestre]
-            df_p = df[(df['data_dt'].dt.year == ano) & (df['data_dt'].dt.month.isin(meses_sem))]
-        else:
-            df_p = df[df['data_dt'].dt.year == ano]
-            
-        if not df_p.empty:
-            kpi1, kpi2 = st.columns(2)
-            kpi1.metric("Faturamento Acumulado", f"R$ {df_p['valor_total_envolvido'].sum():,.2f}")
-            kpi2.metric("Total Repasses Devidos", f"R$ {df_p['repasse_devido'].sum():,.2f}")
-            st.dataframe(df_p, use_container_width=True)
-        else:
-            st.info("Nenhum lançamento encontrado para o período selecionado.")
 
-def gerenciar_usuarios():
-    st.subheader("🔐 Controle de Acessos")
-    st.dataframe(pd.DataFrame(st.session_state.usuarios)[['username', 'nome', 'perfil']], use_container_width=True)
-    with st.form("form_novo_usuario"):
-        st.markdown("#### ➕ Criar Novo Usuário")
-        c1, c2, c3 = st.columns(3)
-        with c1: novo_user = st.text_input("Usuário")
-        with c2: novo_nome_completo = st.text_input("Nome / Função")
-        with c3: nova_senha = st.text_input("Senha", type="password")
-        novo_perfil = st.selectbox("Perfil", ["recepcao", "admin"])
-        if st.form_submit_button("Criar Usuário"):
-            if novo_user and nova_senha:
-                st.session_state.usuarios.append({"username": novo_user, "nome": novo_nome_completo, "senha": nova_senha, "perfil": novo_perfil, "primeiro_acesso": True})
-                salvar_dados_persistencia()
-                st.success("Criado com sucesso!")
-                st.rerun()
-            else:
-                st.error("Preencha todos os campos.")
+        <div class="instructions">
+            <strong>Instruções e Regras de Operação:</strong><br>
+            Documento referente exclusivamente à cessão de espaço e infraestrutura para atendimento, conforme normas internas da instituição.<br>
+            Pagamento realizado diretamente via Pix utilizando a chave CNPJ informada acima.
+        </div>
+    </div>
 
-def app_principal():
-    user = st.session_state.usuario_logado
-    
-    if os.path.exists("logo.png"):
-        st.sidebar.image("logo.png", width=100)
-    else:
-        st.sidebar.markdown("### 🦋")
-        
-    st.sidebar.markdown(f"**Logado:** {user['nome']}")
-    st.sidebar.markdown(f"**Perfil:** {user['perfil'].upper()}")
-    
-    if st.sidebar.button("Sair / Logout"):
-        st.session_state.usuario_logado = None
-        st.rerun()
-        
-    st.markdown("## Painel Gerencial - Instituto Ser Consciente")
-        
-    if user['perfil'] == 'admin':
-        aba_lancamentos, aba_relatorios, aba_parceiros, aba_usuarios = st.tabs(["📝 Lançamentos", "📈 Relatórios & Extratos", "👥 Parceiros", "🔐 Acessos"])
-        with aba_lancamentos: modulo_lancamentos()
-        with aba_relatorios: modulo_relatorios()
-        with aba_parceiros: gerenciar_parceiros()
-        with aba_usuarios: gerenciar_usuarios()
-    else:
-        st.markdown("#### 🗂️ Módulo de Atendimento e Recepção")
-        modulo_lancamentos()
-
-if st.session_state.usuario_logado is None:
-    tela_login()
-else:
-    app_principal()
+</body>
+</html>

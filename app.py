@@ -185,7 +185,6 @@ def modulo_lancamentos():
     with st.form("form_novo_atendimento"):
         col1, col2, col3 = st.columns(3)
         with col1:
-            # Data padrão sem parâmetros restritivos que gerem conflitos de versão
             data_atendimento_obj = st.date_input("Data", value=datetime.today())
         with col2:
             lista_profissionais = ["Selecione o profissional..."] + parceiros_ativos['nome'].tolist()
@@ -200,7 +199,6 @@ def modulo_lancamentos():
         else:
             st.caption("📌 Selecione um profissional acima para visualizar a regra ativa.")
         
-        # Dinâmica de campos baseada na regra do profissional selecionado
         col_p1, col_p2, col_p3 = st.columns(3)
         
         valor_calculado_ou_informado = 0.0
@@ -333,7 +331,7 @@ def modulo_relatorios():
             st.info("Nenhum atendimento registrado nesta data.")
             
     elif tipo_rel == "Extrato Consolidado por Profissional":
-        st.markdown("#### 📄 Extrato Mensal Acumulado para Prestação de Contas")
+        st.markdown("#### 📄 Extrato Mensal Acumulado e Emissão de Fatura")
         profissionais = df['profissional'].unique().tolist()
         prof_sel = st.selectbox("Selecione o Profissional:", profissionais)
         
@@ -342,23 +340,49 @@ def modulo_relatorios():
         total_clinica = df_prof['taxa_clinica'].sum()
         total_repasse = df_prof['repasse_profissional'].sum()
         
+        # Layout limpo e proporcional com colunas estruturadas
         col_e1, col_e2 = st.columns([2, 1])
         with col_e1:
-            st.info(f"""
-            **INSTITUTO SER CONSCIENTE LTDA**  
-            CNPJ: 04.000.917/0001-47 | Contagem - MG  
-            --------------------------------------------------  
+            st.markdown(f"""
+            ### **INSTITUTO SER CONSCIENTE LTDA**  
+            **CNPJ:** 04.000.917/0001-47 | Contagem - MG  
+            ---  
             **Profissional:** {prof_sel}  
-            **Total Histórico de Atendimentos:** {len(df_prof)} registros  
-            **Valor Total Acumulado:** R$ {total_envolvido:,.2f}  
-            **Taxa da Clínica / Locação:** R$ {total_clinica:,.2f}  
-            **Repasse Devido ao Profissional:** R$ {total_repasse:,.2f}  
-            --------------------------------------------------  
+            **Total de Registros:** {len(df_prof)}  
             """)
+            
+            # Métricas limpas sem quebra de layout
+            m1, m2, m3 = st.columns(3)
+            m1.metric("Total Acumulado", f"R$ {total_envolvido:,.2f}")
+            m2.metric("Taxa / Clínica", f"R$ {total_clinica:,.2f}")
+            m3.metric("Repasse Devido", f"R$ {total_repasse:,.2f}")
+            
+            st.markdown("#### Detalhamento dos Atendimentos")
             st.dataframe(df_prof[['data', 'cliente_paciente', 'detalhes', 'valor_total_envolvido', 'status']], use_container_width=True)
             
+            # Botão dedicado para gerar fatura em PDF/Impressão
+            html_fatura = f"""
+            <html>
+                <head><title>Fatura - {prof_sel}</title></head>
+                <body style="font-family: Arial, sans-serif; padding: 20px;">
+                    <h2>INSTITUTO SER CONSCIENTE LTDA</h2>
+                    <p>CNPJ: 04.000.917/0001-47 | Contagem - MG</p>
+                    <hr/>
+                    <p><b>Profissional:</b> {prof_sel}</p>
+                    <p><b>Valor Total Acumulado:</b> R$ {total_envolvido:,.2f}</p>
+                    <p><b>Taxa da Clínica / Locação:</b> R$ {total_clinica:,.2f}</p>
+                    <p><b>Repasse Devido:</b> R$ {total_repasse:,.2f}</p>
+                    <hr/>
+                    <p>Chave PIX: {CHAVE_PIX_INSTITUTO}</p>
+                </body>
+            </html>
+            """
+            b64_fatura = base64.b64encode(html_fatura.encode()).decode()
+            href_fatura = f'<a href="data:text/html;base64,{b64_fatura}" download="fatura_{prof_sel.replace(" ", "_")}.html" target="_blank" style="text-decoration:none;"><button style="width:100%;background-color:#4CAF50;color:white;padding:10px;border:none;border-radius:5px;font-size:16px;cursor:pointer;">📥 Gerar Fatura / Imprimir PDF</button></a>'
+            st.markdown(href_fatura, unsafe_allow_html=True)
+            
         with col_e2:
-            st.markdown("#### 📱 Pagamento / Pix Único")
+            st.markdown("#### 📱 Pagamento / Pix")
             qr_b64 = gerar_qrcode_pix(total_envolvido)
             st.markdown(f'<img src="data:image/png;base64,{qr_b64}" width="180">', unsafe_allow_html=True)
             st.code(CHAVE_PIX_INSTITUTO, language="text")

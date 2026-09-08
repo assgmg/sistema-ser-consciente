@@ -1,6 +1,6 @@
 import streamlit as st
 import pandas as pd
-from datetime import datetime, time, timedelta
+from datetime import datetime, time
 import qrcode
 from io import BytesIO
 import base64
@@ -36,7 +36,7 @@ def salvar_dados_persistencia():
     with open(ARQUIVO_DADOS, "w", encoding="utf-8") as f:
         json.dump(dados, f, ensure_ascii=False, indent=4)
 
-# --- INICIALIZAÇÃO DE ESTADO COM HISTÓRICO ACUMULATIVO ---
+# --- INICIALIZAÇÃO DE ESTADO ---
 dados_salvos = carregar_dados_persistencia()
 
 if 'usuarios' not in st.session_state:
@@ -66,7 +66,6 @@ if 'atendimentos' not in st.session_state:
 if 'usuario_logado' not in st.session_state:
     st.session_state.usuario_logado = None
 
-# --- REGRAS OFICIAIS DO INSTITUTO ---
 REGRAS_CLINICA = [
     "Percentual (70% Profissional / 30% Clínica)",
     "Percentual (80% Profissional / 20% Clínica)",
@@ -75,7 +74,6 @@ REGRAS_CLINICA = [
     "Locação por Hora (R$ 42,00/h)"
 ]
 
-# --- FUNÇÃO GERADORA DE QR CODE PIX ---
 def gerar_qrcode_pix(valor):
     payload = f"00020126580014BR.GOV.BCB.PIX0136{CHAVE_PIX_INSTITUTO}5204000053039865802BR5925{NOME_BENEFICIARIO}6009{CIDADE_BENEFICIARIO}62070503***6304"
     qr = qrcode.QRCode(version=1, box_size=8, border=2)
@@ -86,7 +84,6 @@ def gerar_qrcode_pix(valor):
     img.save(buffered, format="PNG")
     return base64.b64encode(buffered.getvalue()).decode()
 
-# --- TELA DE LOGIN ---
 def tela_login():
     if os.path.exists("logo.png"):
         col_lg1, col_lg2, col_lg3 = st.columns([2, 1, 2])
@@ -114,7 +111,6 @@ def tela_login():
                 else:
                     st.error("Usuário ou senha incorretos.")
 
-# --- GESTÃO DE PARCEIROS ---
 def gerenciar_parceiros():
     st.markdown("### 👥 Cadastro, Regras e Controle de Parceiros")
     df = st.session_state.parceiros_df
@@ -173,7 +169,6 @@ def gerenciar_parceiros():
                         st.warning("Excluído!")
                         st.rerun()
 
-# --- MÓDULO DE LANÇAMENTOS E HISTÓRICO COM ALTERAÇÃO DE STATUS ---
 def modulo_lancamentos():
     st.subheader("📝 Lançamento de Atendimentos e Locações (Histórico Acumulado)")
     parceiros_ativos = st.session_state.parceiros_df[st.session_state.parceiros_df['status'] == 'Ativo']
@@ -200,7 +195,6 @@ def modulo_lancamentos():
             st.caption("📌 Selecione um profissional acima para visualizar a regra ativa.")
         
         col_p1, col_p2, col_p3 = st.columns(3)
-        
         valor_calculado_ou_informado = 0.0
         detalhes_calculo = ""
         
@@ -225,7 +219,6 @@ def modulo_lancamentos():
                 valor_hora_praticado = st.number_input("Valor da Hora (R$)", min_value=0.0, value=valor_base_hora, step=5.0, format="%.2f")
             
             forma_pagto = st.selectbox("Forma de Pagamento", ["Pix", "Cartão de Crédito", "Dinheiro", "Transferência", "Boleto"])
-            
             dt_inicio = datetime.combine(datetime.today(), hora_inicio)
             dt_fim = datetime.combine(datetime.today(), hora_fim)
             horas_dif = max(0.5, (dt_fim - dt_inicio).seconds / 3600.0)
@@ -256,18 +249,7 @@ def modulo_lancamentos():
             elif valor_calculado_ou_informado <= 0:
                 st.error("Informe um valor maior que zero.")
             else:
-                if "Locação" in regra_prof or "Bloco" in regra_prof:
-                    taxa_clinica = valor_calculado_ou_informado
-                    repasse_prof = 0.0
-                else:
-                    if "80%" in regra_prof:
-                        repasse_prof = valor_calculado_ou_informado * 0.80
-                        taxa_clinica = valor_calculado_ou_informado * 0.20
-                    else:
-                        repasse_prof = valor_calculado_ou_informado * 0.70
-                        taxa_clinica = valor_calculado_ou_informado * 0.30
-
-                # Formatação rigorosa para o padrão brasileiro DD/MM/AAAA
+                repasse_devido = valor_calculado_ou_informado
                 data_br_str = data_atendimento_obj.strftime("%d/%m/%Y")
 
                 novo_id = len(st.session_state.atendimentos) + 1
@@ -275,7 +257,7 @@ def modulo_lancamentos():
                     "id": novo_id, "data": data_br_str, "cliente_paciente": nome_paciente_cliente,
                     "profissional": profissional_escolhido, "regra_aplicada": regra_prof, "detalhes": detalhes_calculo,
                     "valor_total_envolvido": valor_calculado_ou_informado,
-                    "taxa_clinica": taxa_clinica, "repasse_profissional": repasse_prof, "pagamento": forma_pagto, "status": "Pendente"
+                    "repasse_devido": repasse_devido, "pagamento": forma_pagto, "status": "Pendente"
                 })
                 salvar_dados_persistencia()
                 st.success("Lançamento salvo e acumulado no histórico com sucesso!")
@@ -285,7 +267,6 @@ def modulo_lancamentos():
     st.markdown("#### 📋 Histórico Geral Acumulado (Gerenciamento de Status)")
     if st.session_state.atendimentos:
         df_atend = pd.DataFrame(st.session_state.atendimentos)
-        
         for idx, row in df_atend.iterrows():
             col_t1, col_t2, col_t3, col_t4 = st.columns([2, 2, 2, 1])
             with col_t1:
@@ -303,7 +284,6 @@ def modulo_lancamentos():
     else:
         st.info("Nenhum lançamento registrado no histórico.")
 
-# --- MÓDULO DE RELATÓRIOS E FATURAS CONSOLIDADAS ---
 def modulo_relatorios():
     st.subheader("📊 Central de Relatórios e Extratos Históricos Acumulados")
     
@@ -322,10 +302,9 @@ def modulo_relatorios():
         df_dia = df[df['data_dt'].dt.date == data_escolhida_obj]
         
         if not df_dia.empty:
-            c1, c2, c3 = st.columns(3)
+            c1, c2 = st.columns(2)
             c1.metric("Volume do Dia", f"R$ {df_dia['valor_total_envolvido'].sum():,.2f}")
-            c2.metric("Receita Clínica", f"R$ {df_dia['taxa_clinica'].sum():,.2f}")
-            c3.metric("Repasses", f"R$ {df_dia['repasse_profissional'].sum():,.2f}")
+            c2.metric("Total Repasse Devido", f"R$ {df_dia['repasse_devido'].sum():,.2f}")
             st.dataframe(df_dia[['id', 'profissional', 'cliente_paciente', 'detalhes', 'valor_total_envolvido', 'status']], use_container_width=True)
         else:
             st.info("Nenhum atendimento registrado nesta data.")
@@ -337,10 +316,10 @@ def modulo_relatorios():
         
         df_prof = df[df['profissional'] == prof_sel]
         total_envolvido = df_prof['valor_total_envolvido'].sum()
-        total_clinica = df_prof['taxa_clinica'].sum()
-        total_repasse = df_prof['repasse_profissional'].sum()
+        total_repasse = df_prof['repasse_devido'].sum()
         
-        # Layout limpo e proporcional com colunas estruturadas
+        qr_b64 = gerar_qrcode_pix(total_repasse)
+        
         col_e1, col_e2 = st.columns([2, 1])
         with col_e1:
             st.markdown(f"""
@@ -351,41 +330,83 @@ def modulo_relatorios():
             **Total de Registros:** {len(df_prof)}  
             """)
             
-            # Métricas limpas sem quebra de layout
-            m1, m2, m3 = st.columns(3)
+            m1, m2 = st.columns(2)
             m1.metric("Total Acumulado", f"R$ {total_envolvido:,.2f}")
-            m2.metric("Taxa / Clínica", f"R$ {total_clinica:,.2f}")
-            m3.metric("Repasse Devido", f"R$ {total_repasse:,.2f}")
+            m2.metric("Repasse Devido", f"R$ {total_repasse:,.2f}")
             
             st.markdown("#### Detalhamento dos Atendimentos")
             st.dataframe(df_prof[['data', 'cliente_paciente', 'detalhes', 'valor_total_envolvido', 'status']], use_container_width=True)
             
-            # Botão dedicado para gerar fatura em PDF/Impressão
-            html_fatura = f"""
-            <html>
-                <head><title>Fatura - {prof_sel}</title></head>
-                <body style="font-family: Arial, sans-serif; padding: 20px;">
-                    <h2>INSTITUTO SER CONSCIENTE LTDA</h2>
-                    <p>CNPJ: 04.000.917/0001-47 | Contagem - MG</p>
-                    <hr/>
-                    <p><b>Profissional:</b> {prof_sel}</p>
-                    <p><b>Valor Total Acumulado:</b> R$ {total_envolvido:,.2f}</p>
-                    <p><b>Taxa da Clínica / Locação:</b> R$ {total_clinica:,.2f}</p>
-                    <p><b>Repasse Devido:</b> R$ {total_repasse:,.2f}</p>
-                    <hr/>
-                    <p>Chave PIX: {CHAVE_PIX_INSTITUTO}</p>
-                </body>
-            </html>
-            """
-            b64_fatura = base64.b64encode(html_fatura.encode()).decode()
-            href_fatura = f'<a href="data:text/html;base64,{b64_fatura}" download="fatura_{prof_sel.replace(" ", "_")}.html" target="_blank" style="text-decoration:none;"><button style="width:100%;background-color:#4CAF50;color:white;padding:10px;border:none;border-radius:5px;font-size:16px;cursor:pointer;">📥 Gerar Fatura / Imprimir PDF</button></a>'
-            st.markdown(href_fatura, unsafe_allow_html=True)
-            
         with col_e2:
             st.markdown("#### 📱 Pagamento / Pix")
-            qr_b64 = gerar_qrcode_pix(total_envolvido)
             st.markdown(f'<img src="data:image/png;base64,{qr_b64}" width="180">', unsafe_allow_html=True)
             st.code(CHAVE_PIX_INSTITUTO, language="text")
+
+        st.markdown("---")
+        st.markdown("#### 🖨️ Pré-visualização e Impressão da Fatura em PDF")
+        
+        html_fatura = f"""
+        <div style="background-color: white; color: black; padding: 25px; border: 1px solid #ccc; border-radius: 8px; font-family: Arial, sans-serif;">
+            <div style="border-bottom: 2px solid #0277bd; padding-bottom: 10px; margin-bottom: 15px;">
+                <h2 style="color: #0277bd; margin: 0;">INSTITUTO SER CONSCIENTE LTDA</h2>
+                <p style="margin: 5px 0 0 0; font-size: 14px;"><b>CNPJ:</b> 04.000.917/0001-47 | Contagem - MG</p>
+            </div>
+            <p><b>Profissional / Parceiro:</b> {prof_sel}</p>
+            <p><b>Total de Atendimentos:</b> {len(df_prof)}</p>
+            <p><b>Valor Total Acumulado:</b> R$ {total_envolvido:,.2f}</p>
+            <p><b>Repasse Devido:</b> R$ {total_repasse:,.2f}</p>
+            <hr style="border: 0; border-top: 1px solid #eee; margin: 15px 0;"/>
+            <div style="text-align: center; margin-top: 15px;">
+                <p style="font-size: 14px; font-weight: bold;">Escaneie o QR Code abaixo para efetuar o pagamento via PIX:</p>
+                <img src="data:image/png;base64,{qr_b64}" width="160" style="margin-bottom: 10px;">
+                <p style="margin: 0; font-size: 13px;"><b>Chave PIX:</b> {CHAVE_PIX_INSTITUTO}</p>
+            </div>
+        </div>
+        """
+        st.markdown(html_fatura, unsafe_allow_html=True)
+        
+        html_botao_print = f"""
+        <script>
+            function imprimirFatura() {{
+                var janela = window.open('', '_blank');
+                janela.document.write(`
+                    <html>
+                        <head>
+                            <meta charset="utf-8">
+                            <title>Fatura - {prof_sel}</title>
+                            <style>
+                                body {{ font-family: Arial, sans-serif; padding: 40px; color: #000; }}
+                                h2 {{ color: #0277bd; }}
+                                hr {{ border: 0; border-top: 1px solid #ccc; margin: 20px 0; }}
+                            </style>
+                        </head>
+                        <body>
+                            <h2>INSTITUTO SER CONSCIENTE LTDA</h2>
+                            <p><b>CNPJ:</b> 04.000.917/0001-47 | Contagem - MG</p>
+                            <hr/>
+                            <p><b>Profissional / Parceiro:</b> {prof_sel}</p>
+                            <p><b>Total de Atendimentos:</b> {len(df_prof)}</p>
+                            <p><b>Valor Total Acumulado:</b> R$ {total_envolvido:,.2f}</p>
+                            <p><b>Repasse Devido:</b> R$ {total_repasse:,.2f}</p>
+                            <hr/>
+                            <div style="text-align: center; margin-top: 30px;">
+                                <p><b>Escaneie o QR Code abaixo para efetuar o pagamento via PIX:</b></p>
+                                <img src="data:image/png;base64,{qr_b64}" width="180">
+                                <p><b>Chave PIX:</b> {CHAVE_PIX_INSTITUTO}</p>
+                            </div>
+                        </body>
+                    </html>
+                `);
+                janela.document.close();
+                janela.focus();
+                setTimeout(() => {{ janela.print(); }}, 500);
+            }}
+        </script>
+        <button onclick="imprimirFatura()" style="width:100%; background-color:#4CAF50; color:white; padding:12px; border:none; border-radius:5px; font-size:16px; cursor:pointer; font-weight:bold; margin-top: 10px;">
+            🖨️ Imprimir / Salvar Fatura em PDF com QR Code
+        </button>
+        """
+        st.components.v1.html(html_botao_print, height=70)
             
     elif tipo_rel == "Relatório Periódico (Mensal/Trimestral/Anual)":
         st.markdown("#### 📈 Balanço Financeiro Histórico por Período")
@@ -407,15 +428,13 @@ def modulo_relatorios():
             df_p = df[df['data_dt'].dt.year == ano]
             
         if not df_p.empty:
-            kpi1, kpi2, kpi3 = st.columns(3)
+            kpi1, kpi2 = st.columns(2)
             kpi1.metric("Faturamento Acumulado", f"R$ {df_p['valor_total_envolvido'].sum():,.2f}")
-            kpi2.metric("Receita da Clínica", f"R$ {df_p['taxa_clinica'].sum():,.2f}")
-            kpi3.metric("Total Repasses", f"R$ {df_p['repasse_profissional'].sum():,.2f}")
+            kpi2.metric("Total Repasses Devidos", f"R$ {df_p['repasse_devido'].sum():,.2f}")
             st.dataframe(df_p, use_container_width=True)
         else:
             st.info("Nenhum lançamento encontrado para o período selecionado.")
 
-# --- GESTÃO DE USUÁRIOS ---
 def gerenciar_usuarios():
     st.subheader("🔐 Controle de Acessos")
     st.dataframe(pd.DataFrame(st.session_state.usuarios)[['username', 'nome', 'perfil']], use_container_width=True)
@@ -435,7 +454,6 @@ def gerenciar_usuarios():
             else:
                 st.error("Preencha todos os campos.")
 
-# --- APLICATIVO PRINCIPAL ---
 def app_principal():
     user = st.session_state.usuario_logado
     
@@ -463,7 +481,6 @@ def app_principal():
         st.markdown("#### 🗂️ Módulo de Atendimento e Recepção")
         modulo_lancamentos()
 
-# --- CONTROLE DE FLUXO ---
 if st.session_state.usuario_logado is None:
     tela_login()
 else:

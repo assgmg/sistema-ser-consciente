@@ -1,3 +1,4 @@
+html_content = """
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -214,7 +215,6 @@
             <div class="pix-section">
                 <div style="font-size: 9pt; font-weight: bold; color: #2d3748; margin-bottom: 8px;">PAGAMENTO VIA PIX (QR CODE ESTÁTICO)</div>
                 <div class="qrcode-box">
-                    <!-- Substituir pela tag <img> com o base64 ou link do QR Code real -->
                     [QR CODE PIX]
                 </div>
                 <div style="font-size: 9pt; color: #4a5568;">Chave Pix (CNPJ): <strong>04.000.917/0001-47</strong></div>
@@ -231,3 +231,7 @@
 
 </body>
 </html>
+"""
+
+# Para renderizar no Streamlit:
+st.markdown(html_content, unsafe_allow_html=True)

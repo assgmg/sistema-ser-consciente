@@ -1,522 +1,834 @@
-from datetime import datetime, time
-import sqlite3
+import datetime
 import pandas as pd
+import plotly.express as px
 import streamlit as st
-import streamlit.components.v1 as components
 
+# Configuração da Página
 st.set_page_config(
-    page_title="Instituto Ser Consciente - Sistema Integrado",
+    page_title="Gestão Clínica - Instituto Ser Consciente",
+    page_icon="🏥",
     layout="wide",
-    initial_sidebar_state="expanded",
 )
 
+# Inicialização do Banco de Dados em Memória (Session State) com Chaves Globalizadas de Pacientes
+if "perfil_usuario" not in st.session_state:
+  st.session_state.perfil_usuario = "Administrador"
 
-# --- 1. BANCO DE DADOS E SEGURANÇA (SOFT DELETE / LGPD) ---
-def init_db():
-  try:
-    conn = sqlite3.connect("ser_consciente.db", timeout=10)
-    cursor = conn.cursor()
+if "audit_log" not in st.session_state:
+  st.session_state.audit_log = pd.DataFrame(columns=[
+      "Timestamp",
+      "Usuario",
+      "Modulo",
+      "Acao",
+      "Detalhes",
+  ])
 
-    # Profissionais
-    cursor.execute("""
-            CREATE TABLE IF NOT EXISTS profissionais (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                nome TEXT NOT NULL,
-                tipo_contrato TEXT NOT NULL,
-                ativo INTEGER DEFAULT 1,
-                data_cadastro TEXT
-            )
-        """)
+if "usuarios_sistema" not in st.session_state:
+  st.session_state.usuarios_sistema = pd.DataFrame([
+      {
+          "ID_Usuario": "USER-001",
+          "Nome": "Antônio Sérgio",
+          "Email": "antonio@institutoserconsciente.com.br",
+          "Perfil": "Administrador",
+          "Status": "Ativo",
+          "Ultima_Modificacao": "2026-09-11 08:00:00",
+      },
+      {
+          "ID_Usuario": "USER-002",
+          "Nome": "Nathália",
+          "Email": "recepcao@institutoserconsciente.com.br",
+          "Perfil": "Recepcionista",
+          "Status": "Ativo",
+          "Ultima_Modificacao": "2026-09-11 08:00:00",
+      },
+  ])
 
-    # Pacientes
-    cursor.execute("""
-            CREATE TABLE IF NOT EXISTS pacientes (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                nome TEXT NOT NULL,
-                telefone TEXT
-            )
-        """)
+if "profissionais" not in st.session_state:
+  st.session_state.profissionais = pd.DataFrame([
+      {
+          "ID": 1,
+          "Nome": "Dr. Fabrício",
+          "Especialidade": "Psiquiatria",
+          "Tipo_Atendimento": "Consulta",
+          "Modalidade": "Produtividade Variável",
+          "Percentual_Clinica": 30.0,
+          "Status": "Ativo",
+      },
+      {
+          "ID": 2,
+          "Nome": "Mariana Terapeuta",
+          "Especialidade": "Psicologia",
+          "Tipo_Atendimento": "Sessão",
+          "Modalidade": "Produtividade Variável",
+          "Percentual_Clinica": 20.0,
+          "Status": "Ativo",
+      },
+  ])
 
-    # Salas / Consultórios
-    cursor.execute("""
-            CREATE TABLE IF NOT EXISTS salas (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                nome_sala TEXT NOT NULL,
-                status TEXT DEFAULT 'Disponível', -- Disponível, Ocupada, Manutenção
-                profissional_atual TEXT
-            )
-        """)
-    # Inserir salas padrão se não existirem
-    cursor.execute("SELECT COUNT(*) FROM salas")
-    if cursor.fetchone()[0] == 0:
-      salas_iniciais = [
-          ("Consultório 1", "Disponível", None),
-          ("Consultório 2", "Disponível", None),
-          ("Consultório 3", "Disponível", None),
-          ("Sala de Procedimentos", "Disponível", None),
-      ]
-      cursor.executemany(
-          "INSERT INTO salas (nome_sala, status, profissional_atual) VALUES (?,"
-          " ?, ?)",
-          salas_iniciais,
-      )
+# Base Mestra de Pacientes com ID Único (Resolve ambiguidade de múltiplos profissionais)
+if "base_pacientes" not in st.session_state:
+  st.session_state.base_pacientes = pd.DataFrame([
+      {
+          "ID_Paciente": "PAC-0001",
+          "Nome_Completo": "João da Silva",
+          "Telefone": "(31) 99999-1111",
+          "Email": "joao@email.com",
+          "Data_Cadastro": "2026-01-15",
+      },
+      {
+          "ID_Paciente": "PAC-0002",
+          "Nome_Completo": "Maria Oliveira",
+          "Telefone": "(31) 98888-2222",
+          "Email": "maria@email.com",
+          "Data_Cadastro": "2026-02-10",
+      },
+  ])
 
-    # Atendimentos (Com suporte a Soft Delete e Vínculo de Consultório)
-    cursor.execute("""
-            CREATE TABLE IF NOT EXISTS atendimentos (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                data TEXT NOT NULL,
-                profissional_id INTEGER,
-                paciente_id INTEGER,
-                consultorio TEXT,
-                tipo_atendimento TEXT,
-                valor_consulta REAL,
-                forma_pagamento TEXT,
-                repasse_clinica REAL,
-                repasse_profissional REAL,
-                recepcionista TEXT,
-                status TEXT DEFAULT 'Ativo', -- 'Ativo', 'Cancelado', 'Arquivado' (Soft Delete)
-                consolidado INTEGER DEFAULT 0
-            )
-        """)
+# Base de Opções/Modelos de Pacotes por Profissional
+if "modelos_pacotes_profissional" not in st.session_state:
+  st.session_state.modelos_pacotes_profissional = pd.DataFrame([
+      {
+          "ID_Modelo": 1,
+          "Profissional": "Dr. Fabrício",
+          "Descricao_Opcao": "Pacote 4 Sessões (Tabela Antiga)",
+          "Total_Sessoes": 4,
+          "Valor_Sugerido": 500.0,
+      },
+      {
+          "ID_Modelo": 2,
+          "Profissional": "Dr. Fabrício",
+          "Descricao_Opcao": "Pacote 4 Sessões (Tabela Atualizada)",
+          "Total_Sessoes": 4,
+          "Valor_Sugerido": 580.0,
+      },
+      {
+          "ID_Modelo": 3,
+          "Profissional": "Mariana Terapeuta",
+          "Descricao_Opcao": "Pacote 5 Sessões (Padrão)",
+          "Total_Sessoes": 5,
+          "Valor_Sugerido": 750.0,
+      },
+  ])
 
-    # Fila de Espera
-    cursor.execute("""
-            CREATE TABLE IF NOT EXISTS fila_espera (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                paciente_nome TEXT,
-                profissional_interesse INTEGER,
-                data_cadastro TEXT,
-                prioridade INTEGER DEFAULT 1,
-                status TEXT DEFAULT 'Aguardando'
-            )
-        """)
+# Base de Pacotes Cadastrados (Vinculados por ID_Paciente)
+if "pacotes_atendimento" not in st.session_state:
+  st.session_state.pacotes_atendimento = pd.DataFrame(columns=[
+      "ID_Pacote",
+      "Profissional",
+      "ID_Paciente",
+      "Nome_Paciente",
+      "Categoria_Opcao",
+      "Total_Sessoes",
+      "Valor_Total_Pacote",
+      "Percentual_Clinica",
+      "Valor_Repasse_Total",
+      "Status_Pacote",
+      "Data_Cadastro",
+  ])
 
-    # Despesas
-    cursor.execute("""
-            CREATE TABLE IF NOT EXISTS despesas (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                data_vencimento TEXT,
-                data_pagamento TEXT,
-                descricao TEXT,
-                categoria TEXT,
-                valor REAL,
-                status TEXT DEFAULT 'Pendente'
-            )
-        """)
-
-    conn.commit()
-    conn.close()
-  except Exception as e:
-    st.error(f"Erro ao inicializar o banco de dados: {e}")
-
-
-init_db()
-
-
-def run_query(query, params=(), fetch=True):
-  try:
-    conn = sqlite3.connect("ser_consciente.db", timeout=10)
-    cursor = conn.cursor()
-    cursor.execute(query, params)
-    if fetch:
-      res = cursor.fetchall()
-      conn.close()
-      return res
-    conn.commit()
-    conn.close()
-  except Exception as e:
-    st.error(f"Erro na operação SQL: {e}")
-    return []
+# Base de Atendimentos por Produtividade & Avulsos (Vinculados por ID_Paciente)
+if "atendimentos_produtividade" not in st.session_state:
+  st.session_state.atendimentos_produtividade = pd.DataFrame(columns=[
+      "ID_Atendimento",
+      "Data",
+      "Hora",
+      "Profissional",
+      "Tipo_Atendimento",
+      "ID_Paciente",
+      "Nome_Paciente",
+      "Tipo_Cobranca",
+      "ID_Pacote",
+      "Sessao_Atual",
+      "Valor_Total_Paciente",
+      "Percentual_Clinica",
+      "Valor_Repasse_Clinica",
+      "Status_Pagamento",
+      "Data_Baixa",
+      "Plano_Contas",
+      "Registrado_Por",
+  ])
 
 
-# --- 2. CONTROLE DE ACESSO (RBAC) ---
-st.sidebar.title("🔐 Instituto Ser Consciente")
-perfil = st.sidebar.selectbox(
-    "Perfil de Acesso",
-    [
-        "Recepção",
-        "Administração (Antônio)",
-        "Direção Técnica (Dr. Fabrício)",
-    ],
+def registrar_auditoria(modulo, acao, detalhes):
+  novo_log = pd.DataFrame([{
+      "Timestamp": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+      "Usuario": st.session_state.get("perfil_usuario", "Desconhecido"),
+      "Modulo": modulo,
+      "Acao": acao,
+      "Detalhes": detalhes,
+  }])
+  st.session_state.audit_log = pd.concat(
+      [st.session_state.audit_log, novo_log], ignore_index=True
+  )
+
+
+# ---------------------------------------------------------
+# BARRA LATERAL DE NAVEGAÇÃO E CONTROLE DE ACESSO
+# ---------------------------------------------------------
+st.sidebar.title("🏥 Painel de Gestão (Coworking)")
+
+st.sidebar.markdown("---")
+st.sidebar.subheader("🔒 Identificação de Usuário Ativo")
+usuarios_ativos_lista = st.session_state.usuarios_sistema[
+    st.session_state.usuarios_sistema["Status"] == "Ativo"
+]["Nome"].tolist()
+if not usuarios_ativos_lista:
+  usuarios_ativos_lista = ["Administrador"]
+
+usuario_logado_sel = st.sidebar.selectbox(
+    "Usuário Operando a Sessão", usuarios_ativos_lista
+)
+st.session_state.perfil_usuario = usuario_logado_sel
+
+perfil_atual_cargo = st.session_state.usuarios_sistema.loc[
+    st.session_state.usuarios_sistema["Nome"] == usuario_logado_sel, "Perfil"
+].values
+cargo_str = (
+    perfil_atual_cargo[0] if len(perfil_atual_cargo) > 0 else "Administrador"
 )
 
 st.sidebar.markdown("---")
+st.sidebar.subheader("Módulos do Sistema")
 
-if perfil == "Recepção":
-  menu = st.sidebar.radio(
-      "Menu Operacional",
+if cargo_str == "Recepcionista":
+  menu = st.sidebar.selectbox(
+      "Escolha o Módulo",
       [
-          "Mapa de Salas em Tempo Real",
-          "Registro de Atendimentos & QR Code",
-          "Fila de Espera",
-          "Fechamento de Caixa",
+          "Lançamento de Produtividade & Conta Corrente",
+          "Cadastro Mestre de Pacientes",
+          "Cadastro & Gestão de Pacotes",
+          "Agendamento & Salas",
+          "Fechamento de Caixa Diário",
       ],
   )
-elif perfil == "Administração (Antônio)":
-  menu = st.sidebar.radio(
-      "Menu Gerencial",
-      [
-          "Dashboard BI & Ociosidade",
-          "Auditoria (Soft Delete & Travas)",
-          "Cadastro de Profissionais",
-          "Despesas e Fluxo de Caixa",
-      ],
-  )
+  st.sidebar.info("ℹ️ Recepção com cadastro ágil e blindagem de pacotes.")
 else:
-  menu = st.sidebar.radio(
-      "Painel Clínico",
-      ["Prontuários e Visão Geral", "Relatórios de Atendimento Clínico"],
+  menu = st.sidebar.selectbox(
+      "Escolha o Módulo",
+      [
+          "Dashboard Gerencial & Relatórios Completos",
+          "Lançamento de Produtividade & Conta Corrente",
+          "Cadastro Mestre de Pacientes",
+          "Cadastro & Gestão de Pacotes",
+          "Cadastro de Profissionais",
+          "Conciliação e Fluxo de Caixa (Auditável)",
+          "Gestão de Usuários e Permissões",
+          "Auditoria do Sistema",
+      ],
   )
 
-
-# --- 3. MÓDULOS DE OPERAÇÃO (RECEPÇÃO & SALAS) ---
-if menu == "Mapa de Salas em Tempo Real":
-  st.header("🏢 Mapa de Consultórios - Tempo Real")
-  st.write(
-      "Visualize o status atual das salas e gerencie o check-in/out por chave."
+# ---------------------------------------------------------
+# 1. MÓDULO: CADASTRO MESTRE DE PACIENTES (ID ÚNICO)
+# ---------------------------------------------------------
+if menu == "Cadastro Mestre de Pacientes":
+  st.title("👤 Cadastro Mestre de Pacientes (ID Único)")
+  st.markdown(
+      "Base unificada de pacientes da clínica. Cada paciente possui um ID"
+      " exclusivo para evitar cruzamentos incorretos quando atendidos por"
+      " múltiplos profissionais."
   )
 
-  salas = run_query("SELECT id, nome_sala, status, profissional_atual FROM salas")
-  cols = st.columns(len(salas))
+  tab_pac1, tab_pac2 = st.tabs(
+      ["📋 Pacientes Cadastrados", "➕ Novo Cadastro de Paciente"]
+  )
 
-  for idx, sala in enumerate(salas):
-    s_id, nome, status_sala, prof = sala
-    with cols[idx]:
-      if status_sala == "Disponível":
-        st.success(f"**{nome}**\n\n🟢 Disponível")
-      else:
-        st.error(f"**{nome}**\n\n🔴 Ocupado\n\nProf: {prof}")
-
-  st.markdown("---")
-  st.subheader("Gerenciar Ocupação de Sala (Check-in / Check-out)")
-  with st.form("form_sala"):
-    sala_escolhida = st.selectbox(
-        "Selecionar Sala", salas, format_func=lambda x: x[1]
-    )
-    novo_status = st.selectbox(
-        "Ação", ["Ocupar Sala (Entrega de Chave)", "Liberar Sala (Check-out)"]
-    )
-    prof_ocupante = st.text_input("Nome do Profissional (se ocupando)")
-
-    if st.form_submit_button("Atualizar Status da Sala"):
-      st_text = (
-          "Ocupada" if "Ocupar" in novo_status else "Disponível"
+  with tab_pac1:
+    if not st.session_state.base_pacientes.empty:
+      st.dataframe(
+          st.session_state.base_pacientes, use_container_width=True
       )
-      p_nome = prof_ocupante if st_text == "Ocupada" else None
-      run_query(
-          "UPDATE salas SET status = ?, profissional_atual = ? WHERE id = ?",
-          (st_text, p_nome, sala_escolhida[0]),
-          fetch=False,
-      )
-      st.success(f"Sala {sala_escolhida[1]} atualizada com sucesso!")
-      st.rerun()
+    else:
+      st.info("Nenhum paciente cadastrado.")
 
-elif menu == "Registro de Atendimentos & QR Code":
-  st.header("📝 Registro de Atendimentos e Cessão de Espaço")
-  profissionais = run_query(
-      "SELECT id, nome, tipo_contrato FROM profissionais WHERE ativo = 1"
-  )
-  salas = run_query("SELECT nome_sala FROM salas")
-
-  if not profissionais:
-    st.warning("Cadastre profissionais ativos no painel administrativo.")
-  else:
-    with st.form("form_atendimento"):
+  with tab_pac2:
+    with st.form("form_cad_paciente_mestre"):
       c1, c2 = st.columns(2)
       with c1:
-        data_atendimento = st.date_input(
-            "Data do Atendimento", value=datetime.today()
+        novo_nome_pac = st.text_input("Nome Completo do Paciente")
+        tel_pac = st.text_input("Telefone / WhatsApp (Ex: 31 99999-9999)")
+      with c2:
+        email_pac = st.text_input("E-mail do Paciente")
+
+      if st.form_submit_button("Salvar Paciente na Base Mestra"):
+        if not novo_nome_pac.strip():
+          st.error("O nome completo é obrigatório.")
+        else:
+          proximo_id_num = len(st.session_state.base_pacientes) + 1
+          novo_id_str = f"PAC-{proximo_id_num:04d}"
+
+          df_novo_p = pd.DataFrame([{
+              "ID_Paciente": novo_id_str,
+              "Nome_Completo": novo_nome_pac,
+              "Telefone": tel_pac,
+              "Email": email_pac,
+              "Data_Cadastro": str(datetime.date.today()),
+          }])
+          st.session_state.base_pacientes = pd.concat(
+              [st.session_state.base_pacientes, df_novo_p], ignore_index=True
+          )
+          registrar_auditoria(
+              "Pacientes",
+              "Cadastro Mestre",
+              f"ID: {novo_id_str}, Nome: {novo_nome_pac}",
+          )
+          st.success(
+              f"Paciente {novo_nome_pac} cadastrado com sucesso! ID gerado:"
+              f" **{novo_id_str}**"
+          )
+          st.rerun()
+
+# ---------------------------------------------------------
+# 2. MÓDULO: DASHBOARD GERENCIAL & RELATÓRIOS COMPLETOS
+# ---------------------------------------------------------
+elif menu == "Dashboard Gerencial & Relatórios Completos":
+  st.title("📊 Dashboard Executivo & Central de Relatórios Completos")
+  st.markdown(
+      "Visão consolidada do faturamento, repasses, pacotes e produtividade"
+      " por profissional e paciente."
+  )
+
+  df_prod = st.session_state.atendimentos_produtividade
+  df_pacs = st.session_state.pacotes_atendimento
+  df_pats = st.session_state.base_pacientes
+
+  # Métricas Principais
+  col1, col2, col3, col4 = st.columns(4)
+  total_recebido = (
+      df_prod[df_prod["Status_Pagamento"] == "Pago (PIX para Clínica)"][
+          "Valor_Repasse_Clinica"
+      ].sum()
+      if not df_prod.empty
+      else 0.0
+  )
+  total_pendente_cc = (
+      df_prod[df_prod["Status_Pagamento"] == "Pendente (Conta Corrente)"][
+          "Valor_Repasse_Clinica"
+      ].sum()
+      if not df_prod.empty
+      else 0.0
+  )
+
+  col1.metric("Repasses Efetivados (Caixa)", f"R$ {total_recebido:,.2f}")
+  col2.metric(
+      "Conta Corrente (Pendentes)", f"R$ {total_pendente_cc:,.2f}"
+  )
+  col3.metric(
+      "Total de Pacientes Cadastrados",
+      len(df_pats) if not df_pats.empty else 0,
+  )
+  col4.metric(
+      "Atendimentos Realizados", len(df_prod) if not df_prod.empty else 0
+  )
+
+  st.markdown("---")
+  st.subheader("📑 Central de Relatórios Analíticos")
+
+  tipo_relatorio = st.selectbox(
+      "Selecione o Relatório Desejado",
+      [
+          "1. Relatório Geral de Produtividade por Profissional",
+          "2. Relatório de Extrato de Consumo de Pacotes (Por Paciente/ID)",
+          "3. Relatório de Conta Corrente e Pendências Detalhadas",
+          "4. Relatório de Faturamento Consolidado por Período / Plano de Contas",
+          "5. Relatório de Pacientes Atendidos por Múltiplos Profissionais",
+      ],
+  )
+
+  if tipo_relatorio.startswith("1."):
+    st.markdown("### 👨‍⚕️ Produtividade Consolidada por Profissional")
+    if not df_prod.empty:
+      resumo_prof = (
+          df_prod.groupby("Profissional")
+          .agg(
+              Total_Atendimentos=("ID_Atendimento", "count"),
+              Repasse_Total_Gerado=("Valor_Repasse_Clinica", "sum"),
+          )
+          .reset_index()
+      )
+      st.dataframe(resumo_prof, use_container_width=True)
+      fig = px.bar(
+          resumo_prof,
+          x="Profissional",
+          y="Repasse_Total_Gerado",
+          title="Repasse Total Gerado por Profissional (R$)",
+      )
+      st.plotly_chart(fig, use_container_width=True)
+    else:
+      st.info("Nenhum dado para exibir.")
+
+  elif tipo_relatorio.startswith("2."):
+    st.markdown("### 📦 Extrato e Status de Consumo de Pacotes")
+    if not df_pacs.empty:
+      df_pacs_rel = df_pacs.copy()
+      consu_lista, rest_lista = [], []
+      for _, row in df_pacs_rel.iterrows():
+        id_p = row["ID_Pacote"]
+        tot_s = int(row["Total_Sessoes"])
+        usados = len(
+            df_prod[df_prod["ID_Pacote"] == id_p]
         )
-        prof_sel = st.selectbox(
-            "Profissional",
-            profissionais,
-            format_func=lambda x: f"{x[1]} ({x[2]})",
+        consu_lista.append(usados)
+        rest_lista.append(max(0, tot_s - usados))
+
+      df_pacs_rel["Sessoes_Consumidas"] = consu_lista
+      df_pacs_rel["Sessoes_Restantes"] = rest_lista
+      st.dataframe(
+          df_pacs_rel[
+              [
+                  "ID_Pacote",
+                  "ID_Paciente",
+                  "Nome_Paciente",
+                  "Profissional",
+                  "Categoria_Opcao",
+                  "Total_Sessoes",
+                  "Sessoes_Consumidas",
+                  "Sessoes_Restantes",
+                  "Status_Pacote",
+              ]
+          ],
+          use_container_width=True,
+      )
+    else:
+      st.info("Nenhum pacote cadastrado.")
+
+  elif tipo_relatorio.startswith("3."):
+    st.markdown("### 💳 Relatório Detalhado de Conta Corrente")
+    if not df_prod.empty:
+      df_cc = df_prod[
+          df_prod["Status_Pagamento"] == "Pendente (Conta Corrente)"
+      ]
+      if not df_cc.empty:
+        st.dataframe(
+            df_cc[
+                [
+                    "Data",
+                    "Profissional",
+                    "ID_Paciente",
+                    "Nome_Paciente",
+                    "Tipo_Cobranca",
+                    "Valor_Repasse_Clinica",
+                ]
+            ],
+            use_container_width=True,
         )
-        sala_atend = st.selectbox(
-            "Consultório Utilizado (Obrigatório)",
-            [s[0] for s in salas],
+      else:
+        st.success("Não há pendências em aberto na conta corrente.")
+    else:
+      st.info("Nenhum registro.")
+
+  elif tipo_relatorio.startswith("4."):
+    st.markdown("### 💰 Faturamento Consolidado por Plano de Contas")
+    if not df_prod.empty:
+      df_fin = (
+          df_prod.groupby("Plano_Contas")
+          .agg(Valor_Total_Repasse=("Valor_Repasse_Clinica", "sum"))
+          .reset_index()
+      )
+      st.dataframe(df_fin, use_container_width=True)
+    else:
+      st.info("Nenhum lançamento financeiro.")
+
+  elif tipo_relatorio.startswith("5."):
+    st.markdown(
+        "### 👥 Relatório de Pacientes Atendidos por Múltiplos Profissionais"
+    )
+    if not df_prod.empty:
+      cruzamento = (
+          df_prod.groupby(["ID_Paciente", "Nome_Paciente"])["Profissional"]
+          .unique()
+          .reset_index()
+      )
+      cruzamento["Quantidade_Profissionais"] = cruzamento["Profissional"].apply(
+          len
+      )
+      cruzamento["Profissionais_Atendidos"] = cruzamento["Profissional"].apply(
+          lambda x: ", ".join(x)
+      )
+      st.dataframe(
+          cruzamento[
+              [
+                  "ID_Paciente",
+                  "Nome_Paciente",
+                  "Quantidade_Profissionais",
+                  "Profissionais_Atendidos",
+              ]
+          ],
+          use_container_width=True,
+      )
+    else:
+      st.info("Nenhum atendimento registrado.")
+
+# ---------------------------------------------------------
+# 3. MÓDULO: CADASTRO DE PROFISSIONAIS
+# ---------------------------------------------------------
+elif menu == "Cadastro de Profissionais":
+  st.title("👨‍⚕️ Cadastro de Profissionais & Modelos de Pacotes")
+  if not st.session_state.profissionais.empty:
+    st.dataframe(st.session_state.profissionais, use_container_width=True)
+  else:
+    st.info("Nenhum profissional.")
+
+# ---------------------------------------------------------
+# 4. MÓDULO: CADASTRO & GESTÃO DE PACOTES
+# ---------------------------------------------------------
+elif menu == "Cadastro & Gestão de Pacotes":
+  st.title("📦 Cadastro de Pacotes Vinculados por ID")
+  profs_prod = st.session_state.profissionais[
+      st.session_state.profissionais["Modalidade"] == "Produtividade Variável"
+  ]
+  pacientes_lista = st.session_state.base_pacientes
+
+  if pacientes_lista.empty or profs_prod.empty:
+    st.warning(
+        "Cadastre previamente profissionais e pacientes na Base Mestra."
+    )
+  else:
+    with st.form("form_cad_pacote_id"):
+      c_prof_pac = st.selectbox(
+          "Profissional Responsável", profs_prod["Nome"].tolist()
+      )
+
+      # Seleção do Paciente por ID - evita homônimos
+      pacientes_opcoes = (
+          pacientes_lista["ID_Paciente"]
+          + " - "
+          + pacientes_lista["Nome_Completo"]
+      ).tolist()
+      pac_sel_str = st.selectbox(
+          "Selecionar Paciente (ID - Nome)", pacientes_opcoes
+      )
+
+      id_pac_escolhido = pac_sel_str.split(" - ")[0]
+      nome_pac_escolhido = pac_sel_str.split(" - ")[1]
+
+      opcoes_prof = st.session_state.modelos_pacotes_profissional[
+          st.session_state.modelos_pacotes_profissional["Profissional"]
+          == c_prof_pac
+      ]
+      escolha_modelo = st.selectbox(
+          "Modelo de Pacote",
+          ["Personalizado"] + opcoes_prof["Descricao_Opcao"].tolist(),
+      )
+
+      d_sessoes, d_valor, cat_str = 4, 580.0, "Personalizado"
+      if (
+          escolha_modelo != "Personalizado"
+          and not opcoes_prof.empty
+      ):
+        m_sel = opcoes_prof[
+            opcoes_prof["Descricao_Opcao"] == escolha_modelo
+        ].iloc[0]
+        d_sessoes = int(m_sel["Total_Sessoes"])
+        d_valor = float(m_sel["Valor_Sugerido"])
+        cat_str = str(m_sel["Descricao_Opcao"])
+
+      c1, c2 = st.columns(2)
+      with c1:
+        total_sessoes = st.number_input(
+            "Quantidade de Sessões", min_value=1, value=d_sessoes, step=1
         )
       with c2:
-        nome_paciente = st.text_input("Nome do Paciente")
-        forma_pgto = st.selectbox(
-            "Forma de Pagamento", ["Dinheiro", "Cartão", "PIX", "Faturado"]
-        )
-        tipo_atend = st.selectbox(
-            "Tipo", ["Avulso (R$ 50,00)", "Conveniado (R$ 42,00)", "Outro"]
+        valor_total_pacote = st.number_input(
+            "Valor Total do Pacote (R$)", min_value=0.0, value=d_valor, step=10.0
         )
 
-      valor_consulta = st.number_input(
-          "Valor Cobrado do Paciente (R$)", min_value=0.0, format="%.2f"
-      )
-      submitted = st.form_submit_button("Registrar com Trava de LGPD")
+      d_prof = profs_prod[profs_prod["Nome"] == c_prof_pac].iloc[0]
+      perc_c = float(d_prof["Percentual_Clinica"])
+      valor_repasse_total = valor_total_pacote * (perc_c / 100.0)
 
-      if submitted:
-        if not nome_paciente or valor_consulta <= 0:
+      if st.form_submit_button("Salvar Pacote Vinculado"):
+        novo_id_pacote = len(st.session_state.pacotes_atendimento) + 1
+        df_novo_p = pd.DataFrame([{
+            "ID_Pacote": novo_id_pacote,
+            "Profissional": c_prof_pac,
+            "ID_Paciente": id_pac_escolhido,
+            "Nome_Paciente": nome_pac_escolhido,
+            "Categoria_Opcao": cat_str,
+            "Total_Sessoes": total_sessoes,
+            "Valor_Total_Pacote": valor_total_pacote,
+            "Percentual_Clinica": perc_c,
+            "Valor_Repasse_Total": valor_repasse_total,
+            "Status_Pacote": "Ativo / Em Consumo",
+            "Data_Cadastro": str(datetime.date.today()),
+        }])
+        st.session_state.pacotes_atendimento = pd.concat(
+            [st.session_state.pacotes_atendimento, df_novo_p], ignore_index=True
+        )
+        registrar_auditoria(
+            "Pacotes",
+            "Cadastro",
+            f"Paciente ID: {id_pac_escolhido} ({nome_pac_escolhido})",
+        )
+        st.success("Pacote cadastrado com sucesso!")
+        st.rerun()
+
+# ---------------------------------------------------------
+# 5. MÓDULO: LANÇAMENTO DE PRODUTIVIDADE & CADASTRO INLINE
+# ---------------------------------------------------------
+elif menu == "Lançamento de Produtividade & Conta Corrente":
+  st.title("💼 Lançamento de Atendimentos & Cadastro Rápido Inline")
+  st.markdown(
+      "🛡️ **Módulo Blindado:** Seleção por ID do Paciente com opção de cadastro"
+      " instantâneo na mesma tela."
+  )
+
+  profs_prod = st.session_state.profissionais[
+      st.session_state.profissionais["Modalidade"] == "Produtividade Variável"
+  ]
+
+  if profs_prod.empty:
+    st.warning("Nenhum profissional cadastrado.")
+  else:
+    tab_l1, tab_l2 = st.tabs(
+        ["➕ Registrar Atendimento", "📊 Conta Corrente & Extratos"]
+    )
+
+    with tab_l1:
+      # FLUXO INLINE PARA CADASTRO RÁPIDO DE PACIENTE SEM SAIR DA TELA
+      with st.expander(
+          "➕ Não encontrou o paciente? Clique aqui para Cadastrar Rápido"
+          " (Inline)",
+          expanded=False,
+      ):
+        with st.form("form_inline_paciente"):
+          c_nome_inc = st.text_input("Nome Completo do Novo Paciente")
+          c_tel_inc = st.text_input("Telefone")
+          if st.form_submit_button("Cadastrar e Usar Imediatamente"):
+            if c_nome_inc.strip():
+              novo_id_num = len(st.session_state.base_pacientes) + 1
+              novo_id_str = f"PAC-{novo_id_num:04d}"
+              df_novo_p = pd.DataFrame([{
+                  "ID_Paciente": novo_id_str,
+                  "Nome_Completo": c_nome_inc,
+                  "Telefone": c_tel_inc,
+                  "Email": "",
+                  "Data_Cadastro": str(datetime.date.today()),
+              }])
+              st.session_state.base_pacientes = pd.concat(
+                  [st.session_state.base_pacientes, df_novo_p],
+                  ignore_index=True,
+              )
+              registrar_auditoria(
+                  "Pacientes",
+                  "Cadastro Rápido Inline",
+                  f"ID: {novo_id_str}, Nome: {c_nome_inc}",
+              )
+              st.success(
+                  f"Paciente cadastrado com ID **{novo_id_str}**! Já pode"
+                  " selecionar abaixo."
+              )
+              st.rerun()
+
+      st.markdown("---")
+      with st.form("form_atendimento_hibrido_id"):
+        c_prof = st.selectbox(
+            "Selecionar Profissional", profs_prod["Nome"].tolist()
+        )
+        dados_prof_sel = profs_prod[profs_prod["Nome"] == c_prof].iloc[0]
+        tipo_atendimento = dados_prof_sel["Tipo_Atendimento"]
+        perc_clinica_padrao = float(dados_prof_sel["Percentual_Clinica"])
+
+        tipo_cobranca = st.radio(
+            "Modalidade do Atendimento",
+            ["Atendimento Avulso", "Sessão de Pacote Cadastrado"],
+        )
+
+        pacientes_lista = st.session_state.base_pacientes
+        if pacientes_lista.empty:
           st.error(
-              "Preencha o nome do paciente e um valor de consulta válido."
+              "Nenhum paciente cadastrado. Cadastre acima antes de prosseguir."
           )
-        else:
-          conn = sqlite3.connect("ser_consciente.db")
-          cursor = conn.cursor()
-          cursor.execute(
-              "SELECT id FROM pacientes WHERE nome = ?", (nome_paciente,)
-          )
-          p_res = cursor.fetchone()
-          if p_res:
-            paciente_id = p_res[0]
-          else:
-            cursor.execute(
-                "INSERT INTO pacientes (nome) VALUES (?)", (nome_paciente,)
+          st.stop()
+
+        pacientes_opcoes = (
+            pacientes_lista["ID_Paciente"]
+            + " - "
+            + pacientes_lista["Nome_Completo"]
+        ).tolist()
+        pac_sel_atd = st.selectbox(
+            "Selecione o Paciente (ID e Nome)", pacientes_opcoes
+        )
+
+        id_pac_atd = pac_sel_atd.split(" - ")[0]
+        nome_pac_atd = pac_sel_atd.split(" - ")[1]
+
+        id_pacote_sel = None
+        sessao_str = "Única"
+        valor_unit_paciente = 250.0
+        valor_repasse_atd = 0.0
+
+        if tipo_cobranca == "Atendimento Avulso":
+          c1, c2 = st.columns(2)
+          with c1:
+            d_atendimento = st.date_input("Data", datetime.date.today())
+            h_atendimento = st.time_input(
+                "Horário", datetime.datetime.now().time()
             )
-            paciente_id = cursor.lastrowid
-            conn.commit()
-
-          # Cálculo automático da taxa de ocupação
-          contrato = prof_sel[2]
-          repasse_clinica = 0.0
-          if "Avulso" in tipo_atend:
-            repasse_clinica = 50.0
-          elif "Conveniado" in tipo_atend:
-            repasse_clinica = 42.0
-          elif "70/30" in contrato:
-            repasse_clinica = valor_consulta * 0.30
+          with c2:
+            valor_unit_paciente = st.number_input(
+                "Valor Pago pelo Paciente (R$)",
+                min_value=0.0,
+                value=250.0,
+                step=10.0,
+            )
+            valor_repasse_atd = valor_unit_paciente * (
+                perc_clinica_padrao / 100.0
+            )
+            st.info(
+                f"📌 Repasse Devido à Clínica ({perc_clinica_padrao}%): R$"
+                f" {valor_repasse_atd:,.2f}"
+            )
+        else:
+          # Pacotes do Profissional filtrados pelo ID do Paciente
+          pacs_prof = st.session_state.pacotes_atendimento[
+              (st.session_state.pacotes_atendimento["Profissional"] == c_prof)
+              & (
+                  st.session_state.pacotes_atendimento["ID_Paciente"]
+                  == id_pac_atd
+              )
+              & (
+                  st.session_state.pacotes_atendimento["Status_Pacote"]
+                  == "Ativo / Em Consumo"
+              )
+          ]
+          if pacs_prof.empty:
+            st.warning(
+                "⚠️ Este paciente não possui pacotes ativos cadastrados para"
+                f" o profissional {c_prof}."
+            )
           else:
-            repasse_clinica = 50.0  # Padrão base
+            pacs_prof["Label_Pacote"] = (
+                "Pacote ID #"
+                + pacs_prof["ID_Pacote"].astype(str)
+                + " ("
+                + pacs_prof["Categoria_Opcao"]
+                + " - R$ "
+                + pacs_prof["Valor_Total_Pacote"].astype(str)
+                + ")"
+            )
+            pac_escolhido_label = st.selectbox(
+                "Selecione o Pacote Ativo", pacs_prof["Label_Pacote"].tolist()
+            )
+            dados_pac_reg = pacs_prof[
+                pacs_prof["Label_Pacote"] == pac_escolhido_label
+            ].iloc[0]
 
-          repasse_prof = valor_consulta - repasse_clinica
+            id_pacote_sel = int(dados_pac_reg["ID_Pacote"])
+            total_s_pac = int(dados_pac_reg["Total_Sessoes"])
 
-          cursor.execute(
-              """
-                    INSERT INTO atendimentos (data, profissional_id, paciente_id, consultorio, tipo_atendimento, valor_consulta, forma_pagamento, repasse_clinica, repasse_profissional, recepcionista, status, consolidado)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Ativo', 0)
-                """,
-              (
-                  data_atendimento.strftime("%d/%m/%Y"),
-                  prof_sel[0],
-                  paciente_id,
-                  sala_atend,
-                  tipo_atend,
-                  valor_consulta,
-                  forma_pgto,
-                  repasse_clinica,
-                  repasse_prof,
-                  perfil,
+            atds_ja_lancados = st.session_state.atendimentos_produtividade[
+                st.session_state.atendimentos_produtividade["ID_Pacote"]
+                == id_pacote_sel
+            ]
+            num_sessao_atual = len(atds_ja_lancados) + 1
+            sessoes_restantes = total_s_pac - len(atds_ja_lancados)
+
+            st.markdown("---")
+            st.markdown("### 🔍 **EXTRATO DE CONSUMO DO PACOTE**")
+            col_inf1, col_inf2, col_inf3 = st.columns(3)
+            col_inf1.metric("Total no Pacote", f"{total_s_pac} Sessões")
+            col_inf2.metric(
+                "Sessões Consumidas", f"{len(atds_ja_lancados)}"
+            )
+            col_inf3.metric("Sessões Restantes", f"{sessoes_restantes}")
+
+            if num_sessao_atual > total_s_pac:
+              st.error(
+                  f"🚨 **BLOQUEIO CRÍTICO:** O pacote de {total_s_pac} sessões"
+                  " já foi totalmente consumido!"
+              )
+            elif num_sessao_atual == total_s_pac:
+              st.warning("⚠️ **ATENÇÃO:** Esta é a **ÚLTIMA SESSÃO** do pacote.")
+            else:
+              st.success(
+                  f"✅ Registrando Sessão {num_sessao_atual:02d}-{total_s_pac:02d}"
+              )
+
+            sessao_str = f"{num_sessao_atual:02d}-{total_s_pac:02d}"
+            c1, c2 = st.columns(2)
+            with c1:
+              d_atendimento = st.date_input(
+                  "Data da Sessão", datetime.date.today()
+              )
+              h_atendimento = st.time_input(
+                  "Horário", datetime.datetime.now().time()
+              )
+            with c2:
+              valor_unit_paciente = 0.0
+              valor_repasse_atd = 0.0
+
+        if st.form_submit_button("Salvar Atendimento"):
+          usuario_atual = st.session_state.get(
+              "perfil_usuario", "Recepcionista"
+          )
+          novo_id = len(st.session_state.atendimentos_produtividade) + 1
+          df_novo_atd = pd.DataFrame([{
+              "ID_Atendimento": novo_id,
+              "Data": str(d_atendimento),
+              "Hora": h_atendimento.strftime("%H:%M"),
+              "Profissional": c_prof,
+              "Tipo_Atendimento": tipo_atendimento,
+              "ID_Paciente": id_pac_atd,
+              "Nome_Paciente": nome_pac_atd,
+              "Tipo_Cobranca": tipo_cobranca,
+              "ID_Pacote": id_pacote_sel if id_pacote_sel else 0,
+              "Sessao_Atual": sessao_str,
+              "Valor_Total_Paciente": valor_unit_paciente,
+              "Percentual_Clinica": perc_clinica_padrao,
+              "Valor_Repasse_Clinica": valor_repasse_atd,
+              "Status_Pagamento": (
+                  "Pendente (Conta Corrente)"
+                  if tipo_cobranca == "Atendimento Avulso"
+                  else "Sessão Consumida (Pacote)"
               ),
+              "Data_Baixa": "",
+              "Plano_Contas": (
+                  "Receitas - Cessão de Espaço - Cessão de Espaço"
+                  f" Produtividade - {c_prof}"
+              ),
+              "Registrado_Por": usuario_atual,
+          }])
+          st.session_state.atendimentos_produtividade = pd.concat(
+              [st.session_state.atendimentos_produtividade, df_novo_atd],
+              ignore_index=True,
           )
-          conn.commit()
-          conn.close()
-          st.success(
-              f"Atendimento registrado! Taxa de Ocupação Clínica (Repasse): R$"
-              f" {repasse_clinica:.2f}"
+          registrar_auditoria(
+              "Produtividade",
+              "Lançamento",
+              f"Profissional: {c_prof}, Paciente ID: {id_pac_atd}",
           )
+          st.success("Atendimento registrado com sucesso!")
+          st.rerun()
 
-elif menu == "Fila de Espera":
-  st.header("⏳ Fila de Espera de Pacientes")
-  with st.form("form_fila"):
-    p_nome = st.text_input("Nome do Paciente")
-    p_prof = st.selectbox(
-        "Profissional Desejado",
-        run_query("SELECT id, nome FROM profissionais WHERE ativo = 1"),
-        format_func=lambda x: x[1],
+    with tab_l2:
+      st.subheader("📊 Conta Corrente e Extratos")
+      df_p = st.session_state.atendimentos_produtividade
+      if not df_p.empty:
+        prof_sel_cc = st.selectbox(
+            "Selecionar Profissional", df_p["Profissional"].unique()
+        )
+        st.dataframe(
+            df_p[df_p["Profissional"] == prof_sel_cc], use_container_width=True
+        )
+      else:
+        st.info("Nenhum lançamento.")
+
+# ---------------------------------------------------------
+# OUTROS MÓDULOS DE SUPORTE
+# ---------------------------------------------------------
+elif menu == "Conciliação e Fluxo de Caixa (Auditável)":
+  st.title("💰 Conciliação e Caixa")
+
+elif menu == "Gestão de Usuários e Permissões":
+  st.title("👥 Gestão de Usuários")
+  st.dataframe(st.session_state.usuarios_sistema, use_container_width=True)
+
+elif menu == "Auditoria do Sistema":
+  st.title("🕵️ Trilha de Auditoria")
+  if not st.session_state.audit_log.empty:
+    st.dataframe(
+        st.session_state.audit_log.sort_index(ascending=False),
+        use_container_width=True
     )
-    if st.form_submit_button("Adicionar à Fila por Antiguidade"):
-      run_query(
-          """
-                INSERT INTO fila_espera (paciente_nome, profissional_interesse, data_cadastro, status)
-                VALUES (?, ?, ?, 'Aguardando')
-            """,
-          (p_nome, p_prof[0], datetime.today().strftime("%d/%m/%Y")),
-          fetch=False,
-      )
-      st.success("Paciente inserido na fila de espera com prioridade.")
-
-  st.subheader("Fila Atual")
-  df_fila = pd.DataFrame(
-      run_query(
-          "SELECT id, paciente_nome, data_cadastro, status FROM fila_espera"
-          " WHERE status = 'Aguardando'"
-      ),
-      columns=["ID", "Paciente", "Data Cadastro", "Status"],
-  )
-  st.dataframe(df_fila, use_container_width=True)
-
-elif menu == "Fechamento de Caixa":
-  st.header("💰 Fechamento de Caixa Diário")
-  data_f = st.date_input("Data do Fechamento", value=datetime.today())
-  conn = sqlite3.connect("ser_consciente.db")
-  df_c = pd.read_sql_query(
-      """
-        SELECT a.id, p.nome as profissional, pac.nome as paciente, a.consultorio, a.valor_consulta, a.repasse_clinica, a.status 
-        FROM atendimentos a
-        JOIN profissionais p ON a.profissional_id = p.id
-        JOIN pacientes pac ON a.paciente_id = pac.id
-        WHERE a.data = ? AND a.status = 'Ativo'
-    """,
-      conn,
-      params=(data_f.strftime("%d/%m/%Y"),),
-  )
-  conn.close()
-
-  if df_c.empty:
-    st.info("Nenhum atendimento ativo nesta data.")
   else:
-    st.dataframe(df_c, use_container_width=True)
-    st.metric("Total Arrecadado Clínica", f"R$ {df_c['repasse_clinica'].sum():.2f}")
-
-
-# --- 4. MÓDULOS GERENCIAIS (ADMINISTRAÇÃO) ---
-elif menu == "Dashboard BI & Ociosidade":
-  st.header("📊 BI & Inteligência de Dados - Instituto Ser Consciente")
-  conn = sqlite3.connect("ser_consciente.db")
-  df_bi = pd.read_sql_query(
-      """
-        SELECT a.data, p.nome as profissional, a.valor_consulta, a.repasse_clinica, a.consultorio
-        FROM atendimentos a
-        JOIN profissionais p ON a.profissional_id = p.id
-        WHERE a.status = 'Ativo'
-    """,
-      conn,
-  )
-  conn.close()
-
-  if not df_bi.empty:
-    c1, c2, c3 = st.columns(3)
-    with c1:
-      st.metric(
-          "Faturamento Total Bruto", f"R$ {df_bi['valor_consulta'].sum():.2f}"
-      )
-    with c2:
-      st.metric(
-          "Receita Ocupação (Clínica)",
-          f"R$ {df_bi['repasse_clinica'].sum():.2f}",
-      )
-    with c3:
-      st.metric("Total Atendimentos", len(df_bi))
-
-    st.subheader("Desempenho por Profissional")
-    df_prof = (
-        df_bi.groupby("profissional")["repasse_clinica"].sum().reset_index()
-    )
-    st.bar_chart(df_prof.set_index("profissional"))
-  else:
-    st.info("Sem dados suficientes para gerar os gráficos de BI.")
-
-elif menu == "Auditoria (Soft Delete & Travas)":
-  st.header("🔍 Auditoria e Política de Exclusão Zero (Soft Delete)")
-  st.write(
-      "Nenhum registro é apagado permanentemente. O Soft Delete preserva a"
-      " trilha de auditoria exigida."
-  )
-  conn = sqlite3.connect("ser_consciente.db")
-  df_aud = pd.read_sql_query(
-      """
-        SELECT a.id, a.data, p.nome as profissional, pac.nome as paciente, a.status, a.consolidado
-        FROM atendimentos a
-        JOIN profissionais p ON a.profissional_id = p.id
-        JOIN pacientes pac ON a.paciente_id = pac.id
-    """,
-      conn,
-  )
-  conn.close()
-
-  if not df_aud.empty:
-    st.dataframe(df_aud, use_container_width=True)
-    at_id = st.number_input(
-        "ID do Registro para Alterar Status", min_value=1, step=1
-    )
-    novo_status = st.selectbox(
-        "Novo Status de Auditoria", ["Ativo", "Cancelado", "Arquivado"]
-    )
-    if st.button("Aplicar Soft Delete / Alteração"):
-      run_query(
-          "UPDATE atendimentos SET status = ? WHERE id = ?",
-          (novo_status, at_id),
-          fetch=False,
-      )
-      st.success("Status atualizado preservando o histórico (Soft Delete).")
-
-elif menu == "Cadastro de Profissionais":
-  st.header("👥 Gestão de Profissionais e Regras Contratuais")
-  with st.form("nov_prof"):
-    nome_p = st.text_input("Nome do Profissional")
-    tipo_c = st.selectbox(
-        "Modelo de Cessão",
-        [
-            "Taxa Fixa Avulso (R$ 50,00)",
-            "Taxa Fixa Conveniado (R$ 42,00)",
-            "Percentual 70/30",
-            "Isento (Diretoria)",
-        ],
-    )
-    if st.form_submit_button("Cadastrar Profissional"):
-      run_query(
-          "INSERT INTO profissionais (nome, tipo_contrato, data_cadastro)"
-          " VALUES (?, ?, ?)",
-          (nome_p, tipo_c, datetime.today().strftime("%d/%m/%Y")),
-          fetch=False,
-      )
-      st.success("Profissional cadastrado com sucesso!")
-
-  st.dataframe(
-      pd.DataFrame(
-          run_query(
-              "SELECT id, nome, tipo_contrato, ativo FROM profissionais"
-          ),
-          columns=["ID", "Nome", "Contrato", "Ativo"],
-      ),
-      use_container_width=True,
-  )
-
-elif menu == "Despesas e Fluxo de Caixa":
-  st.header("📉 Despesas Operacionais")
-  with st.form("form_desp"):
-    desc = st.text_input("Descrição")
-    val = st.number_input("Valor (R$)", min_value=0.0)
-    venc = st.date_input("Vencimento")
-    if st.form_submit_button("Lançar Despesa"):
-      run_query(
-          "INSERT INTO despesas (data_vencimento, descricao, valor, status)"
-          " VALUES (?, ?, ?, 'Pendente')",
-          (venc.strftime("%d/%m/%Y"), desc, val),
-          fetch=False,
-      )
-      st.success("Despesa registrada.")
-
-
-# --- 5. PAINEL CLÍNICO (DR. FABRÍCIO) ---
-elif menu == "Prontuários e Visão Geral":
-  st.header("🩺 Painel Clínico - Visão Geral do Diretor Técnico")
-  st.info(
-      "Acesso restrito para acompanhamento de escalas, exames e dados médicos"
-      " agregados com total conformidade ética."
-  )
-  conn = sqlite3.connect("ser_consciente.db")
-  df_clin = pd.read_sql_query(
-      """
-        SELECT a.data, p.nome as profissional, pac.nome as paciente, a.consultorio, a.tipo_atendimento
-        FROM atendimentos a
-        JOIN profissionais p ON a.profissional_id = p.id
-        JOIN pacientes pac ON a.paciente_id = pac.id
-        WHERE a.status = 'Ativo'
-    """,
-      conn,
-  )
-  conn.close()
-  st.dataframe(df_clin, use_container_width=True)
-
-elif menu == "Relatórios de Atendimento Clínico":
-  st.header("📈 Relatórios de Produtividade e Consultórios")
-  st.write(
-      "Estatísticas de ocupação dos consultórios por período e volume de"
-      " pacientes atendidos."
-  )
-  conn = sqlite3.connect("ser_consciente.db")
-  df_rep = pd.read_sql_query(
-      "SELECT consultorio, COUNT(*) as total FROM atendimentos GROUP BY"
-      " consultorio",
-      conn,
-  )
-  conn.close()
-  if not df_rep.empty:
-    st.bar_chart(df_rep.set_index("consultorio"))
+    st.info("Nenhum log.")

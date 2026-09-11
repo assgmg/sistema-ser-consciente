@@ -1,2 +1,3 @@
-qrcode
-pillow
+streamlit
+pandas
+plotly

@@ -293,6 +293,8 @@ elif opcao == "🛠️ Registrar Manutenção" and senha_input == "admin":
                     "foto_antes_bytes": img_antes_bytes,
                     "foto_depois_bytes": img_depois_bytes
                 })
+                # Força a limpeza do cache para refletir nas demais sessões/links
+                st.cache_data.clear()
                 st.success(f"Manutenção do equipamento {tag_codigo} registrada com sucesso!")
     else:
         st.info("Não há equipamentos instalados no momento.")
@@ -320,10 +322,11 @@ elif opcao == "✏️ Editar Previstos" and senha_input == "admin":
                     equip["equipamento"] = novo_nome
                     equip["btus"] = novos_btus
                     equip["status"] = "Instalado"
+                    st.cache_data.clear()
                     st.success(f"O equipamento {tag_codigo} agora está instalado!")
                     st.rerun()
     else:
-        st.info("Todos o equipamentos já estão instalados!")
+        st.info("Todos os equipamentos já estão instalados!")
 
 # -----------------------------------------------------------------------------
 # 4. GERAR QR CODES COM NOME DA CLÍNICA E TAG IMPRESSA NA ETIQUETA (EXCLUSIVO ADMIN)
@@ -446,18 +449,18 @@ elif opcao == "📄 Relatório Fiscal A4" and senha_input in ["visa", "admin"]:
             for h in hists_eq:
                 st.write(f"- **Data da Manutenção:** {h['data']} | **Técnico:** {h['tecnico']}")
                 st.write(f"  * Checklist: Filtros: {'Sim' if h['filtros'] else 'Não'} | Dreno: {'Sim' if h['dreno'] else 'Não'} | Serpentina: {'Sim' if h['serpentina'] else 'Não'}")
-                st.write(f"  * Extras: Peças: {'Sim' if h.get('pecas') else 'Não'} | Isolamento: {'Sim' if h.get('isolamento') else 'Não'} | Gás: {'Sim' if h.get('gas') else 'Não'}")
+                st.write(f"  * Extras: Peças: {'Sim' if h.get('pecas') else 'Não'} | Isolamento: {'Sim' if h.get('isolamento') else 'Não'} | Carga de Gás: {'Sim' if h.get('gas') else 'Não'}")
                 if h["obs"]:
                     st.write(f"  * Observações: {h['obs']}")
                 
                 c1, c2 = st.columns(2)
                 if h.get("foto_antes_bytes"):
-                    c1.image(h["foto_antes_bytes"], caption=f"Antes - {h['data']}", width=250)
+                    c1.image(h["foto_antes_bytes"], caption=f"Foto Antes - {h['data']}", width=250)
                 elif h.get("foto_antes"):
-                    c1.image(h["foto_antes"], caption=f"Antes - {h['data']}", width=250)
+                    c1.image(h["foto_antes"], caption=f"Foto Antes - {h['data']}", width=250)
                     
                 if h.get("foto_depois_bytes"):
-                    c2.image(h["foto_depois_bytes"], caption=f"Depois - {h['data']}", width=250)
+                    c2.image(h["foto_depois_bytes"], caption=f"Foto Depois - {h['data']}", width=250)
                 elif h.get("foto_depois"):
                     c2.image(h["foto_depois"], caption=f"Depois - {h['data']}", width=250)
         else:

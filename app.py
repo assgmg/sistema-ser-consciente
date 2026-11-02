@@ -4,8 +4,20 @@ import qrcode
 from io import BytesIO
 from PIL import Image, ImageDraw, ImageFont
 import datetime
+import os
 
 st.set_page_config(page_title="PMOC - Instituto Ser Consciente", layout="wide", page_icon="❄️")
+
+# -----------------------------------------------------------------------------
+# CARREGAR LOGOMARCA (BORBOLETA)
+# -----------------------------------------------------------------------------
+@st.cache_resource
+def carregar_logo():
+    if os.path.exists("Borboleta.png"):
+        return Image.open("Borboleta.png")
+    return None
+
+logo_img = carregar_logo()
 
 # -----------------------------------------------------------------------------
 # ESTILO CSS PARA IMPRESSÃO LIMPA (APENAS O RELATÓRIO)
@@ -72,18 +84,20 @@ query_params = st.query_params
 tag_url = query_params.get("tag", None)
 
 # -----------------------------------------------------------------------------
-# CONTROLE DE ACESSO NO MENU LATERAL
+# MENU LATERAL COM LOGOMARCA E CONTROLE DE ACESSO DISCRETO
 # -----------------------------------------------------------------------------
+if logo_img:
+    st.sidebar.image(logo_img, width=120)
+
 st.sidebar.title("❄️ PMOC Digital")
 st.sidebar.subheader("Instituto Ser Consciente Ltda")
 
 st.sidebar.markdown("---")
-st.sidebar.markdown("### 🔐 Controle de Acesso")
-senha_input = st.sidebar.text_input("Digite sua senha de acesso:", type="password")
+st.sidebar.markdown("### 🔐 Acesso Restrito")
+senha_input = st.sidebar.text_input("Credencial de acesso:", type="password")
 
-# Definir opções de menu baseadas no nível da senha
 if senha_input == "admin":
-    st.sidebar.success("✅ Acesso Master (Admin)")
+    st.sidebar.success("✅ Modo Administrador")
     opcoes_menu = [
         "📋 Informações do Equipamento", 
         "🛠️ Registrar Manutenção", 
@@ -93,13 +107,12 @@ if senha_input == "admin":
         "📄 Relatório Fiscal A4"
     ]
 elif senha_input == "visa":
-    st.sidebar.info("👁️ Acesso Fiscal (Consulta)")
+    st.sidebar.info("👁️ Modo Fiscalização")
     opcoes_menu = [
         "📋 Informações do Equipamento", 
         "📄 Relatório Fiscal A4"
     ]
 else:
-    st.sidebar.warning("🔒 Visitante (Apenas Leitura Básica)")
     opcoes_menu = [
         "📋 Informações do Equipamento"
     ]
@@ -159,9 +172,9 @@ if opcao == "📋 Informações do Equipamento":
             
         st.markdown("---")
         
-        # Exibir histórico detalhado se a senha for 'visa' ou 'admin'
+        # Exibição protegida do histórico detalhado
         if senha_input in ["visa", "admin"]:
-            st.success(f"Acesso liberado via perfil: {senha_input.upper()}")
+            st.success("Acesso autorizado ao histórico detalhado.")
             st.subheader("📋 Histórico Acumulado de Manutenções")
             
             if hists:
@@ -181,7 +194,7 @@ if opcao == "📋 Informações do Equipamento":
                     if h["foto_depois"]:
                         col2.image(h["foto_depois"], caption="Foto Depois", use_container_width=True)
                     
-                    # Apenas o perfil 'admin' pode editar ou excluir registros
+                    # Apenas perfil admin pode editar ou excluir
                     if senha_input == "admin":
                         with st.expander(f"✏️ Editar ou 🗑️ Excluir este registro ({h['data']})"):
                             with st.form(f"form_edit_{tag_codigo}_{idx}"):
@@ -206,7 +219,8 @@ if opcao == "📋 Informações do Equipamento":
             else:
                 st.info("Nenhum histórico cadastrado para este aparelho.")
         else:
-            st.info("🔒 Insira a senha **visa** ou **admin** na barra lateral para visualizar o histórico detalhado e fotos deste equipamento.")
+            # Mensagem pública limpa, sem expor nenhuma senha
+            st.info("🔒 Área de acesso restrito. Histórico detalhado e registros fotográficos disponíveis apenas mediante credencial autorizada.")
 
 # -----------------------------------------------------------------------------
 # 2. REGISTRAR MANUTENÇÃO (EXCLUSIVO ADMIN)
@@ -368,10 +382,16 @@ elif opcao == "📄 Relatório Fiscal A4" and senha_input in ["visa", "admin"]:
     st.success("Relatório gerado com sucesso para apresentação ao fiscal:")
     st.markdown("---")
     
-    # CABEÇALHO OFICIAL DO RELATÓRIO
-    st.markdown("<h2 style='text-align: center;'>INSTITUTO SER CONSCIENTE LTDA</h2>", unsafe_allow_html=True)
-    st.markdown("<h4 style='text-align: center;'>PLANO DE MANUTENÇÃO, OPERAÇÃO E CONTROLE - PMOC</h4>", unsafe_allow_html=True)
-    st.markdown(f"<p style='text-align: center;'><b>Lei Federal nº 13.589/2018</b></p>", unsafe_allow_html=True)
+    # CABEÇALHO OFICIAL COM A LOGOMARCA (BORBOLETA)
+    col_logo, col_titulo = st.columns([1, 4])
+    with col_logo:
+        if logo_img:
+            st.image(logo_img, width=100)
+    with col_titulo:
+        st.markdown("<h2>INSTITUTO SER CONSCIENTE LTDA</h2>", unsafe_allow_html=True)
+        st.markdown("<h4>PLANO DE MANUTENÇÃO, OPERAÇÃO E CONTROLE - PMOC</h4>", unsafe_allow_html=True)
+        st.markdown("<b>Lei Federal nº 13.589/2018</b>", unsafe_allow_html=True)
+
     st.markdown(f"**Data de Emissão:** {datetime.date.today().strftime('%d/%m/%Y')}")
     st.markdown(f"**Responsável Técnico / Administrador:** Antônio Sérgio Silva Gomes")
     st.markdown("---")

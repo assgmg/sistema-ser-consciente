@@ -49,7 +49,7 @@ def carregar_logo():
 logo_img = carregar_logo()
 
 # -----------------------------------------------------------------------------
-# ESTILO CSS PARA IMPRESSÃO LIMPA (APENAS O RELATÓRIO)
+# ESTILO CSS PARA IMPRESSÃO LIMPA E OTIMIZADA (SEM ESPAÇOS VAGOS)
 # -----------------------------------------------------------------------------
 st.markdown("""
     <style>
@@ -60,6 +60,7 @@ st.markdown("""
         .stTextInput {display: none;}
         .streamlit-expanderHeader {display: none;}
         .stAlert {display: none;}
+        body {margin: 0; padding: 0;}
     }
     </style>
 """, unsafe_allow_html=True)
@@ -460,8 +461,8 @@ elif opcao == "📄 Relatório Fiscal A4" and senha_input in ["visa", "admin"]:
     st.markdown(f"**Responsável Técnico / Administrador:** Antônio Sérgio Silva Gomes")
     st.markdown("---")
     
-    # PRIMEIRA PÁGINA: RELAÇÃO RESUMIDA COMPLETA DOS EQUIPAMENTOS INSTALADOS
-    st.markdown("### 📑 Página 1: Relação Resumida dos Equipamentos Instalados")
+    # RELAÇÃO RESUMIDA DOS EQUIPAMENTOS INSTALADOS
+    st.markdown("### 📑 Relação Resumida dos Equipamentos Instalados")
     instalados_df = [e for e in st.session_state.equipamentos if e["status"] == "Instalado"]
     
     dados_resumo = []
@@ -478,13 +479,12 @@ elif opcao == "📄 Relatório Fiscal A4" and senha_input in ["visa", "admin"]:
         })
         
     df_resumo = pd.DataFrame(dados_resumo)
-    st.dataframe(df_resumo, use_container_width=True, hide_index=True, height=len(df_resumo) * 35 + 40)
+    st.dataframe(df_resumo, use_container_width=True, hide_index=True)
     
-    st.markdown("<div style='page-break-after: always;'></div>", unsafe_allow_html=True)
     st.markdown("---")
     
-    # PÁGINAS SEGUINTES: DETALHAMENTO COMPLETO COM HISTÓRICO E FOTOS
-    st.markdown("### 📖 Páginas Seguintes: Detalhamento Completo e Histórico de Manutenções")
+    # DETALHAMENTO COMPLETO COM HISTÓRICO E FOTOS (FLUXO CONTÍNUO OTIMIZADO)
+    st.markdown("### 📖 Detalhamento Completo e Histórico de Manutenções")
     
     for eq in instalados_df:
         st.markdown(f"#### 📍 Equipamento: {eq['ambiente']} (TAG: {eq['tag']})")

@@ -228,11 +228,13 @@ if opcao == "📋 Informações do Equipamento":
                                     st.session_state.historico[indice_real]["data"] = novo_data
                                     st.session_state.historico[indice_real]["tecnico"] = novo_tecnico
                                     st.session_state.historico[indice_real]["obs"] = novo_obs
+                                    st.cache_data.clear()
                                     st.success("Registro atualizado com sucesso! Atualize a página.")
                                     st.rerun()
 
                             if st.button(f"🗑️ Excluir Definitivamente este Registro", key=f"btn_del_{tag_codigo}_{idx}"):
                                 del st.session_state.historico[indice_real]
+                                st.cache_data.clear()
                                 st.success("Registro apagado com sucesso! Atualizando...")
                                 st.rerun()
 
@@ -293,7 +295,7 @@ elif opcao == "🛠️ Registrar Manutenção" and senha_input == "admin":
                     "foto_antes_bytes": img_antes_bytes,
                     "foto_depois_bytes": img_depois_bytes
                 })
-                # Força a limpeza do cache para refletir nas demais sessões/links
+                # Limpa o cache para forçar a atualização imediata nos links de QR code
                 st.cache_data.clear()
                 st.success(f"Manutenção do equipamento {tag_codigo} registrada com sucesso!")
     else:
@@ -462,7 +464,7 @@ elif opcao == "📄 Relatório Fiscal A4" and senha_input in ["visa", "admin"]:
                 if h.get("foto_depois_bytes"):
                     c2.image(h["foto_depois_bytes"], caption=f"Foto Depois - {h['data']}", width=250)
                 elif h.get("foto_depois"):
-                    c2.image(h["foto_depois"], caption=f"Depois - {h['data']}", width=250)
+                    c2.image(h["foto_depois"], caption=f"Foto Depois - {h['data']}", width=250)
         else:
             st.write("*(Nenhuma manutenção registrada para este equipamento)*")
         st.markdown("---")

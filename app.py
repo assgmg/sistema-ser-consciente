@@ -1,4 +1,5 @@
-import streamlit as st
+
+   import streamlit as st
 import pandas as pd
 import qrcode
 from io import BytesIO
@@ -30,6 +31,7 @@ st.markdown("""
         .stButton {display: none;}
         .stTextInput {display: none;}
         .streamlit-expanderHeader {display: none;}
+        .stAlert {display: none;}
     }
     </style>
 """, unsafe_allow_html=True)
@@ -172,7 +174,6 @@ if opcao == "📋 Informações do Equipamento":
             
         st.markdown("---")
         
-        # Exibição protegida do histórico detalhado
         if senha_input in ["visa", "admin"]:
             st.success("Acesso autorizado ao histórico detalhado.")
             st.subheader("📋 Histórico Acumulado de Manutenções")
@@ -194,7 +195,6 @@ if opcao == "📋 Informações do Equipamento":
                     if h["foto_depois"]:
                         col2.image(h["foto_depois"], caption="Foto Depois", use_container_width=True)
                     
-                    # Apenas perfil admin pode editar ou excluir
                     if senha_input == "admin":
                         with st.expander(f"✏️ Editar ou 🗑️ Excluir este registro ({h['data']})"):
                             with st.form(f"form_edit_{tag_codigo}_{idx}"):
@@ -219,7 +219,6 @@ if opcao == "📋 Informações do Equipamento":
             else:
                 st.info("Nenhum histórico cadastrado para este aparelho.")
         else:
-            # Mensagem pública limpa, sem expor nenhuma senha
             st.info("🔒 Área de acesso restrito. Histórico detalhado e registros fotográficos disponíveis apenas mediante credencial autorizada.")
 
 # -----------------------------------------------------------------------------
@@ -376,11 +375,6 @@ elif opcao == "📊 Dashboard Geral" and senha_input == "admin":
 # 6. RELATÓRIO FISCAL A4 COMPLETO (VISA OU ADMIN)
 # -----------------------------------------------------------------------------
 elif opcao == "📄 Relatório Fiscal A4" and senha_input in ["visa", "admin"]:
-    st.header("📄 Relatório Fiscal Completo (A4 Retrato)")
-    st.write("Relatório consolidado pronto para apresentação à fiscalização sanitária.")
-    
-    st.success("Relatório gerado com sucesso para apresentação ao fiscal:")
-    st.markdown("---")
     
     # CABEÇALHO OFICIAL COM A LOGOMARCA (BORBOLETA)
     col_logo, col_titulo = st.columns([1, 4])
@@ -396,7 +390,7 @@ elif opcao == "📄 Relatório Fiscal A4" and senha_input in ["visa", "admin"]:
     st.markdown(f"**Responsável Técnico / Administrador:** Antônio Sérgio Silva Gomes")
     st.markdown("---")
     
-    # PRIMEIRA PÁGINA: RELAÇÃO RESUMIDA DOS EQUIPAMENTOS INSTALADOS
+    # PRIMEIRA PÁGINA: RELAÇÃO RESUMIDA COMPLETA DOS EQUIPAMENTOS INSTALADOS
     st.markdown("### 📑 Página 1: Relação Resumida dos Equipamentos Instalados")
     instalados_df = [e for e in st.session_state.equipamentos if e["status"] == "Instalado"]
     
@@ -414,7 +408,8 @@ elif opcao == "📄 Relatório Fiscal A4" and senha_input in ["visa", "admin"]:
         })
         
     df_resumo = pd.DataFrame(dados_resumo)
-    st.dataframe(df_resumo, use_container_width=True)
+    # Exibir a tabela completa sem limite de linhas truncadas no resumo
+    st.dataframe(df_resumo, use_container_width=True, hide_index=True, height=len(df_resumo) * 35 + 40)
     
     st.markdown("<div style='page-break-after: always;'></div>", unsafe_allow_html=True)
     st.markdown("---")
@@ -443,5 +438,3 @@ elif opcao == "📄 Relatório Fiscal A4" and senha_input in ["visa", "admin"]:
         else:
             st.write("*(Nenhuma manutenção registrada para este equipamento)*")
         st.markdown("---")
-        
-    st.info("💡 Dica de Impressão: Pressione **Ctrl + P**, selecione o destino como Impressora ou Salvar como PDF, certificando-se de que a orientação está em **Retrato (Portrait)**.")

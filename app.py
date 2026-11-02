@@ -85,7 +85,7 @@ query_params = st.query_params
 tag_url = query_params.get("tag", None)
 
 # -----------------------------------------------------------------------------
-# MENU LATERAL COM LOGOMARCA E CONTROLE DE ACESSO DISCRETO
+# MENU LATERAL COM LOGOMARCA E CONTROLE DE ACESSO
 # -----------------------------------------------------------------------------
 if logo_img:
     st.sidebar.image(logo_img, width=120)
@@ -128,6 +128,8 @@ if opcao == "📋 Informações do Equipamento":
     
     tags_lista = [e["tag"] + " - " + e["ambiente"] for e in st.session_state.equipamentos]
     indice_inicial = 0
+    
+    # Captura correta da TAG passada via URL pelo QR Code
     if tag_url:
         for i, t in enumerate(tags_lista):
             if tag_url in t:
@@ -144,6 +146,7 @@ if opcao == "📋 Informações do Equipamento":
         st.write(f"**Equipamento:** {equip['equipamento']} | **Carga Térmica:** {equip['btus']} BTUs")
         st.write(f"**Status de Instalação:** `{equip['status']}`")
         
+        # Filtra o histórico correspondente a esta TAG específica
         hists = [h for h in st.session_state.historico if h["tag"] == tag_codigo]
         
         if equip["status"] == "Previsto":
@@ -190,9 +193,9 @@ if opcao == "📋 Informações do Equipamento":
                     
                     col1, col2 = st.columns(2)
                     if h["foto_antes"]:
-                        col1.image(h["foto_antes"], caption="Foto Antes", use_container_width=True)
+                        col1.image(h["foto_antes"], caption=f"Antes - {h['data']}", width=250)
                     if h["foto_depois"]:
-                        col2.image(h["foto_depois"], caption="Foto Depois", use_container_width=True)
+                        col2.image(h["foto_depois"], caption=f"Depois - {h['data']}", width=250)
                     
                     if senha_input == "admin":
                         with st.expander(f"✏️ Editar ou 🗑️ Excluir este registro ({h['data']})"):
@@ -430,7 +433,7 @@ elif opcao == "📄 Relatório Fiscal A4" and senha_input in ["visa", "admin"]:
                 
                 c1, c2 = st.columns(2)
                 if h["foto_antes"]:
-                    c1.image(h["foto_antes"], caption=f"Antes - {h['data']}", width=250)
+                    c1.image(h["foto_antes"], caption=f"Foto Antes - {h['data']}", width=250)
                 if h["foto_depois"]:
                     c2.image(h["foto_depois"], caption=f"Depois - {h['data']}", width=250)
         else:

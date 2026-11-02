@@ -79,7 +79,23 @@ if "equipamentos" not in st.session_state:
     st.session_state.equipamentos = carregar_equipamentos_iniciais()
 
 if "historico" not in st.session_state:
-    st.session_state.historico = []
+    # Dados de exemplo pré-carregados para teste imediato via QR Code, se necessário
+    st.session_state.historico = [
+        {
+            "tag": "CONS001",
+            "data": "02/11/2026",
+            "tecnico": "Antônio Sérgio Silva Gomes",
+            "filtros": True,
+            "dreno": True,
+            "serpentina": True,
+            "pecas": False,
+            "isolamento": False,
+            "gas": False,
+            "obs": "Manutenção preventiva padrão realizada com sucesso.",
+            "foto_antes": None,
+            "foto_depois": None
+        }
+    ]
 
 query_params = st.query_params
 tag_url = query_params.get("tag", None)
@@ -129,7 +145,6 @@ if opcao == "📋 Informações do Equipamento":
     tags_lista = [e["tag"] + " - " + e["ambiente"] for e in st.session_state.equipamentos]
     indice_inicial = 0
     
-    # Captura correta da TAG passada via URL pelo QR Code
     if tag_url:
         for i, t in enumerate(tags_lista):
             if tag_url in t:
@@ -146,7 +161,6 @@ if opcao == "📋 Informações do Equipamento":
         st.write(f"**Equipamento:** {equip['equipamento']} | **Carga Térmica:** {equip['btus']} BTUs")
         st.write(f"**Status de Instalação:** `{equip['status']}`")
         
-        # Filtra o histórico correspondente a esta TAG específica
         hists = [h for h in st.session_state.historico if h["tag"] == tag_codigo]
         
         if equip["status"] == "Previsto":
@@ -193,7 +207,7 @@ if opcao == "📋 Informações do Equipamento":
                     
                     col1, col2 = st.columns(2)
                     if h["foto_antes"]:
-                        col1.image(h["foto_antes"], caption=f"Antes - {h['data']}", width=250)
+                        col1.image(h["foto_antes"], caption=f"Foto Antes - {h['data']}", width=250)
                     if h["foto_depois"]:
                         col2.image(h["foto_depois"], caption=f"Depois - {h['data']}", width=250)
                     

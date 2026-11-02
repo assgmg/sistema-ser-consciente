@@ -13,7 +13,6 @@ st.set_page_config(page_title="PMOC - Instituto Ser Consciente", layout="wide", 
 st.markdown("""
     <style>
     @media print {
-        /* Oculta a barra lateral, cabeçalhos do streamlit e menus de navegação */
         [data-testid="stSidebar"] {display: none;}
         header {visibility: hidden;}
         .stButton {display: none;}
@@ -84,7 +83,7 @@ opcao = st.sidebar.radio("Navegação", [
 ])
 
 # -----------------------------------------------------------------------------
-# 1. INFORMAÇÕES DO EQUIPAMENTO (PÚBLICO / RESTRITO COM OPÇÃO DE APAGAR)
+# 1. INFORMAÇÕES DO EQUIPAMENTO (PÚBLICO / RESTRITO COM OPÇÃO DE EDITAR E EXCLUIR)
 # -----------------------------------------------------------------------------
 if opcao == "📋 Informações do Equipamento":
     st.header("📋 Informações do Equipamento - PMOC")
@@ -136,14 +135,17 @@ if opcao == "📋 Informações do Equipamento":
             
         st.markdown("---")
         st.markdown("### 🔐 Área Restrita / Fiscalização (Acesso Protegido)")
-        senha = st.text_input("Digite a senha master/fiscal para ver histórico e fotos:", type="password", key="senha_fiscal")
+        senha = st.text_input("Digite a senha master/fiscal para gerenciar histórico:", type="password", key="senha_fiscal")
         
         if senha == "visa":
             st.success("Acesso liberado com sucesso!")
-            st.subheader("📋 Histórico Acumulado de Manutenções")
+            st.subheader("📋 Histórico Acumulado e Gerenciamento")
             
             if hists:
                 for idx, h in enumerate(reversed(hists)):
+                    # Identificar o índice real no vetor original para edição/exclusão
+                    indice_real = len(st.session_state.historico) - 1 - idx
+                    
                     st.markdown(f"#### Manutenção #{len(hists)-idx} — Data: {h['data']}")
                     st.write(f"**Técnico Executor:** {h['tecnico']}")
                     st.write(f"**Checklist:** Filtros: {'Sim' if h['filtros'] else 'Não'} | Dreno: {'Sim' if h['dreno'] else 'Não'} | Serpentina: {'Sim' if h['serpentina'] else 'Não'}")
@@ -157,11 +159,23 @@ if opcao == "📋 Informações do Equipamento":
                     if h["foto_depois"]:
                         col2.image(h["foto_depois"], caption="Foto Depois", use_container_width=True)
                     
-                    # Botão claro para excluir/limpar registro incorreto
-                    col_del1, col_del2 = st.columns([1, 3])
-                    with col_del1:
-                        if st.button(f"🗑️ Excluir Registro", key=f"del_{tag_codigo}_{idx}"):
-                            st.session_state.historico = [item for item in st.session_state.historico if not (item["tag"] == tag_codigo and item["data"] == h["data"] and item["tecnico"] == h["tecnico"] and item["obs"] == h["obs"])]
+                    # Botões de Ação (Editar e Excluir)
+                    with st.expander(f"✏️ Editar ou 🗑️ Excluir este registro ({h['data']})"):
+                        with st.form(f"form_edit_{tag_codigo}_{idx}"):
+                            novo_data = st.text_input("Alterar Data (DD/MM/AAAA)", value=h['data'])
+                            novo_tecnico = st.text_input("Alterar Técnico", value=h['tecnico'])
+                            novo_obs = st.text_area("Alterar Observações", value=h['obs'])
+                            
+                            salvar_edicao = st.form_submit_button("💾 Salvar Alterações")
+                            if salvar_edicao:
+                                st.session_state.historico[indice_real]["data"] = novo_data
+                                st.session_state.historico[indice_real]["tecnico"] = novo_tecnico
+                                st.session_state.historico[indice_real]["obs"] = novo_obs
+                                st.success("Registro atualizado com sucesso! Atualize a página.")
+                                st.rerun()
+
+                        if st.button(f"🗑️ Excluir Definitivamente este Registro", key=f"btn_del_{tag_codigo}_{idx}"):
+                            del st.session_state.historico[indice_real]
                             st.success("Registro apagado com sucesso! Atualizando...")
                             st.rerun()
 
@@ -169,7 +183,7 @@ if opcao == "📋 Informações do Equipamento":
             else:
                 st.info("Nenhum histórico cadastrado para este aparelho.")
         elif senha != "":
-            st.error("Senha incorreta. Curiosos e visitantes não possuem acesso ao detalhamento.")
+            st.error("Senha incorreta. Curiosos e visitantes não possuem acesso ao gerenciamento.")
 
 # -----------------------------------------------------------------------------
 # 2. REGISTRAR MANUTENÇÃO

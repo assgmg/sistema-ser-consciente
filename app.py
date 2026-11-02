@@ -85,4 +85,31 @@ if opcao == "🔍 Consulta QR Code":
             ultima_manut = hists[-1]
             data_str = ultima_manut["data"]
             
-            st.success("🟢 STATUS DA MANUTENÇÃO
+            st.success("🟢 STATUS DA MANUTENÇÃO: REGISTRADA")
+            st.write(f"**Última Manutenção:** {data_str}")
+        else:
+            st.warning("⚪ Nenhuma manutenção registrada ainda para este equipamento.")
+            
+        st.markdown("---")
+        # ÁREA DE AUTENTICAÇÃO DO FISCAL
+        with st.expander("🔐 Área Restrita / Fiscalização"):
+            senha = st.text_input("Digite a senha do fiscal:", type="password")
+            if senha == "visa":
+                st.success("Autenticação realizada com sucesso!")
+                st.subheader("📋 Histórico Completo de Manutenções")
+                
+                if hists:
+                    for idx, h in enumerate(reversed(hists)):
+                        st.markdown(f"### Manutenção em {h['data']}")
+                        st.write(f"**Técnico:** {h['tecnico']}")
+                        st.write(f"**Filtros Limpos:** {'Sim' if h['filtros'] else 'Não'} | **Dreno Verificado:** {'Sim' if h['dreno'] else 'Não'} | **Serpentina Limpa:** {'Sim' if h['serpentina'] else 'Não'}")
+                        if h["obs"]:
+                            st.write(f"**Observações:** {h['obs']}")
+                        
+                        col1, col2 = st.columns(2)
+                        if h["foto_antes"]:
+                            col1.image(h["foto_antes"], caption="Foto Antes", use_container_width=True)
+                        if h["foto_depois"]:
+                            col2.image(h["foto_depois"], caption="Foto Depois", use_container_width=True)
+                        st.markdown("---")
+                else:

@@ -190,15 +190,15 @@ if opcao == "📋 Informações do Equipamento":
         st.markdown("---")
         
         # CAMPO DE SENHA DIRETAMENTE NA TELA PRINCIPAL
-        st.markdown("### 🔐 Visualização de Histórico e Relatório Detalhado")
-        senha_tela = st.text_input("Digite a senha de acesso para liberar o histórico completo:", type="password", key=f"senha_tela_{tag_codigo}")
+        st.markdown("### 🔐 Acesso ao Histórico Detalhado e Fotos")
+        senha_tela = st.text_input("Digite a senha de acesso para liberar o relatório completo:", type="password", key=f"senha_tela_{tag_codigo}")
         
         # Consolidação da senha ativa (barra lateral ou tela principal)
         senha_ativa = senha_input if senha_input in ["visa", "admin"] else senha_tela
         
         if senha_ativa in ["visa", "admin"]:
-            st.success("Acesso autorizado ao histórico detalhado.")
-            st.subheader("📋 Histórico Acumulado de Manutenções")
+            st.success("Acesso autorizado ao relatório completo do equipamento.")
+            st.subheader("📋 Histórico Acumulado de Manutenções e Registros Fotográficos")
             
             if hists:
                 for idx, h in enumerate(reversed(hists)):
@@ -213,11 +213,12 @@ if opcao == "📋 Informações do Equipamento":
                     
                     col1, col2 = st.columns(2)
                     if h["foto_antes"]:
-                        col1.image(h["foto_antes"], caption=f"Foto Antes - {h['data']}", width=250)
+                        col1.image(h["foto_antes"], caption=f"Foto Antes - {h['data']}", use_container_width=True)
                     if h["foto_depois"]:
-                        col2.image(h["foto_depois"], caption=f"Depois - {h['data']}", width=250)
+                        col2.image(h["foto_depois"], caption=f"Foto Depois - {h['data']}", use_container_width=True)
                     
-                    if senha_ativa == "admin":
+                    # Se for admin logado na barra lateral ou na senha da tela, libera edição/exclusão
+                    if senha_input == "admin" or senha_tela == "admin":
                         with st.expander(f"✏️ Editar ou 🗑️ Excluir este registro ({h['data']})"):
                             with st.form(f"form_edit_{tag_codigo}_{idx}"):
                                 novo_data = st.text_input("Alterar Data (DD/MM/AAAA)", value=h['data'])
@@ -241,7 +242,7 @@ if opcao == "📋 Informações do Equipamento":
             else:
                 st.info("Nenhum histórico cadastrado para este aparelho.")
         else:
-            st.info("🔒 Insira a senha autorizada acima para visualizar o histórico detalhado e os registros fotográficos deste equipamento.")
+            st.info("🔒 Insira a senha autorizada acima para visualizar o histórico detalhado, checklist completo e registros fotográficos deste equipamento.")
 
 # -----------------------------------------------------------------------------
 # 2. REGISTRAR MANUTENÇÃO (EXCLUSIVO ADMIN)
@@ -446,3 +447,4 @@ elif opcao == "📄 Relatório Fiscal A4" and senha_input in ["visa", "admin"]:
         if hists_eq:
             for h in hists_eq:
                 st.write(f"- **Data da Manutenção:** {h['data']} | **Técnico:** {h['tecnico']}")
+                st.write(f"  * Checklist: Filtros: {'Sim' if h

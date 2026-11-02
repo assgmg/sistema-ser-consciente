@@ -174,7 +174,7 @@ if opcao == "📋 Informações do Equipamento":
             
         st.markdown("---")
         
-        # CAMPO DE SENHA DIRETAMENTE NA TELA PRINCIPAL
+        # CAMPO DE SENHA DIRETAMENTE NA TELA PRINCIPAL (PARA QUEM ESCANEIA O QR CODE)
         st.markdown("### 🔐 Acesso ao Histórico Detalhado e Fotos")
         senha_tela = st.text_input("Digite a senha de acesso para liberar o relatório completo:", type="password", key=f"senha_tela_{tag_codigo}")
         
@@ -434,4 +434,32 @@ elif opcao == "📄 Relatório Fiscal A4" and senha_input in ["visa", "admin"]:
     st.markdown("<div style='page-break-after: always;'></div>", unsafe_allow_html=True)
     st.markdown("---")
     
-    # PÁGINAS SEGUINTES: DETALHAMENTO
+    # PÁGINAS SEGUINTES: DETALHAMENTO COMPLETO COM HISTÓRICO E FOTOS
+    st.markdown("### 📖 Páginas Seguintes: Detalhamento Completo e Histórico de Manutenções")
+    
+    for eq in instalados_df:
+        st.markdown(f"#### 📍 Equipamento: {eq['ambiente']} (TAG: {eq['tag']})")
+        st.write(f"**Modelo:** {eq['equipamento']} | **Carga Térmica:** {eq['btus']} BTUs")
+        
+        hists_eq = [h for h in st.session_state.historico if h["tag"] == eq["tag"]]
+        if hists_eq:
+            for h in hists_eq:
+                st.write(f"- **Data da Manutenção:** {h['data']} | **Técnico:** {h['tecnico']}")
+                st.write(f"  * Checklist: Filtros: {'Sim' if h['filtros'] else 'Não'} | Dreno: {'Sim' if h['dreno'] else 'Não'} | Serpentina: {'Sim' if h['serpentina'] else 'Não'}")
+                st.write(f"  * Extras: Peças: {'Sim' if h.get('pecas') else 'Não'} | Isolamento: {'Sim' if h.get('isolamento') else 'Não'} | Gás: {'Sim' if h.get('gas') else 'Não'}")
+                if h["obs"]:
+                    st.write(f"  * Observações: {h['obs']}")
+                
+                c1, c2 = st.columns(2)
+                if h.get("foto_antes_bytes"):
+                    c1.image(h["foto_antes_bytes"], caption=f"Antes - {h['data']}", width=250)
+                elif h.get("foto_antes"):
+                    c1.image(h["foto_antes"], caption=f"Antes - {h['data']}", width=250)
+                    
+                if h.get("foto_depois_bytes"):
+                    c2.image(h["foto_depois_bytes"], caption=f"Depois - {h['data']}", width=250)
+                elif h.get("foto_depois"):
+                    c2.image(h["foto_depois"], caption=f"Depois - {h['data']}", width=250)
+        else:
+            st.write("*(Nenhuma manutenção registrada para este equipamento)*")
+        st.markdown("---")

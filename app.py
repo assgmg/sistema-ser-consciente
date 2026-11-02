@@ -323,7 +323,7 @@ elif opcao == "✏️ Editar Previstos" and senha_input == "admin":
                     st.success(f"O equipamento {tag_codigo} agora está instalado!")
                     st.rerun()
     else:
-        st.info("Todos os equipamentos já estão instalados!")
+        st.info("Todos o equipamentos já estão instalados!")
 
 # -----------------------------------------------------------------------------
 # 4. GERAR QR CODES COM NOME DA CLÍNICA E TAG IMPRESSA NA ETIQUETA (EXCLUSIVO ADMIN)
@@ -404,4 +404,62 @@ elif opcao == "📄 Relatório Fiscal A4" and senha_input in ["visa", "admin"]:
             st.image(logo_img, width=100)
     with col_titulo:
         st.markdown("<h2>INSTITUTO SER CONSCIENTE LTDA</h2>", unsafe_allow_html=True)
-        st.markdown("<h4>PLANO DE MANUT
+        st.markdown("<h4>PLANO DE MANUTENÇÃO, OPERAÇÃO E CONTROLE - PMOC</h4>", unsafe_allow_html=True)
+        st.markdown("<b>Lei Federal nº 13.589/2018</b>", unsafe_allow_html=True)
+
+    st.markdown(f"**Data de Emissão:** {datetime.date.today().strftime('%d/%m/%Y')}")
+    st.markdown(f"**Responsável Técnico / Administrador:** Antônio Sérgio Silva Gomes")
+    st.markdown("---")
+    
+    # PRIMEIRA PÁGINA: RELAÇÃO RESUMIDA COMPLETA DOS EQUIPAMENTOS INSTALADOS
+    st.markdown("### 📑 Página 1: Relação Resumida dos Equipamentos Instalados")
+    instalados_df = [e for e in st.session_state.equipamentos if e["status"] == "Instalado"]
+    
+    dados_resumo = []
+    for eq in instalados_df:
+        hists_eq = [h for h in st.session_state.historico if h["tag"] == eq["tag"]]
+        ultima_data = hists_eq[-1]["data"] if hists_eq else "Sem registro"
+        dados_resumo.append({
+            "TAG": eq["tag"],
+            "Ambiente": eq["ambiente"],
+            "Equipamento": eq["equipamento"],
+            "BTUs": eq["btus"],
+            "Última Manut.": ultima_data,
+            "Qtd Registros": len(hists_eq)
+        })
+        
+    df_resumo = pd.DataFrame(dados_resumo)
+    st.dataframe(df_resumo, use_container_width=True, hide_index=True, height=len(df_resumo) * 35 + 40)
+    
+    st.markdown("<div style='page-break-after: always;'></div>", unsafe_allow_html=True)
+    st.markdown("---")
+    
+    # PÁGINAS SEGUINTES: DETALHAMENTO COMPLETO COM HISTÓRICO E FOTOS
+    st.markdown("### 📖 Páginas Seguintes: Detalhamento Completo e Histórico de Manutenções")
+    
+    for eq in instalados_df:
+        st.markdown(f"#### 📍 Equipamento: {eq['ambiente']} (TAG: {eq['tag']})")
+        st.write(f"**Modelo:** {eq['equipamento']} | **Carga Térmica:** {eq['btus']} BTUs")
+        
+        hists_eq = [h for h in st.session_state.historico if h["tag"] == eq["tag"]]
+        if hists_eq:
+            for h in hists_eq:
+                st.write(f"- **Data da Manutenção:** {h['data']} | **Técnico:** {h['tecnico']}")
+                st.write(f"  * Checklist: Filtros: {'Sim' if h['filtros'] else 'Não'} | Dreno: {'Sim' if h['dreno'] else 'Não'} | Serpentina: {'Sim' if h['serpentina'] else 'Não'}")
+                st.write(f"  * Extras: Peças: {'Sim' if h.get('pecas') else 'Não'} | Isolamento: {'Sim' if h.get('isolamento') else 'Não'} | Gás: {'Sim' if h.get('gas') else 'Não'}")
+                if h["obs"]:
+                    st.write(f"  * Observações: {h['obs']}")
+                
+                c1, c2 = st.columns(2)
+                if h.get("foto_antes_bytes"):
+                    c1.image(h["foto_antes_bytes"], caption=f"Antes - {h['data']}", width=250)
+                elif h.get("foto_antes"):
+                    c1.image(h["foto_antes"], caption=f"Antes - {h['data']}", width=250)
+                    
+                if h.get("foto_depois_bytes"):
+                    c2.image(h["foto_depois_bytes"], caption=f"Depois - {h['data']}", width=250)
+                elif h.get("foto_depois"):
+                    c2.image(h["foto_depois"], caption=f"Depois - {h['data']}", width=250)
+        else:
+            st.write("*(Nenhuma manutenção registrada para este equipamento)*")
+        st.markdown("---")

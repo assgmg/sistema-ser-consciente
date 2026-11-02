@@ -1,5 +1,4 @@
-
-   import streamlit as st
+import streamlit as st
 import pandas as pd
 import qrcode
 from io import BytesIO
@@ -305,11 +304,11 @@ elif opcao == "✏️ Editar Previstos" and senha_input == "admin":
         st.info("Todos os equipamentos já estão instalados!")
 
 # -----------------------------------------------------------------------------
-# 4. GERAR QR CODES COM TAG IMPRESSA NA ETIQUETA (EXCLUSIVO ADMIN)
+# 4. GERAR QR CODES COM NOME DA CLÍNICA E TAG IMPRESSA NA ETIQUETA (EXCLUSIVO ADMIN)
 # -----------------------------------------------------------------------------
 elif opcao == "🖨️ Gerar QR Codes" and senha_input == "admin":
     st.header("🖨️ Gerador de QR Codes para Etiquetas")
-    st.write("A etiqueta gerada inclui o QR code e a TAG impressa claramente para validação do fiscal.")
+    st.write("A etiqueta gerada inclui o QR code, o nome da clínica e a TAG impressa claramente para validação.")
     
     base_url = st.text_input("URL base do seu sistema no Streamlit:", value="https://sistema-ser-consciente-fexfnfuwjkntnzwdwhknso.streamlit.app")
     tag_sel = st.selectbox("Selecione o Equipamento:", [e["tag"] + " - " + e["ambiente"] for e in st.session_state.equipamentos])
@@ -326,7 +325,7 @@ elif opcao == "🖨️ Gerar QR Codes" and senha_input == "admin":
     img_qr = qr.make_image(fill_color="black", back_color="white").convert('RGB')
     
     largura_qr, altura_qr = img_qr.size
-    altura_banner = 120
+    altura_banner = 140
     etiqueta = Image.new('RGB', (largura_qr, altura_qr + altura_banner), 'white')
     etiqueta.paste(img_qr, (0, 0))
     
@@ -336,15 +335,15 @@ elif opcao == "🖨️ Gerar QR Codes" and senha_input == "admin":
     except:
         font = None
         
-    draw.text((20, altura_qr + 15), f"PMOC - SER CONSCIENTE", fill="black", font=font)
-    draw.text((20, altura_qr + 45), f"TAG: {tag_codigo}", fill="black", font=font)
-    draw.text((20, altura_qr + 75), f"Ambiente: {ambiente_nome}", fill="black", font=font)
+    draw.text((15, altura_qr + 10), f"PMOC - Clínica Instituto Ser Consciente", fill="black", font=font)
+    draw.text((15, altura_qr + 45), f"TAG: {tag_codigo}", fill="black", font=font)
+    draw.text((15, altura_qr + 80), f"Ambiente: {ambiente_nome}", fill="black", font=font)
     
     buf = BytesIO()
     etiqueta.save(buf, format="PNG")
     byte_im = buf.getvalue()
     
-    st.image(etiqueta, caption=f"Etiqueta Oficial com TAG: {tag_codigo}", width=300)
+    st.image(etiqueta, caption=f"Etiqueta Oficial: {tag_codigo}", width=300)
     st.download_button(
         label=f"⬇️ Baixar Etiqueta Completa ({tag_codigo}) para Vinil",
         data=byte_im,
@@ -408,7 +407,6 @@ elif opcao == "📄 Relatório Fiscal A4" and senha_input in ["visa", "admin"]:
         })
         
     df_resumo = pd.DataFrame(dados_resumo)
-    # Exibir a tabela completa sem limite de linhas truncadas no resumo
     st.dataframe(df_resumo, use_container_width=True, hide_index=True, height=len(df_resumo) * 35 + 40)
     
     st.markdown("<div style='page-break-after: always;'></div>", unsafe_allow_html=True)

@@ -83,7 +83,7 @@ opcao = st.sidebar.radio("Navegação", [
 ])
 
 # -----------------------------------------------------------------------------
-# 1. INFORMAÇÕES DO EQUIPAMENTO (PÚBLICO / RESTRITO COM OPÇÃO DE EDITAR E EXCLUIR)
+# 1. INFORMAÇÕES DO EQUIPAMENTO (PÚBLICO / RESTRITO)
 # -----------------------------------------------------------------------------
 if opcao == "📋 Informações do Equipamento":
     st.header("📋 Informações do Equipamento - PMOC")
@@ -135,15 +135,18 @@ if opcao == "📋 Informações do Equipamento":
             
         st.markdown("---")
         st.markdown("### 🔐 Área Restrita / Fiscalização (Acesso Protegido)")
-        senha = st.text_input("Digite a senha master/fiscal para gerenciar histórico:", type="password", key="senha_fiscal")
+        senha = st.text_input("Digite a senha (visa para consulta / admin para acesso irrestrito):", type="password", key="senha_fiscal")
         
-        if senha == "visa":
-            st.success("Acesso liberado com sucesso!")
-            st.subheader("📋 Histórico Acumulado e Gerenciamento")
+        if senha in ["visa", "admin"]:
+            if senha == "visa":
+                st.success("Acesso de Consulta Liberado (Senha: visa)")
+            else:
+                st.success("Acesso Irrestrito Liberado (Senha: admin - Modo Master)")
+
+            st.subheader("📋 Histórico Acumulado de Manutenções")
             
             if hists:
                 for idx, h in enumerate(reversed(hists)):
-                    # Identificar o índice real no vetor original para edição/exclusão
                     indice_real = len(st.session_state.historico) - 1 - idx
                     
                     st.markdown(f"#### Manutenção #{len(hists)-idx} — Data: {h['data']}")
@@ -159,31 +162,32 @@ if opcao == "📋 Informações do Equipamento":
                     if h["foto_depois"]:
                         col2.image(h["foto_depois"], caption="Foto Depois", use_container_width=True)
                     
-                    # Botões de Ação (Editar e Excluir)
-                    with st.expander(f"✏️ Editar ou 🗑️ Excluir este registro ({h['data']})"):
-                        with st.form(f"form_edit_{tag_codigo}_{idx}"):
-                            novo_data = st.text_input("Alterar Data (DD/MM/AAAA)", value=h['data'])
-                            novo_tecnico = st.text_input("Alterar Técnico", value=h['tecnico'])
-                            novo_obs = st.text_area("Alterar Observações", value=h['obs'])
-                            
-                            salvar_edicao = st.form_submit_button("💾 Salvar Alterações")
-                            if salvar_edicao:
-                                st.session_state.historico[indice_real]["data"] = novo_data
-                                st.session_state.historico[indice_real]["tecnico"] = novo_tecnico
-                                st.session_state.historico[indice_real]["obs"] = novo_obs
-                                st.success("Registro atualizado com sucesso! Atualize a página.")
-                                st.rerun()
+                    # Apenas a senha 'admin' permite editar ou excluir registros
+                    if senha == "admin":
+                        with st.expander(f"✏️ Editar ou 🗑️ Excluir este registro ({h['data']})"):
+                            with st.form(f"form_edit_{tag_codigo}_{idx}"):
+                                novo_data = st.text_input("Alterar Data (DD/MM/AAAA)", value=h['data'])
+                                novo_tecnico = st.text_input("Alterar Técnico", value=h['tecnico'])
+                                novo_obs = st.text_area("Alterar Observações", value=h['obs'])
+                                
+                                salvar_edicao = st.form_submit_button("💾 Salvar Alterações")
+                                if salvar_edicao:
+                                    st.session_state.historico[indice_real]["data"] = novo_data
+                                    st.session_state.historico[indice_real]["tecnico"] = novo_tecnico
+                                    st.session_state.historico[indice_real]["obs"] = novo_obs
+                                    st.success("Registro atualizado com sucesso! Atualize a página.")
+                                    st.rerun()
 
-                        if st.button(f"🗑️ Excluir Definitivamente este Registro", key=f"btn_del_{tag_codigo}_{idx}"):
-                            del st.session_state.historico[indice_real]
-                            st.success("Registro apagado com sucesso! Atualizando...")
-                            st.rerun()
+                            if st.button(f"🗑️ Excluir Definitivamente este Registro", key=f"btn_del_{tag_codigo}_{idx}"):
+                                del st.session_state.historico[indice_real]
+                                st.success("Registro apagado com sucesso! Atualizando...")
+                                st.rerun()
 
                     st.markdown("---")
             else:
                 st.info("Nenhum histórico cadastrado para este aparelho.")
         elif senha != "":
-            st.error("Senha incorreta. Curiosos e visitantes não possuem acesso ao gerenciamento.")
+            st.error("Senha incorreta. Curiosos e visitantes não possuem acesso ao detalhamento.")
 
 # -----------------------------------------------------------------------------
 # 2. REGISTRAR MANUTENÇÃO
@@ -336,18 +340,19 @@ elif opcao == "📊 Dashboard Geral":
     st.dataframe(df, use_container_width=True)
 
 # -----------------------------------------------------------------------------
-# 6. RELATÓRIO FISCAL A4 COMPLETO (COM FOTOS E DADOS)
+# 6. RELATÓRIO FISCAL A4 COMPLETO (COM RESUMO INICIAL E DETALHAMENTO)
 # -----------------------------------------------------------------------------
 elif opcao == "📄 Relatório Fiscal A4":
     st.header("📄 Relatório Fiscal Completo (A4 Retrato)")
-    st.write("Relatório consolidado pronto para apresentação à fiscalização sanitária, contendo histórico e registros fotográficos.")
+    st.write("Relatório consolidado pronto para apresentação à fiscalização sanitária.")
     
-    senha_rel = st.text_input("Digite a senha master para gerar o relatório fiscal:", type="password", key="senha_rel")
+    senha_rel = st.text_input("Digite a senha (visa ou admin) para gerar o relatório fiscal:", type="password", key="senha_rel")
     
-    if senha_rel == "visa":
+    if senha_rel in ["visa", "admin"]:
         st.success("Senha validada. Abaixo está o relatório completo formatado para impressão:")
         st.markdown("---")
         
+        # CABEÇALHO OFICIAL DO RELATÓRIO
         st.markdown("<h2 style='text-align: center;'>INSTITUTO SER CONSCIENTE LTDA</h2>", unsafe_allow_html=True)
         st.markdown("<h4 style='text-align: center;'>PLANO DE MANUTENÇÃO, OPERAÇÃO E CONTROLE - PMOC</h4>", unsafe_allow_html=True)
         st.markdown(f"<p style='text-align: center;'><b>Lei Federal nº 13.589/2018</b></p>", unsafe_allow_html=True)
@@ -355,10 +360,34 @@ elif opcao == "📄 Relatório Fiscal A4":
         st.markdown(f"**Responsável Técnico / Administrador:** Antônio Sérgio Silva Gomes")
         st.markdown("---")
         
+        # PRIMEIRA PÁGINA: RELAÇÃO RESUMIDA DOS EQUIPAMENTOS INSTALADOS
+        st.markdown("### 📑 Página 1: Relação Resumida dos Equipamentos Instalados")
         instalados_df = [e for e in st.session_state.equipamentos if e["status"] == "Instalado"]
         
+        dados_resumo = []
         for eq in instalados_df:
-            st.markdown(f"### 📍 Equipamento: {eq['ambiente']} (TAG: {eq['tag']})")
+            hists_eq = [h for h in st.session_state.historico if h["tag"] == eq["tag"]]
+            ultima_data = hists_eq[-1]["data"] if hists_eq else "Sem registro"
+            dados_resumo.append({
+                "TAG": eq["tag"],
+                "Ambiente": eq["ambiente"],
+                "Equipamento": eq["equipamento"],
+                "BTUs": eq["btus"],
+                "Última Manut.": ultima_data,
+                "Qtd Registros": len(hists_eq)
+            })
+            
+        df_resumo = pd.DataFrame(dados_resumo)
+        st.dataframe(df_resumo, use_container_width=True)
+        
+        st.markdown("<div style='page-break-after: always;'></div>", unsafe_allow_html=True)
+        st.markdown("---")
+        
+        # PÁGINAS SEGUINTES: DETALHAMENTO COMPLETO COM HISTÓRICO E FOTOS
+        st.markdown("### 📖 Páginas Seguintes: Detalhamento Completo e Histórico de Manutenções")
+        
+        for eq in instalados_df:
+            st.markdown(f"#### 📍 Equipamento: {eq['ambiente']} (TAG: {eq['tag']})")
             st.write(f"**Modelo:** {eq['equipamento']} | **Carga Térmica:** {eq['btus']} BTUs")
             
             hists_eq = [h for h in st.session_state.historico if h["tag"] == eq["tag"]]
@@ -379,6 +408,6 @@ elif opcao == "📄 Relatório Fiscal A4":
                 st.write("*(Nenhuma manutenção registrada para este equipamento)*")
             st.markdown("---")
             
-        st.info("💡 Dica de Impressão: Pressione **Ctrl + P**, selecione o destino como Impressora ou Salvar como PDF, certifique-se de que a orientação está em **Retrato (Portrait)**. Graças ao modo limpo, apenas o relatório sairá impresso.")
+        st.info("💡 Dica de Impressão: Pressione **Ctrl + P**, selecione o destino como Impressora ou Salvar como PDF, certificando-se de que a orientação está em **Retrato (Portrait)**.")
     elif senha_rel != "":
         st.error("Senha incorreta.")

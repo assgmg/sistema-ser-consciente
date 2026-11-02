@@ -204,10 +204,18 @@ if opcao == "📋 Informações do Equipamento":
                 for idx, h in enumerate(reversed(hists)):
                     indice_real = len(st.session_state.historico) - 1 - idx
                     
+                    txt_filtros = "Sim" if h['filtros'] else "Não"
+                    txt_dreno = "Sim" if h['dreno'] else "Não"
+                    txt_serpentina = "Sim" if h['serpentina'] else "Não"
+                    
+                    txt_pecas = "Sim" if h.get('pecas') else "Não"
+                    txt_isolamento = "Sim" if h.get('isolamento') else "Não"
+                    txt_gas = "Sim" if h.get('gas') else "Não"
+                    
                     st.markdown(f"#### Manutenção #{len(hists)-idx} — Data: {h['data']}")
                     st.write(f"**Técnico Executor:** {h['tecnico']}")
-                    st.write(f"**Checklist:** Filtros: {'Sim' if h['filtros'] else 'Não'} | Dreno: {'Sim' if h['dreno'] else 'Não'} | Serpentina: {'Sim' if h['serpentina'] else 'Não'}")
-                    st.write(f"**Serviços Adicionais:** Peças: {'Sim' if h.get('pecas') else 'Não'} | Isolamento: {'Sim' if h.get('isolamento') else 'Não'} | Carga de Gás: {'Sim' if h.get('gas') else 'Não'}")
+                    st.write(f"**Checklist:** Filtros: {txt_filtros} | Dreno: {txt_dreno} | Serpentina: {txt_serpentina}")
+                    st.write(f"**Serviços Adicionais:** Peças: {txt_pecas} | Isolamento: {txt_isolamento} | Carga de Gás: {txt_gas}")
                     if h["obs"]:
                         st.write(f"**Observações:** {h['obs']}")
                     
@@ -217,7 +225,6 @@ if opcao == "📋 Informações do Equipamento":
                     if h["foto_depois"]:
                         col2.image(h["foto_depois"], caption=f"Foto Depois - {h['data']}", use_container_width=True)
                     
-                    # Se for admin logado na barra lateral ou na senha da tela, libera edição/exclusão
                     if senha_input == "admin" or senha_tela == "admin":
                         with st.expander(f"✏️ Editar ou 🗑️ Excluir este registro ({h['data']})"):
                             with st.form(f"form_edit_{tag_codigo}_{idx}"):
@@ -447,4 +454,5 @@ elif opcao == "📄 Relatório Fiscal A4" and senha_input in ["visa", "admin"]:
         if hists_eq:
             for h in hists_eq:
                 st.write(f"- **Data da Manutenção:** {h['data']} | **Técnico:** {h['tecnico']}")
-                st.write(f"  * Checklist: Filtros: {'Sim' if h
+                st.write(f"  * Checklist: Filtros: {'Sim' if h['filtros'] else 'Não'} | Dreno: {'Sim' if h['dreno'] else 'Não'} | Serpentina: {'Sim' if h['serpentina'] else 'Não'}")
+                st.write

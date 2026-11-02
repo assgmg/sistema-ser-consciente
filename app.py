@@ -189,11 +189,11 @@ if opcao == "📋 Informações do Equipamento":
             
         st.markdown("---")
         
-        # CAMPO DE SENHA DIRETAMENTE NA TELA PRINCIPAL (PARA QUEM ESCANEIA O QR CODE)
+        # CAMPO DE SENHA DIRETAMENTE NA TELA PRINCIPAL
         st.markdown("### 🔐 Visualização de Histórico e Relatório Detalhado")
-        senha_tela = st.text_input("Digite a senha de acesso para liberar o histórico completo:", type="password", key="senha_tela_principal")
+        senha_tela = st.text_input("Digite a senha de acesso para liberar o histórico completo:", type="password", key=f"senha_tela_{tag_codigo}")
         
-        # Considera válida a senha digitada na barra lateral OU na tela principal
+        # Consolidação da senha ativa (barra lateral ou tela principal)
         senha_ativa = senha_input if senha_input in ["visa", "admin"] else senha_tela
         
         if senha_ativa in ["visa", "admin"]:
@@ -327,7 +327,7 @@ elif opcao == "✏️ Editar Previstos" and senha_input == "admin":
         st.info("Todos os equipamentos já estão instalados!")
 
 # -----------------------------------------------------------------------------
-# 4. GERAR QR CODES COM NOME DA CLINICA E TAG IMPRESSA NA ETIQUETA (EXCLUSIVO ADMIN)
+# 4. GERAR QR CODES COM NOME DA CLÍNICA E TAG IMPRESSA NA ETIQUETA (EXCLUSIVO ADMIN)
 # -----------------------------------------------------------------------------
 elif opcao == "🖨️ Gerar QR Codes" and senha_input == "admin":
     st.header("🖨️ Gerador de QR Codes para Etiquetas")
@@ -375,3 +375,74 @@ elif opcao == "🖨️ Gerar QR Codes" and senha_input == "admin":
     )
 
 # -----------------------------------------------------------------------------
+# 5. DASHBOARD GERAL (EXCLUSIVO ADMIN)
+# -----------------------------------------------------------------------------
+elif opcao == "📊 Dashboard Geral" and senha_input == "admin":
+    st.header("📊 Painel Geral de Climatização")
+    total = len(st.session_state.equipamentos)
+    instalados = len([e for e in st.session_state.equipamentos if e["status"] == "Instalado"])
+    previstos = len([e for e in st.session_state.equipamentos if e["status"] == "Previsto"])
+    
+    col1, col2, col3 = st.columns(3)
+    col1.metric("Total", total)
+    col2.metric("Instalados", instalados)
+    col3.metric("Previstos", previstos)
+    
+    st.markdown("---")
+    st.subheader("📋 Tabela de Ativos")
+    df = pd.DataFrame(st.session_state.equipamentos)
+    st.dataframe(df, use_container_width=True)
+
+# -----------------------------------------------------------------------------
+# 6. RELATÓRIO FISCAL A4 COMPLETO (VISA OU ADMIN)
+# -----------------------------------------------------------------------------
+elif opcao == "📄 Relatório Fiscal A4" and senha_input in ["visa", "admin"]:
+    
+    # CABEÇALHO OFICIAL COM A LOGOMARCA (BORBOLETA)
+    col_logo, col_titulo = st.columns([1, 4])
+    with col_logo:
+        if logo_img:
+            st.image(logo_img, width=100)
+    with col_titulo:
+        st.markdown("<h2>INSTITUTO SER CONSCIENTE LTDA</h2>", unsafe_allow_html=True)
+        st.markdown("<h4>PLANO DE MANUTENÇÃO, OPERAÇÃO E CONTROLE - PMOC</h4>", unsafe_allow_html=True)
+        st.markdown("<b>Lei Federal nº 13.589/2018</b>", unsafe_allow_html=True)
+
+    st.markdown(f"**Data de Emissão:** {datetime.date.today().strftime('%d/%m/%Y')}")
+    st.markdown(f"**Responsável Técnico / Administrador:** Antônio Sérgio Silva Gomes")
+    st.markdown("---")
+    
+    # PRIMEIRA PÁGINA: RELAÇÃO RESUMIDA COMPLETA DOS EQUIPAMENTOS INSTALADOS
+    st.markdown("### 📑 Página 1: Relação Resumida dos Equipamentos Instalados")
+    instalados_df = [e for e in st.session_state.equipamentos if e["status"] == "Instalado"]
+    
+    dados_resumo = []
+    for eq in instalados_df:
+        hists_eq = [h for h in st.session_state.historico if h["tag"] == eq["tag"]]
+        ultima_data = hists_eq[-1]["data"] if hists_eq else "Sem registro"
+        dados_resumo.append({
+            "TAG": eq["tag"],
+            "Ambiente": eq["ambiente"],
+            "Equipamento": eq["equipamento"],
+            "BTUs": eq["btus"],
+            "Última Manut.": ultima_data,
+            "Qtd Registros": len(hists_eq)
+        })
+        
+    df_resumo = pd.DataFrame(dados_resumo)
+    st.dataframe(df_resumo, use_container_width=True, hide_index=True, height=len(df_resumo) * 35 + 40)
+    
+    st.markdown("<div style='page-break-after: always;'></div>", unsafe_allow_html=True)
+    st.markdown("---")
+    
+    # PÁGINAS SEGUINTES: DETALHAMENTO COMPLETO COM HISTÓRICO E FOTOS
+    st.markdown("### 📖 Páginas Seguintes: Detalhamento Completo e Histórico de Manutenções")
+    
+    for eq in instalados_df:
+        st.markdown(f"#### 📍 Equipamento: {eq['ambiente']} (TAG: {eq['tag']})")
+        st.write(f"**Modelo:** {eq['equipamento']} | **Carga Térmica:** {eq['btus']} BTUs")
+        
+        hists_eq = [h for h in st.session_state.historico if h["tag"] == eq["tag"]]
+        if hists_eq:
+            for h in hists_eq:
+                st.write(f"- **Data da Manutenção:** {h['data']} | **Técnico:** {h['tecnico']}")

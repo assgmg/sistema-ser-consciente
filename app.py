@@ -49,7 +49,7 @@ def carregar_logo():
 logo_img = carregar_logo()
 
 # -----------------------------------------------------------------------------
-# ESTILO CSS PARA IMPRESSÃO LIMPA E OTIMIZADA (SEM ESPAÇOS VAGOS)
+# ESTILO CSS PARA IMPRESSÃO PERFEITA E TABELAS NATIVAS
 # -----------------------------------------------------------------------------
 st.markdown("""
     <style>
@@ -61,6 +61,21 @@ st.markdown("""
         .streamlit-expanderHeader {display: none;}
         .stAlert {display: none;}
         body {margin: 0; padding: 0;}
+    }
+    table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-bottom: 20px;
+        font-size: 13px;
+    }
+    th, td {
+        border: 1px solid #ddd;
+        padding: 8px;
+        text-align: left;
+    }
+    th {
+        background-color: #f2f2f2;
+        color: #333;
     }
     </style>
 """, unsafe_allow_html=True)
@@ -461,25 +476,45 @@ elif opcao == "📄 Relatório Fiscal A4" and senha_input in ["visa", "admin"]:
     st.markdown(f"**Responsável Técnico / Administrador:** Antônio Sérgio Silva Gomes")
     st.markdown("---")
     
-    # RELAÇÃO RESUMIDA DOS EQUIPAMENTOS INSTALADOS
+    # RELAÇÃO RESUMIDA DOS EQUIPAMENTOS INSTALADOS (RENDERIZADA EM TABELA HTML PARA IMPRESSÃO COMPLETA)
     st.markdown("### 📑 Relação Resumida dos Equipamentos Instalados")
     instalados_df = [e for e in st.session_state.equipamentos if e["status"] == "Instalado"]
     
-    dados_resumo = []
+    html_tabela = """
+    <table>
+        <thead>
+            <tr>
+                <th>TAG</th>
+                <th>Ambiente</th>
+                <th>Equipamento</th>
+                <th>BTUs</th>
+                <th>Última Manut.</th>
+                <th>Qtd Registros</th>
+            </tr>
+        </thead>
+        <tbody>
+    """
+    
     for eq in instalados_df:
         hists_eq = [h for h in st.session_state.historico if h["tag"] == eq["tag"]]
         ultima_data = hists_eq[-1]["data"] if hists_eq else "Sem registro"
-        dados_resumo.append({
-            "TAG": eq["tag"],
-            "Ambiente": eq["ambiente"],
-            "Equipamento": eq["equipamento"],
-            "BTUs": eq["btus"],
-            "Última Manut.": ultima_data,
-            "Qtd Registros": len(hists_eq)
-        })
+        qtd_reg = len(hists_eq)
+        html_tabela += f"""
+            <tr>
+                <td><b>{eq['tag']}</b></td>
+                <td>{eq['ambiente']}</td>
+                <td>{eq['equipamento']}</td>
+                <td>{eq['btus']}</td>
+                <td>{ultima_data}</td>
+                <td>{qtd_reg}</td>
+            </tr>
+        """
         
-    df_resumo = pd.DataFrame(dados_resumo)
-    st.dataframe(df_resumo, use_container_width=True, hide_index=True)
+    html_tabela += """
+        </tbody>
+    </table>
+    """
+    st.markdown(html_tabela, unsafe_allow_html=True)
     
     st.markdown("---")
     
@@ -498,7 +533,7 @@ elif opcao == "📄 Relatório Fiscal A4" and senha_input in ["visa", "admin"]:
                 txt_s = "Sim" if h['serpentina'] else "Não"
                 txt_p = "Sim" if h.get('pecas') else "Não"
                 txt_i = "Sim" if h.get('isolamento') else "Não"
-                txt_g = "Sim" if h.get('gas') else "Não"
+                txt_g = "Sim" if h.get('gas') else "Non"
 
                 st.write(f"- **Data da Manutenção:** {h['data']} | **Técnico:** {h['tecnico']}")
                 st.write(f"  * Checklist: Filtros: {txt_f} | Dreno: {txt_d} | Serpentina: {txt_s}")

@@ -7,6 +7,9 @@ import datetime
 
 st.set_page_config(page_title="PMOC - Instituto Ser Consciente", layout="wide", page_icon="❄️")
 
+# -----------------------------------------------------------------------------
+# BASE DE DADOS INICIAL COM OS 32 EQUIPAMENTOS
+# -----------------------------------------------------------------------------
 @st.cache_data
 def carregar_equipamentos_iniciais():
     return [
@@ -50,14 +53,30 @@ if "equipamentos" not in st.session_state:
 if "historico" not in st.session_state:
     st.session_state.historico = []
 
+# SUPORTE A PARÂMETRO VIA URL (LEITURA DO QR CODE)
+query_params = st.query_params
+tag_url = query_params.get("tag", None)
+
 st.sidebar.title("❄️ PMOC Digital")
 st.sidebar.subheader("Instituto Ser Consciente Ltda")
 opcao = st.sidebar.radio("Navegação", ["🔍 Consulta QR Code", "🛠️ Registrar Manutenção", "✏️ Editar Previstos", "🖨️ Gerar QR Codes", "📊 Dashboard Geral"])
 
+# -----------------------------------------------------------------------------
+# 1. CONSULTA PÚBLICA / FISCAL (QR CODE)
+# -----------------------------------------------------------------------------
 if opcao == "🔍 Consulta QR Code":
     st.header("🔍 Consulta de Conformidade PMOC")
-    tags = [e["tag"] + " - " + e["ambiente"] for e in st.session_state.equipamentos]
-    tag_selecionada = st.selectbox("Selecione a TAG do Equipamento:", tags)
+    
+    tags_lista = [e["tag"] + " - " + e["ambiente"] for e in st.session_state.equipamentos]
+    
+    indice_inicial = 0
+    if tag_url:
+        for i, t in enumerate(tags_lista):
+            if tag_url in t:
+                indice_inicial = i
+                break
+
+    tag_selecionada = st.selectbox("Selecione a TAG do Equipamento:", tags_lista, index=indice_inicial)
     tag_codigo = tag_selecionada.split(" - ")[0]
     
     equip = next((e for e in st.session_state.equipamentos if e["tag"] == tag_codigo), None)
@@ -73,21 +92,38 @@ if opcao == "🔍 Consulta QR Code":
             st.info("🟡 Equipamento Previsto — Aguardando Instalação Física.")
         elif hists:
             ultima_manut = hists[-1]
-            st.success("🟢 STATUS DA MANUTENÇÃO: REGISTRADA")
-            st.write(f"**Última Manutenção:** {ultima_manut['data']}")
+            data_ult_str = ultima_manut["data"]
+            
+            try:
+                d_obj = datetime.datetime.strptime(data_ult_str, "%d/%m/%Y").date()
+                d_prox = d_obj + datetime.timedelta(days=30)
+                d_prox_str = d_prox.strftime("%d/%m/%Y")
+                hoje = datetime.date.today()
+                
+                if hoje <= d_prox:
+                    st.success("🟢 STATUS DA MANUTENÇÃO: EM DIA")
+                else:
+                    st.error("🔴 STATUS DA MANUTENÇÃO: PENDENTE (Vencida)")
+            except:
+                d_prox_str = "A calcular"
+                st.success("🟢 STATUS DA MANUTENÇÃO: REGISTRADA")
+
+            st.write(f"**Última Manutenção:** {data_ult_str}")
+            st.write(f"**Próxima Manutenção Preventiva:** {d_prox_str}")
+            st.write(f"**Técnico Responsável:** {ultima_manut['tecnico']}")
         else:
             st.warning("⚪ Nenhuma manutenção registrada ainda para este equipamento.")
             
         st.markdown("---")
-        with st.expander("🔐 Área Restrita / Fiscalização"):
-            senha = st.text_input("Digite a senha do fiscal:", type="password")
+        with st.expander("🔐 Área Restrita / Fiscalização (Senha: visa)"):
+            senha = st.text_input("Digite a senha do fiscal:", type="password", key="senha_fiscal")
             if senha == "visa":
                 st.success("Autenticação realizada com sucesso!")
                 st.subheader("📋 Histórico Completo de Manutenções")
                 if hists:
                     for h in reversed(hists):
                         st.markdown(f"### Manutenção em {h['data']}")
-                        st.write(f"**Técnico:** {h['tecnico']}")
+                        st.write(f"**Técnico Executor:** {h['tecnico']}")
                         st.write(f"**Filtros Limpos:** {'Sim' if h['filtros'] else 'Não'} | **Dreno Verificado:** {'Sim' if h['dreno'] else 'Não'} | **Serpentina Limpa:** {'Sim' if h['serpentina'] else 'Não'}")
                         if h["obs"]:
                             st.write(f"**Observações:** {h['obs']}")
@@ -102,47 +138,56 @@ if opcao == "🔍 Consulta QR Code":
             elif senha != "":
                 st.error("Senha incorreta.")
 
+# -----------------------------------------------------------------------------
+# 2. REGISTRAR MANUTENÇÃO
+# -----------------------------------------------------------------------------
 elif opcao == "🛠️ Registrar Manutenção":
     st.header("🛠️ Registro de Manutenção Preventiva")
     instalados = [e for e in st.session_state.equipamentos if e["status"] == "Instalado"]
     tags = [e["tag"] + " - " + e["ambiente"] for e in instalados]
     
-    tag_sel = st.selectbox("Selecione o Equipamento:", tags)
-    tag_codigo = tag_sel.split(" - ")[0]
-    hoje_formatado = datetime.date.today().strftime("%d/%m/%Y")
-    
-    with st.form("form_manutencao"):
-        data_manut = st.text_input("Data da Manutenção (DD/MM/AAAA)", value=hoje_formatado)
-        tecnico = st.text_input("Nome do Técnico Responsável", value="Antônio Sérgio")
+    if tags:
+        tag_sel = st.selectbox("Selecione o Equipamento:", tags)
+        tag_codigo = tag_sel.split(" - ")[0]
+        hoje_formatado = datetime.date.today().strftime("%d/%m/%Y")
         
-        st.write("**Checklist de Limpeza:**")
-        filtros = st.checkbox("Filtros de Ar Limpos", value=True)
-        dreno = st.checkbox("Bandeja e Dreno Desobstruídos", value=True)
-        serpentina = st.checkbox("Serpentina Higienizada", value=True)
-        
-        obs = st.text_area("Observações Técnicas")
-        foto_antes = st.file_uploader("Tirar foto do ANTES", type=["png", "jpg", "jpeg"])
-        foto_depois = st.file_uploader("Tirar foto do DEPOIS", type=["png", "jpg", "jpeg"])
-        
-        salvar = st.form_submit_button("💾 Salvar Registro de Manutenção")
-        
-        if salvar:
-            img_antes = Image.open(foto_antes) if foto_antes else None
-            img_depois = Image.open(foto_depois) if foto_depois else None
+        with st.form("form_manutencao"):
+            data_manut = st.text_input("Data da Manutenção (DD/MM/AAAA)", value=hoje_formatado)
+            tecnico = st.text_input("Técnico Responsável", value="Antônio Sérgio Silva Gomes")
             
-            st.session_state.historico.append({
-                "tag": tag_codigo,
-                "data": data_manut,
-                "tecnico": tecnico,
-                "filtros": filtros,
-                "dreno": dreno,
-                "serpentina": serpentina,
-                "obs": obs,
-                "foto_antes": img_antes,
-                "foto_depois": img_depois
-            })
-            st.success(f"Manutenção registrada com sucesso na data {data_manut}!")
+            st.write("**Checklist de Limpeza:**")
+            filtros = st.checkbox("Filtros de Ar Limpos", value=True)
+            dreno = st.checkbox("Bandeja e Dreno Desobstruídos", value=True)
+            serpentina = st.checkbox("Serpentina Higienizada", value=True)
+            
+            obs = st.text_area("Observações Técnicas")
+            foto_antes = st.file_uploader("Tirar foto do ANTES", type=["png", "jpg", "jpeg"])
+            foto_depois = st.file_uploader("Tirar foto do DEPOIS", type=["png", "jpg", "jpeg"])
+            
+            salvar = st.form_submit_button("💾 Salvar Registro de Manutenção")
+            
+            if salvar:
+                img_antes = Image.open(foto_antes) if foto_antes else None
+                img_depois = Image.open(foto_depois) if foto_depois else None
+                
+                st.session_state.historico.append({
+                    "tag": tag_codigo,
+                    "data": data_manut,
+                    "tecnico": tecnico,
+                    "filtros": filtros,
+                    "dreno": dreno,
+                    "serpentina": serpentina,
+                    "obs": obs,
+                    "foto_antes": img_antes,
+                    "foto_depois": img_depois
+                })
+                st.success(f"Manutenção do equipamento {tag_codigo} registrada com sucesso por {tecnico}!")
+    else:
+        st.info("Não há equipamentos instalados no momento para registrar manutenção.")
 
+# -----------------------------------------------------------------------------
+# 3. EDITAR PREVISTOS
+# -----------------------------------------------------------------------------
 elif opcao == "✏️ Editar Previstos":
     st.header("✏️ Atualizar Equipamentos Previstos")
     tags_previstas = [e["tag"] + " - " + e["ambiente"] for e in st.session_state.equipamentos if e["status"] == "Previsto"]
@@ -168,13 +213,19 @@ elif opcao == "✏️ Editar Previstos":
     else:
         st.info("Todos os equipamentos já estão instalados!")
 
+# -----------------------------------------------------------------------------
+# 4. GERAR QR CODES
+# -----------------------------------------------------------------------------
 elif opcao == "🖨️ Gerar QR Codes":
-    st.header("🖨️ Gerador de QR Codes")
-    base_url = st.text_input("URL base do seu sistema:", value="https://institutoserconsciente-pmoc.streamlit.app")
-    tag_sel = st.selectbox("Selecione o Equipamento:", [e["tag"] + " - " + e["ambiente"] for e in st.session_state.equipamentos])
+    st.header("🖨️ Gerador de QR Codes para Etiquetas")
+    st.write("Gere e baixe os QR codes que direcionam diretamente para a consulta do aparelho.")
+    
+    base_url = st.text_input("URL base do seu sistema no Streamlit:", value="https://sistema-ser-consciente-fexfnfuwjkntnzwdwhknso.streamlit.app")
+    tag_sel = st.selectbox("Selecione o Equipamento para Gerar Etiqueta:", [e["tag"] + " - " + e["ambiente"] for e in st.session_state.equipamentos])
     tag_codigo = tag_sel.split(" - ")[0]
     
-    link_qr = f"{base_url}?tag={tag_codigo}"
+    link_qr = f"{base_url}/?tag={tag_codigo}"
+    
     qr = qrcode.QRCode(version=1, box_size=10, border=5)
     qr.add_data(link_qr)
     qr.make(fit=True)
@@ -184,9 +235,17 @@ elif opcao == "🖨️ Gerar QR Codes":
     img_qr.save(buf, format="PNG")
     byte_im = buf.getvalue()
     
-    st.image(byte_im, caption=f"TAG: {tag_codigo}", width=200)
-    st.download_button(label=f"Baixar QR Code ({tag_codigo})", data=byte_im, file_name=f"qrcode_{tag_codigo}.png", mime="image/png")
+    st.image(byte_im, caption=f"QR Code do Equipamento: {tag_codigo} ({link_qr})", width=250)
+    st.download_button(
+        label=f"⬇️ Baixar QR Code ({tag_codigo}) para Impressão em Vinil",
+        data=byte_im,
+        file_name=f"qrcode_{tag_codigo}.png",
+        mime="image/png"
+    )
 
+# -----------------------------------------------------------------------------
+# 5. DASHBOARD GERAL
+# -----------------------------------------------------------------------------
 elif opcao == "📊 Dashboard Geral":
     st.header("📊 Painel Geral de Climatização")
     total = len(st.session_state.equipamentos)
@@ -194,11 +253,11 @@ elif opcao == "📊 Dashboard Geral":
     previstos = len([e for e in st.session_state.equipamentos if e["status"] == "Previsto"])
     
     col1, col2, col3 = st.columns(3)
-    col1.metric("Total", total)
-    col2.metric("Instalados", instalados)
-    col3.metric("Previstos", previstos)
+    col1.metric("Total de Ambientes", total)
+    col2.metric("Aparelhos Instalados", instalados)
+    col3.metric("Aparelhos Previstos", previstos)
     
     st.markdown("---")
-    st.subheader("📋 Tabela de Ativos")
+    st.subheader("📋 Tabela de Ativos do Instituto")
     df = pd.DataFrame(st.session_state.equipamentos)
     st.dataframe(df, use_container_width=True)

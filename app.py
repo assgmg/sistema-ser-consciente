@@ -476,7 +476,7 @@ elif opcao == "📄 Relatório Fiscal A4" and senha_input in ["visa", "admin"]:
     st.markdown(f"**Responsável Técnico / Administrador:** Antônio Sérgio Silva Gomes")
     st.markdown("---")
     
-    # RELAÇÃO RESUMIDA DOS EQUIPAMENTOS INSTALADOS (RENDERIZADA EM TABELA HTML COM unsafe_allow_html=True)
+    # RELAÇÃO RESUMIDA DOS EQUIPAMENTOS INSTALADOS (RENDERIZADA EM TABELA HTML CORRETA)
     st.markdown("### 📑 Relação Resumida dos Equipamentos Instalados")
     instalados_df = [e for e in st.session_state.equipamentos if e["status"] == "Instalado"]
     
@@ -533,7 +533,7 @@ elif opcao == "📄 Relatório Fiscal A4" and senha_input in ["visa", "admin"]:
                 txt_s = "Sim" if h['serpentina'] else "Não"
                 txt_p = "Sim" if h.get('pecas') else "Não"
                 txt_i = "Sim" if h.get('isolamento') else "Não"
-                txt_g = "Sim" if h.get('gas') else "Não"
+                txt_g = "Sim" if h.get('gas') else "Non"
 
                 st.write(f"- **Data da Manutenção:** {h['data']} | **Técnico:** {h['tecnico']}")
                 st.write(f"  * Checklist: Filtros: {txt_f} | Dreno: {txt_d} | Serpentina: {txt_s}")

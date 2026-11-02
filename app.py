@@ -28,7 +28,6 @@ def salvar_dados_disco(historico):
     dados_para_salvar = []
     for h in historico:
         h_copy = h.copy()
-        # Converte bytes de imagens para string base64 para caber no JSON
         if h_copy.get("foto_antes_bytes"):
             h_copy["foto_antes_bytes"] = base64.b64encode(h_copy["foto_antes_bytes"]).decode("utf-8")
         if h_copy.get("foto_depois_bytes"):
@@ -339,7 +338,6 @@ elif opcao == "🛠️ Registrar Manutenção" and senha_input == "admin":
                 }
                 
                 st.session_state.historico.append(novo_registro)
-                # Salva permanentemente no arquivo JSON no disco
                 salvar_dados_disco(st.session_state.historico)
                 st.cache_data.clear()
                 st.success(f"Manutenção do equipamento {tag_codigo} registrada e salva permanentemente com sucesso!")
@@ -457,43 +455,4 @@ elif opcao == "📄 Relatório Fiscal A4" and senha_input in ["visa", "admin"]:
         st.markdown("<h4>PLANO DE MANUTENÇÃO, OPERAÇÃO E CONTROLE - PMOC</h4>", unsafe_allow_html=True)
         st.markdown("<b>Lei Federal nº 13.589/2018</b>", unsafe_allow_html=True)
 
-    st.markdown(f"**Data de Emissão:** {datetime.date.today().strftime('%d/%m/%Y')}")
-    st.markdown(f"**Responsável Técnico / Administrador:** Antônio Sérgio Silva Gomes")
-    st.markdown("---")
-    
-    # PRIMEIRA PÁGINA: RELAÇÃO RESUMIDA COMPLETA DOS EQUIPAMENTOS INSTALADOS
-    st.markdown("### 📑 Página 1: Relação Resumida dos Equipamentos Instalados")
-    instalados_df = [e for e in st.session_state.equipamentos if e["status"] == "Instalado"]
-    
-    dados_resumo = []
-    for eq in instalados_df:
-        hists_eq = [h for h in st.session_state.historico if h["tag"] == eq["tag"]]
-        ultima_data = hists_eq[-1]["data"] if hists_eq else "Sem registro"
-        dados_resumo.append({
-            "TAG": eq["tag"],
-            "Ambiente": eq["ambiente"],
-            "Equipamento": eq["equipamento"],
-            "BTUs": eq["btus"],
-            "Última Manut.": ultima_data,
-            "Qtd Registros": len(hists_eq)
-        })
-        
-    df_resumo = pd.DataFrame(dados_resumo)
-    st.dataframe(df_resumo, use_container_width=True, hide_index=True, height=len(df_resumo) * 35 + 40)
-    
-    st.markdown("<div style='page-break-after: always;'></div>", unsafe_allow_html=True)
-    st.markdown("---")
-    
-    # PÁGINAS SEGUINTES: DETALHAMENTO COMPLETO COM HISTÓRico E FOTOS
-    st.markdown("### 📖 Páginas Seguintes: Detalhamento Completo e Histórico de Manutenções")
-    
-    for eq in instalados_df:
-        st.markdown(f"#### 📍 Equipamento: {eq['ambiente']} (TAG: {eq['tag']})")
-        st.write(f"**Modelo:** {eq['equipamento']} | **Carga Térmica:** {eq['btus']} BTUs")
-        
-        hists_eq = [h for h in st.session_state.historico if h["tag"] == eq["tag"]]
-        if hists_eq:
-            for h in hists_eq:
-                st.write(f"- **Data da Manutenção:** {h['data']} | **Técnico:** {h['tecnico']}")
-                st.write(f"  * Checklist: Filtros: {'Sim' if h['filtros'] else 'Não'} | Dreno: {'Sim' if h['dreno'] else 'Não'} | Serpentina: {'Sim' if h['serpentina'] else 'Não'}")
-                st.write(f"  * Extras: Peças: {'Sim' if h.get('pecas') else 'Não'} | Isolamento: {'Sim' if h.get('isolamento')
+    st.markdown(f"**Data de Emissão:** {datetime.date.today().strftime('%d

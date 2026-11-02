@@ -5,8 +5,38 @@ from io import BytesIO
 from PIL import Image, ImageDraw, ImageFont
 import datetime
 import os
+import json
+import base64
 
 st.set_page_config(page_title="PMOC - Instituto Ser Consciente", layout="wide", page_icon="❄️")
+
+# -----------------------------------------------------------------------------
+# ARQUIVO DE PERSISTÊNCIA (JSON) PARA SALVAR HISTÓRICO E FOTOS PERMANENTEMENTE
+# -----------------------------------------------------------------------------
+ARQUIVO_DADOS = "pmoc_dados.json"
+
+def carregar_dados_disco():
+    if os.path.exists(ARQUIVO_DADOS):
+        try:
+            with open(ARQUIVO_DADOS, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except:
+            return []
+    return []
+
+def salvar_dados_disco(historico):
+    dados_para_salvar = []
+    for h in historico:
+        h_copy = h.copy()
+        # Converte bytes de imagens para string base64 para caber no JSON
+        if h_copy.get("foto_antes_bytes"):
+            h_copy["foto_antes_bytes"] = base64.b64encode(h_copy["foto_antes_bytes"]).decode("utf-8")
+        if h_copy.get("foto_depois_bytes"):
+            h_copy["foto_depois_bytes"] = base64.b64encode(h_copy["foto_depois_bytes"]).decode("utf-8")
+        dados_para_salvar.append(h_copy)
+        
+    with open(ARQUIVO_DADOS, "w", encoding="utf-8") as f:
+        json.dump(dados_para_salvar, f, ensure_ascii=False, indent=4)
 
 # -----------------------------------------------------------------------------
 # CARREGAR LOGOMARCA (BORBOLETA)
@@ -78,8 +108,18 @@ def carregar_equipamentos_iniciais():
 if "equipamentos" not in st.session_state:
     st.session_state.equipamentos = carregar_equipamentos_iniciais()
 
+# Carrega o histórico permanentemente do arquivo JSON
 if "historico" not in st.session_state:
-    st.session_state.historico = []
+    raw_hist = carregar_dados_disco()
+    historico_convertido = []
+    for h in raw_hist:
+        h_conv = h.copy()
+        if h_conv.get("foto_antes_bytes"):
+            h_conv["foto_antes_bytes"] = base64.b64decode(h_conv["foto_antes_bytes"])
+        if h_conv.get("foto_depois_bytes"):
+            h_conv["foto_depois_bytes"] = base64.b64decode(h_conv["foto_depois_bytes"])
+        historico_convertido.append(h_conv)
+    st.session_state.historico = historico_convertido
 
 query_params = st.query_params
 tag_url = query_params.get("tag", None)
@@ -228,12 +268,14 @@ if opcao == "📋 Informações do Equipamento":
                                     st.session_state.historico[indice_real]["data"] = novo_data
                                     st.session_state.historico[indice_real]["tecnico"] = novo_tecnico
                                     st.session_state.historico[indice_real]["obs"] = novo_obs
+                                    salvar_dados_disco(st.session_state.historico)
                                     st.cache_data.clear()
                                     st.success("Registro atualizado com sucesso! Atualize a página.")
                                     st.rerun()
 
                             if st.button(f"🗑️ Excluir Definitivamente este Registro", key=f"btn_del_{tag_codigo}_{idx}"):
                                 del st.session_state.historico[indice_real]
+                                salvar_dados_disco(st.session_state.historico)
                                 st.cache_data.clear()
                                 st.success("Registro apagado com sucesso! Atualizando...")
                                 st.rerun()
@@ -281,7 +323,7 @@ elif opcao == "🛠️ Registrar Manutenção" and senha_input == "admin":
                 img_antes_bytes = foto_antes.getvalue() if foto_antes else None
                 img_depois_bytes = foto_depois.getvalue() if foto_depois else None
                 
-                st.session_state.historico.append({
+                novo_registro = {
                     "tag": tag_codigo,
                     "data": data_manut,
                     "tecnico": tecnico,
@@ -294,10 +336,13 @@ elif opcao == "🛠️ Registrar Manutenção" and senha_input == "admin":
                     "obs": obs,
                     "foto_antes_bytes": img_antes_bytes,
                     "foto_depois_bytes": img_depois_bytes
-                })
-                # Limpa o cache para forçar a atualização imediata nos links de QR code
+                }
+                
+                st.session_state.historico.append(novo_registro)
+                # Salva permanentemente no arquivo JSON no disco
+                salvar_dados_disco(st.session_state.historico)
                 st.cache_data.clear()
-                st.success(f"Manutenção do equipamento {tag_codigo} registrada com sucesso!")
+                st.success(f"Manutenção do equipamento {tag_codigo} registrada e salva permanentemente com sucesso!")
     else:
         st.info("Não há equipamentos instalados no momento.")
 
@@ -439,7 +484,7 @@ elif opcao == "📄 Relatório Fiscal A4" and senha_input in ["visa", "admin"]:
     st.markdown("<div style='page-break-after: always;'></div>", unsafe_allow_html=True)
     st.markdown("---")
     
-    # PÁGINAS SEGUINTES: DETALHAMENTO COMPLETO COM HISTÓRICO E FOTOS
+    # PÁGINAS SEGUINTES: DETALHAMENTO COMPLETO COM HISTÓRico E FOTOS
     st.markdown("### 📖 Páginas Seguintes: Detalhamento Completo e Histórico de Manutenções")
     
     for eq in instalados_df:
@@ -451,20 +496,4 @@ elif opcao == "📄 Relatório Fiscal A4" and senha_input in ["visa", "admin"]:
             for h in hists_eq:
                 st.write(f"- **Data da Manutenção:** {h['data']} | **Técnico:** {h['tecnico']}")
                 st.write(f"  * Checklist: Filtros: {'Sim' if h['filtros'] else 'Não'} | Dreno: {'Sim' if h['dreno'] else 'Não'} | Serpentina: {'Sim' if h['serpentina'] else 'Não'}")
-                st.write(f"  * Extras: Peças: {'Sim' if h.get('pecas') else 'Não'} | Isolamento: {'Sim' if h.get('isolamento') else 'Não'} | Carga de Gás: {'Sim' if h.get('gas') else 'Não'}")
-                if h["obs"]:
-                    st.write(f"  * Observações: {h['obs']}")
-                
-                c1, c2 = st.columns(2)
-                if h.get("foto_antes_bytes"):
-                    c1.image(h["foto_antes_bytes"], caption=f"Foto Antes - {h['data']}", width=250)
-                elif h.get("foto_antes"):
-                    c1.image(h["foto_antes"], caption=f"Foto Antes - {h['data']}", width=250)
-                    
-                if h.get("foto_depois_bytes"):
-                    c2.image(h["foto_depois_bytes"], caption=f"Foto Depois - {h['data']}", width=250)
-                elif h.get("foto_depois"):
-                    c2.image(h["foto_depois"], caption=f"Foto Depois - {h['data']}", width=250)
-        else:
-            st.write("*(Nenhuma manutenção registrada para este equipamento)*")
-        st.markdown("---")
+                st.write(f"  * Extras: Peças: {'Sim' if h.get('pecas') else 'Não'} | Isolamento: {'Sim' if h.get('isolamento')

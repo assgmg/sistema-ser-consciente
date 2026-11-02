@@ -455,4 +455,67 @@ elif opcao == "📄 Relatório Fiscal A4" and senha_input in ["visa", "admin"]:
         st.markdown("<h4>PLANO DE MANUTENÇÃO, OPERAÇÃO E CONTROLE - PMOC</h4>", unsafe_allow_html=True)
         st.markdown("<b>Lei Federal nº 13.589/2018</b>", unsafe_allow_html=True)
 
-    st.markdown(f"**Data de Emissão:** {datetime.date.today().strftime('%d
+    data_hoje_str = datetime.date.today().strftime('%d/%m/%Y')
+    st.markdown(f"**Data de Emissão:** {data_hoje_str}")
+    st.markdown(f"**Responsável Técnico / Administrador:** Antônio Sérgio Silva Gomes")
+    st.markdown("---")
+    
+    # PRIMEIRA PÁGINA: RELAÇÃO RESUMIDA COMPLETA DOS EQUIPAMENTOS INSTALADOS
+    st.markdown("### 📑 Página 1: Relação Resumida dos Equipamentos Instalados")
+    instalados_df = [e for e in st.session_state.equipamentos if e["status"] == "Instalado"]
+    
+    dados_resumo = []
+    for eq in instalados_df:
+        hists_eq = [h for h in st.session_state.historico if h["tag"] == eq["tag"]]
+        ultima_data = hists_eq[-1]["data"] if hists_eq else "Sem registro"
+        dados_resumo.append({
+            "TAG": eq["tag"],
+            "Ambiente": eq["ambiente"],
+            "Equipamento": eq["equipamento"],
+            "BTUs": eq["btus"],
+            "Última Manut.": ultima_data,
+            "Qtd Registros": len(hists_eq)
+        })
+        
+    df_resumo = pd.DataFrame(dados_resumo)
+    st.dataframe(df_resumo, use_container_width=True, hide_index=True, height=len(df_resumo) * 35 + 40)
+    
+    st.markdown("<div style='page-break-after: always;'></div>", unsafe_allow_html=True)
+    st.markdown("---")
+    
+    # PÁGINAS SEGUINTES: DETALHAMENTO COMPLETO COM HISTÓRICO E FOTOS
+    st.markdown("### 📖 Páginas Seguintes: Detalhamento Completo e Histórico de Manutenções")
+    
+    for eq in instalados_df:
+        st.markdown(f"#### 📍 Equipamento: {eq['ambiente']} (TAG: {eq['tag']})")
+        st.write(f"**Modelo:** {eq['equipamento']} | **Carga Térmica:** {eq['btus']} BTUs")
+        
+        hists_eq = [h for h in st.session_state.historico if h["tag"] == eq["tag"]]
+        if hists_eq:
+            for h in hists_eq:
+                txt_f = "Sim" if h['filtros'] else "Não"
+                txt_d = "Sim" if h['dreno'] else "Não"
+                txt_s = "Sim" if h['serpentina'] else "Não"
+                txt_p = "Sim" if h.get('pecas') else "Não"
+                txt_i = "Sim" if h.get('isolamento') else "Não"
+                txt_g = "Sim" if h.get('gas') else "Não"
+
+                st.write(f"- **Data da Manutenção:** {h['data']} | **Técnico:** {h['tecnico']}")
+                st.write(f"  * Checklist: Filtros: {txt_f} | Dreno: {txt_d} | Serpentina: {txt_s}")
+                st.write(f"  * Extras: Peças: {txt_p} | Isolamento: {txt_i} | Gás: {txt_g}")
+                if h["obs"]:
+                    st.write(f"  * Observações: {h['obs']}")
+                
+                c1, c2 = st.columns(2)
+                if h.get("foto_antes_bytes"):
+                    c1.image(h["foto_antes_bytes"], caption=f"Foto Antes - {h['data']}", width=250)
+                elif h.get("foto_antes"):
+                    c1.image(h["foto_antes"], caption=f"Foto Antes - {h['data']}", width=250)
+                    
+                if h.get("foto_depois_bytes"):
+                    c2.image(h["foto_depois_bytes"], caption=f"Foto Depois - {h['data']}", width=250)
+                elif h.get("foto_depois"):
+                    c2.image(h["foto_depois"], caption=f"Foto Depois - {h['data']}", width=250)
+        else:
+            st.write("*(Nenhuma manutenção registrada para este equipamento)*")
+        st.markdown("---")

@@ -11,7 +11,7 @@ import base64
 st.set_page_config(page_title="PMOC - Instituto Ser Consciente", layout="wide", page_icon="❄️")
 
 # -----------------------------------------------------------------------------
-# ARQUIVO DE PERSISTÊNCIA (JSON) PARA SALVAR HISTÓRICO E FOTOS PERMANENTEMENTE
+# ARQUIVO DE PERSISTÊNCIA (JSON)
 # -----------------------------------------------------------------------------
 ARQUIVO_DADOS = "pmoc_dados.json"
 
@@ -108,7 +108,6 @@ def carregar_equipamentos_iniciais():
 if "equipamentos" not in st.session_state:
     st.session_state.equipamentos = carregar_equipamentos_iniciais()
 
-# Carrega o histórico permanentemente do arquivo JSON
 if "historico" not in st.session_state:
     raw_hist = carregar_dados_disco()
     historico_convertido = []
@@ -121,11 +120,13 @@ if "historico" not in st.session_state:
         historico_convertido.append(h_conv)
     st.session_state.historico = historico_convertido
 
-query_params = st.query_params
-tag_url = query_params.get("tag", None)
+try:
+    tag_url = st.query_params.get("tag", None)
+except:
+    tag_url = None
 
 # -----------------------------------------------------------------------------
-# MENU LATERAL COM LOGOMARCA E CONTROLE DE ACESSO
+# MENU LATERAL
 # -----------------------------------------------------------------------------
 if logo_img:
     st.sidebar.image(logo_img, width=120)
@@ -161,7 +162,7 @@ else:
 opcao = st.sidebar.radio("Navegação", opcoes_menu)
 
 # -----------------------------------------------------------------------------
-# 1. INFORMAÇÕES DO EQUIPAMENTO (PÚBLICO / RESTRITO COM CAMPO DE SENHA NA TELA)
+# 1. INFORMAÇÕES DO EQUIPAMENTO
 # -----------------------------------------------------------------------------
 if opcao == "📋 Informações do Equipamento":
     st.header("📋 Informações do Equipamento - PMOC")
@@ -213,12 +214,9 @@ if opcao == "📋 Informações do Equipamento":
             st.warning("⚪ Nenhuma manutenção registrada ainda para este equipamento.")
             
         st.markdown("---")
-        
-        # CAMPO DE SENHA DIRETAMENTE NA TELA PRINCIPAL (PARA QUEM ESCANEIA O QR CODE)
         st.markdown("### 🔐 Acesso ao Histórico Detalhado e Fotos")
         senha_tela = st.text_input("Digite a senha de acesso para liberar o relatório completo:", type="password", key=f"senha_tela_{tag_codigo}")
         
-        # Consolidação da senha ativa (barra lateral ou tela principal)
         senha_ativa = senha_input if senha_input in ["visa", "admin"] else senha_tela
         
         if senha_ativa in ["visa", "admin"]:
@@ -244,7 +242,6 @@ if opcao == "📋 Informações do Equipamento":
                     if h["obs"]:
                         st.write(f"**Observações:** {h['obs']}")
                     
-                    # Exibição robusta das fotos convertidas em bytes
                     col1, col2 = st.columns(2)
                     if h.get("foto_antes_bytes"):
                         col1.image(h["foto_antes_bytes"], caption=f"Foto Antes - {h['data']}", use_container_width=True)
@@ -287,7 +284,7 @@ if opcao == "📋 Informações do Equipamento":
             st.info("🔒 Insira a senha autorizada acima para visualizar o histórico detalhado, checklist completo e registros fotográficos deste equipamento.")
 
 # -----------------------------------------------------------------------------
-# 2. REGISTRAR MANUTENÇÃO (EXCLUSIVO ADMIN)
+# 2. REGISTRAR MANUTENÇÃO
 # -----------------------------------------------------------------------------
 elif opcao == "🛠️ Registrar Manutenção" and senha_input == "admin":
     st.header("🛠️ Registro de Manutenção Preventiva")
@@ -320,82 +317,4 @@ elif opcao == "🛠️ Registrar Manutenção" and senha_input == "admin":
             salvar = st.form_submit_button("💾 Salvar Registro de Manutenção")
             
             if salvar:
-                img_antes_bytes = foto_antes.getvalue() if foto_antes else None
-                img_depois_bytes = foto_depois.getvalue() if foto_depois else None
-                
-                novo_registro = {
-                    "tag": tag_codigo,
-                    "data": data_manut,
-                    "tecnico": tecnico,
-                    "filtros": filtros,
-                    "dreno": dreno,
-                    "serpentina": serpentina,
-                    "pecas": pecas,
-                    "isolamento": isolamento,
-                    "gas": gas,
-                    "obs": obs,
-                    "foto_antes_bytes": img_antes_bytes,
-                    "foto_depois_bytes": img_depois_bytes
-                }
-                
-                st.session_state.historico.append(novo_registro)
-                salvar_dados_disco(st.session_state.historico)
-                st.cache_data.clear()
-                st.success(f"Manutenção do equipamento {tag_codigo} registrada e salva permanentemente com sucesso!")
-    else:
-        st.info("Não há equipamentos instalados no momento.")
-
-# -----------------------------------------------------------------------------
-# 3. EDITAR PREVISTOS (EXCLUSIVO ADMIN)
-# -----------------------------------------------------------------------------
-elif opcao == "✏️ Editar Previstos" and senha_input == "admin":
-    st.header("✏️ Atualizar Equipamentos Previstos")
-    tags_previstas = [e["tag"] + " - " + e["ambiente"] for e in st.session_state.equipamentos if e["status"] == "Previsto"]
-    
-    if tags_previstas:
-        tag_sel = st.selectbox("Selecione o Equipamento Previsto:", tags_previstas)
-        tag_codigo = tag_sel.split(" - ")[0]
-        equip = next((e for e in st.session_state.equipamentos if e["tag"] == tag_codigo), None)
-        
-        if equip:
-            with st.form("form_edicao"):
-                st.write(f"**Ambiente:** {equip['ambiente']}")
-                novo_nome = st.text_input("Marca / Modelo do Equipamento Instalado", value="Split Agratto")
-                novos_btus = st.text_input("Potência (BTUs)", value=equip["btus"])
-                confirmar = st.form_submit_button("✅ Confirmar Instalação")
-                
-                if confirmar:
-                    equip["equipamento"] = novo_nome
-                    equip["btus"] = novos_btus
-                    equip["status"] = "Instalado"
-                    st.cache_data.clear()
-                    st.success(f"O equipamento {tag_codigo} agora está instalado!")
-                    st.rerun()
-    else:
-        st.info("Todos os equipamentos já estão instalados!")
-
-# -----------------------------------------------------------------------------
-# 4. GERAR QR CODES COM NOME DA CLÍNICA E TAG IMPRESSA NA ETIQUETA (EXCLUSIVO ADMIN)
-# -----------------------------------------------------------------------------
-elif opcao == "🖨️ Gerar QR Codes" and senha_input == "admin":
-    st.header("🖨️ Gerador de QR Codes para Etiquetas")
-    st.write("A etiqueta gerada inclui o QR code, o nome da clínica e a TAG impressa claramente para validação.")
-    
-    base_url = st.text_input("URL base do seu sistema no Streamlit:", value="https://sistema-ser-consciente-fexfnfuwjkntnzwdwhknso.streamlit.app")
-    tag_sel = st.selectbox("Selecione o Equipamento:", [e["tag"] + " - " + e["ambiente"] for e in st.session_state.equipamentos])
-    
-    equip_selecionado = next((e for e in st.session_state.equipamentos if e["tag"] in tag_sel), None)
-    tag_codigo = equip_selecionado["tag"]
-    ambiente_nome = equip_selecionado["ambiente"]
-    
-    link_qr = f"{base_url}/?tag={tag_codigo}"
-    
-    qr = qrcode.QRCode(version=1, box_size=10, border=4)
-    qr.add_data(link_qr)
-    qr.make(fit=True)
-    img_qr = qr.make_image(fill_color="black", back_color="white").convert('RGB')
-    
-    largura_qr, altura_qr = img_qr.size
-    altura_banner = 140
-    etiqueta = Image.new('RGB', (largura_qr, altura_qr + altura_banner), 'white')
-    etiqueta
+                img_antes

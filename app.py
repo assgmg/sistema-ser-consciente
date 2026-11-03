@@ -11,7 +11,7 @@ import base64
 st.set_page_config(page_title="PMOC - Instituto Ser Consciente", layout="wide", page_icon="❄️")
 
 # -----------------------------------------------------------------------------
-# ARQUIVO DE PERSISTÊNCIA (JSON)
+# PERSISTÊNCIA (JSON)
 # -----------------------------------------------------------------------------
 ARQUIVO_DADOS = "pmoc_dados.json"
 
@@ -38,7 +38,7 @@ def salvar_dados_disco(historico):
         json.dump(dados_para_salvar, f, ensure_ascii=False, indent=4)
 
 # -----------------------------------------------------------------------------
-# CARREGAR LOGOMARCA (BORBOLETA)
+# LOGOMARCA
 # -----------------------------------------------------------------------------
 @st.cache_resource
 def carregar_logo():
@@ -66,7 +66,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # -----------------------------------------------------------------------------
-# BASE DE DADOS INICIAL COM OS 32 EQUIPAMENTOS
+# BASE DE DADOS INICIAL (32 EQUIPAMENTOS)
 # -----------------------------------------------------------------------------
 @st.cache_data
 def carregar_equipamentos_iniciais():
@@ -317,4 +317,208 @@ elif opcao == "🛠️ Registrar Manutenção" and senha_input == "admin":
             salvar = st.form_submit_button("💾 Salvar Registro de Manutenção")
             
             if salvar:
-                img_antes
+                img_antes_bytes = foto_antes.getvalue() if foto_antes else None
+                img_depois_bytes = foto_depois.getvalue() if foto_depois else None
+                
+                novo_registro = {
+                    "tag": tag_codigo,
+                    "data": data_manut,
+                    "tecnico": tecnico,
+                    "filtros": filtros,
+                    "dreno": dreno,
+                    "serpentina": serpentina,
+                    "pecas": pecas,
+                    "isolamento": isolamento,
+                    "gas": gas,
+                    "obs": obs,
+                    "foto_antes_bytes": img_antes_bytes,
+                    "foto_depois_bytes": img_depois_bytes
+                }
+                
+                st.session_state.historico.append(novo_registro)
+                salvar_dados_disco(st.session_state.historico)
+                st.cache_data.clear()
+                st.success(f"Manutenção do equipamento {tag_codigo} registrada e salva permanentemente com sucesso!")
+    else:
+        st.info("Não há equipamentos instalados no momento.")
+
+# -----------------------------------------------------------------------------
+# 3. EDITAR PREVISTOS
+# -----------------------------------------------------------------------------
+elif opcao == "✏️ Editar Previstos" and senha_input == "admin":
+    st.header("✏️ Atualizar Equipamentos Previstos")
+    tags_previstas = [e["tag"] + " - " + e["ambiente"] for e in st.session_state.equipamentos if e["status"] == "Previsto"]
+    
+    if tags_previstas:
+        tag_sel = st.selectbox("Selecione o Equipamento Previsto:", tags_previstas)
+        tag_codigo = tag_sel.split(" - ")[0]
+        equip = next((e for e in st.session_state.equipamentos if e["tag"] == tag_codigo), None)
+        
+        if equip:
+            with st.form("form_edicao"):
+                st.write(f"**Ambiente:** {equip['ambiente']}")
+                novo_nome = st.text_input("Marca / Modelo do Equipamento Instalado", value="Split Agratto")
+                novos_btus = st.text_input("Potência (BTUs)", value=equip["btus"])
+                confirmar = st.form_submit_button("✅ Confirmar Instalação")
+                
+                if confirmar:
+                    equip["equipamento"] = novo_nome
+                    equip["btus"] = novos_btus
+                    equip["status"] = "Instalado"
+                    st.cache_data.clear()
+                    st.success(f"O equipamento {tag_codigo} agora está instalado!")
+                    st.rerun()
+    else:
+        st.info("Todos os equipamentos já estão instalados!")
+
+# -----------------------------------------------------------------------------
+# 4. GERAR QR CODES (BLINDADO CONTRA TELA BRANCA)
+# -----------------------------------------------------------------------------
+elif opcao == "🖨️ Gerar QR Codes" and senha_input == "admin":
+    st.header("🖨️ Gerador de QR Codes para Etiquetas")
+    st.write("A etiqueta gerada inclui o QR code, o nome da clínica e a TAG impressa claramente para validação.")
+    
+    base_url = st.text_input("URL base do seu sistema no Streamlit:", value="https://sistema-ser-consciente-fexfnfuwjkntnzwdwhknso.streamlit.app")
+    
+    lista_eq_qr = [e["tag"] + " - " + e["ambiente"] for e in st.session_state.equipamentos]
+    
+    if lista_eq_qr:
+        tag_sel_qr = st.selectbox("Selecione o Equipamento para a Etiqueta:", lista_eq_qr, key="select_qr_eq")
+        
+        if tag_sel_qr:
+            tag_codigo = tag_sel_qr.split(" - ")[0]
+            equip_selecionado = next((e for e in st.session_state.equipamentos if e["tag"] == tag_codigo), None)
+            
+            if equip_selecionado:
+                ambiente_nome = equip_selecionado["ambiente"]
+                link_qr = f"{base_url}/?tag={tag_codigo}"
+                
+                qr = qrcode.QRCode(version=1, box_size=10, border=4)
+                qr.add_data(link_qr)
+                qr.make(fit=True)
+                img_qr = qr.make_image(fill_color="black", back_color="white").convert('RGB')
+                
+                largura_qr, altura_qr = img_qr.size
+                altura_banner = 140
+                etiqueta = Image.new('RGB', (largura_qr, altura_qr + altura_banner), 'white')
+                etiqueta.paste(img_qr, (0, 0))
+                
+                draw = ImageDraw.Draw(etiqueta)
+                try:
+                    font = ImageFont.load_default()
+                except:
+                    font = None
+                    
+                draw.text((15, altura_qr + 10), "PMOC - Clínica Instituto Ser Consciente", fill="black", font=font)
+                draw.text((15, altura_qr + 45), f"TAG: {tag_codigo}", fill="black", font=font)
+                draw.text((15, altura_qr + 80), f"Ambiente: {ambiente_nome}", fill="black", font=font)
+                
+                buf = BytesIO()
+                etiqueta.save(buf, format="PNG")
+                byte_im = buf.getvalue()
+                
+                st.markdown("---")
+                st.subheader(f"Etiqueta Gerada para: {tag_codigo}")
+                st.image(etiqueta, caption=f"Etiqueta Oficial: {tag_codigo}", width=300)
+                st.download_button(
+                    label=f"⬇️ Baixar Etiqueta Completa ({tag_codigo}) para Vinil",
+                    data=byte_im,
+                    file_name=f"etiqueta_{tag_codigo}.png",
+                    mime="image/png"
+                )
+    else:
+        st.warning("Nenhum equipamento cadastrado para gerar QR Code.")
+
+# -----------------------------------------------------------------------------
+# 5. DASHBOARD GERAL
+# -----------------------------------------------------------------------------
+elif opcao == "📊 Dashboard Geral" and senha_input == "admin":
+    st.header("📊 Painel Geral de Climatização")
+    total = len(st.session_state.equipamentos)
+    instalados = len([e for e in st.session_state.equipamentos if e["status"] == "Instalado"])
+    previstos = len([e for e in st.session_state.equipamentos if e["status"] == "Previsto"])
+    
+    col1, col2, col3 = st.columns(3)
+    col1.metric("Total", total)
+    col2.metric("Instalados", instalados)
+    col3.metric("Previstos", previstos)
+    
+    st.markdown("---")
+    st.subheader("📋 Tabela de Ativos")
+    df = pd.DataFrame(st.session_state.equipamentos)
+    st.dataframe(df, use_container_width=True)
+
+# -----------------------------------------------------------------------------
+# 6. RELATÓRIO FISCAL A4 COMPLETO
+# -----------------------------------------------------------------------------
+elif opcao == "📄 Relatório Fiscal A4" and senha_input in ["visa", "admin"]:
+    
+    col_logo, col_titulo = st.columns([1, 4])
+    with col_logo:
+        if logo_img:
+            st.image(logo_img, width=100)
+    with col_titulo:
+        st.markdown("<h2>INSTITUTO SER CONSCIENTE LTDA</h2>", unsafe_allow_html=True)
+        st.markdown("<h4>PLANO DE MANUTENÇÃO, OPERAÇÃO E CONTROLE - PMOC</h4>", unsafe_allow_html=True)
+        st.markdown("<b>Lei Federal nº 13.589/2018</b>", unsafe_allow_html=True)
+
+    data_hoje_str = datetime.date.today().strftime('%d/%m/%Y')
+    st.markdown(f"**Data de Emissão:** {data_hoje_str}")
+    st.markdown(f"**Responsável Técnico / Administrador:** Antônio Sérgio Silva Gomes")
+    st.markdown("---")
+    
+    st.markdown("### 📑 Relação Resumida dos Equipamentos Instalados")
+    instalados_df = [e for e in st.session_state.equipamentos if e["status"] == "Instalado"]
+    
+    dados_resumo = []
+    for eq in instalados_df:
+        hists_eq = [h for h in st.session_state.historico if h["tag"] == eq["tag"]]
+        ultima_data = hists_eq[-1]["data"] if hists_eq else "Sem registro"
+        dados_resumo.append({
+            "TAG": eq["tag"],
+            "Ambiente": eq["ambiente"],
+            "Equipamento": eq["equipamento"],
+            "BTUs": eq["btus"],
+            "Última Manutenção": ultima_data,
+            "Qtd Registros": len(hists_eq)
+        })
+        
+    df_resumo = pd.DataFrame(dados_resumo)
+    st.table(df_resumo)
+    
+    st.markdown("---")
+    st.markdown("### 📖 Detalhamento Completo e Histórico de Manutenções")
+    
+    for eq in instalados_df:
+        st.markdown(f"#### 📍 Equipamento: {eq['ambiente']} (TAG: {eq['tag']})")
+        st.write(f"**Modelo:** {eq['equipamento']} | **Carga Térmica:** {eq['btus']} BTUs")
+        
+        hists_eq = [h for h in st.session_state.historico if h["tag"] == eq["tag"]]
+        if hists_eq:
+            for h in hists_eq:
+                txt_f = "Sim" if h['filtros'] else "Não"
+                txt_d = "Sim" if h['dreno'] else "Não"
+                txt_s = "Sim" if h['serpentina'] else "Não"
+                txt_p = "Sim" if h.get('pecas') else "Não"
+                txt_i = "Sim" if h.get('isolamento') else "Não"
+                txt_g = "Sim" if h.get('gas') else "Não"
+
+                st.write(f"- **Data da Manutenção:** {h['data']} | **Técnico:** {h['tecnico']}")
+                st.write(f"  * Checklist: Filtros: {txt_f} | Dreno: {txt_d} | Serpentina: {txt_s}")
+                st.write(f"  * Extras: Peças: {txt_p} | Isolamento: {txt_i} | Gás: {txt_g}")
+                if h["obs"]:
+                    st.write(f"  * Observações: {h['obs']}")
+                
+                c1, c2 = st.columns(2)
+                if h.get("foto_antes_bytes"):
+                    c1.image(h["foto_antes_bytes"], caption=f"Foto Antes - {h['data']}", width=250)
+                elif h.get("foto_antes"):
+                    c1.image(h["foto_antes"], caption=f"Foto Antes - {h['data']}", width=250)
+                    
+                if h.get("foto_depois_bytes"):
+                    c2.image(h["foto_depois_bytes"], caption=f"Foto Depois - {h['data']}", width=250)
+                elif h.get("foto_depois"):
+                    c2.image(h["foto_depois"], caption=f"Foto Depois - {h['data']}", width=250)
+        else:
+            st.write("*(Nenhuma manutenção registrada para este equipamento)*")
+        st.markdown("---")

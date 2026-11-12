@@ -219,56 +219,48 @@ if opcao == "📋 Informações do Equipamento":
             st.warning("⚪ Nenhuma manutenção registrada ainda para este equipamento.")
             
         st.markdown("---")
-        st.markdown("### 🔐 Acesso ao Histórico Detalhado e Exclusão de Registros")
-        senha_tela = st.text_input("Digite a senha de acesso para liberar o gerenciamento:", type="password", key=f"senha_tela_{tag_codigo}")
+        st.subheader("📋 Histórico Acumulado e Gerenciamento de Registros")
         
-        senha_ativa = senha_input if senha_input in ["visa", "admin"] else senha_tela
-        
-        if senha_ativa in ["visa", "admin"]:
-            st.success("Acesso autorizado ao relatório completo do equipamento.")
-            st.subheader("📋 Histórico Acumulado de Manutenções e Registros")
-            
-            if hists:
-                for idx, h in enumerate(reversed(hists)):
-                    indice_real = len(st.session_state.historico) - 1 - idx
-                    freq_reg = h.get('periodicidade', 'Semestral')
+        if hists:
+            for idx, h in enumerate(reversed(hists)):
+                indice_real = len(st.session_state.historico) - 1 - idx
+                freq_reg = h.get('periodicidade', 'Semestral')
+                
+                st.markdown(f"#### Manutenção #{len(hists)-idx} — Data: {h['data']} ({freq_reg})")
+                st.write(f"**Técnico Executor:** {h['tecnico']}")
+                
+                if "checklist" in h and h["checklist"]:
+                    st.write("**Itens Verificados (PMOC):**")
+                    for item_nome, status_val in h["checklist"].items():
+                        check_icon = "✅" if status_val else "❌"
+                        st.write(f"- {check_icon} {item_nome}")
+                
+                if h.get("obs"):
+                    st.write(f"**Observações:** {h['obs']}")
+                
+                col1, col2 = st.columns(2)
+                if h.get("foto_antes_bytes"):
+                    col1.image(h["foto_antes_bytes"], caption=f"Foto Antes - {h['data']}", use_container_width=True)
+                elif h.get("foto_antes"):
+                    col1.image(h["foto_antes"], caption=f"Foto Antes - {h['data']}", use_container_width=True)
                     
-                    st.markdown(f"#### Manutenção #{len(hists)-idx} — Data: {h['data']} ({freq_reg})")
-                    st.write(f"**Técnico Executor:** {h['tecnico']}")
-                    
-                    if "checklist" in h and h["checklist"]:
-                        st.write("**Itens Verificados (PMOC):**")
-                        for item_nome, status_val in h["checklist"].items():
-                            check_icon = "✅" if status_val else "❌"
-                            st.write(f"- {check_icon} {item_nome}")
-                    
-                    if h.get("obs"):
-                        st.write(f"**Observações:** {h['obs']}")
-                    
-                    col1, col2 = st.columns(2)
-                    if h.get("foto_antes_bytes"):
-                        col1.image(h["foto_antes_bytes"], caption=f"Foto Antes - {h['data']}", use_container_width=True)
-                    elif h.get("foto_antes"):
-                        col1.image(h["foto_antes"], caption=f"Foto Antes - {h['data']}", use_container_width=True)
-                        
-                    if h.get("foto_depois_bytes"):
-                        col2.image(h["foto_depois_bytes"], caption=f"Foto Depois - {h['data']}", use_container_width=True)
-                    elif h.get("foto_depois"):
-                        col2.image(h["foto_depois"], caption=f"Foto Depois - {h['data']}", use_container_width=True)
-                    
-                    if senha_input == "admin" or senha_tela == "admin":
-                        if st.button("Excluir Definitivamente este Registro", key=f"btn_del_{tag_codigo}_{idx}"):
-                            del st.session_state.historico[indice_real]
-                            salvar_dados_disco(st.session_state.historico)
-                            st.cache_data.clear()
-                            st.success("Registro apagado com sucesso! Atualizando...")
-                            st.rerun()
+                if h.get("foto_depois_bytes"):
+                    col2.image(h["foto_depois_bytes"], caption=f"Foto Depois - {h['data']}", use_container_width=True)
+                elif h.get("foto_depois"):
+                    col2.image(h["foto_depois"], caption=f"Foto Depois - {h['data']}", use_container_width=True)
+                
+                # Se for admin, exibe o botão direto para apagar o registro de teste incorreto
+                if senha_input == "admin":
+                    if st.button("Excluir este Registro Incorreto", key=f"btn_del_{tag_codigo}_{idx}"):
+                        del st.session_state.historico[indice_real]
+                        salvar_dados_disco(st.session_state.historico)
+                        st.cache_data.clear()
+                        st.success("Registro excluído com sucesso! Atualizando...")
+                        st.rerun()
 
-                    st.markdown("---")
-            else:
-                st.info("Nenhum histórico cadastrado para este aparelho.")
+                st.markdown("---")
         else:
-            st.info("🔒 Insira a senha autorizada acima para visualizar o histórico e limpar registros incorretos.")
+            st.info("Nenhum histórico cadastrado para este aparelho.")
 
 # -----------------------------------------------------------------------------
 # 2. REGISTRAR MANUTENÇÃO
@@ -463,41 +455,4 @@ elif opcao == "📄 Relatório Fiscal A4" and senha_input in ["visa", "admin"]:
             "Qtd Registros": len(hists_eq)
         })
         
-    df_resumo = pd.DataFrame(dados_resumo)
-    st.table(df_resumo)
-    
-    st.markdown("---")
-    st.markdown("### 📖 Detalhamento Completo e Histórico de Manutenções")
-    
-    for eq in instalados_df:
-        st.markdown(f"#### 📍 Equipamento: {eq['ambiente']} (TAG: {eq['tag']})")
-        st.write(f"**Modelo:** {eq['equipamento']} | **Carga Térmica:** {eq['btus']} BTUs")
-        
-        hists_eq = [h for h in st.session_state.historico if h["tag"] == eq["tag"]]
-        if hists_eq:
-            for h in hists_eq:
-                freq_reg = h.get('periodicidade', 'Semestral')
-                st.write(f"- **Data da Manutenção:** {h['data']} ({freq_reg}) | **Técnico:** {h['tecnico']}")
-                
-                if "checklist" in h and h["checklist"]:
-                    st.markdown("  * **Itens Verificados:**")
-                    for k, v in h["checklist"].items():
-                        status_simbolo = "✔️" if v else "❌"
-                        st.markdown(f"    - `{status_simbolo}` {k}")
-                
-                if h["obs"]:
-                    st.write(f"  * **Observações:** {h['obs']}")
-                
-                c1, c2 = st.columns(2)
-                if h.get("foto_antes_bytes"):
-                    c1.image(h["foto_antes_bytes"], caption=f"Foto Antes - {h['data']}", width=250)
-                elif h.get("foto_antes"):
-                    c1.image(h["foto_antes"], caption=f"Foto Antes - {h['data']}", width=250)
-                    
-                if h.get("foto_depois_bytes"):
-                    c2.image(h["foto_depois_bytes"], caption=f"Foto Depois - {h['data']}", width=250)
-                elif h.get("foto_depois"):
-                    c2.image(h["foto_depois"], caption=f"Foto Depois - {h['data']}", width=250)
-        else:
-            st.write("*(Nenhuma manutenção registrada para este equipamento)*")
-        st.markdown("---")
+    df_resumo = pd

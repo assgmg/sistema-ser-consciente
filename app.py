@@ -1,8 +1,7 @@
 import streamlit as st
 import pandas as pd
-import qrcode
 from io import BytesIO
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image
 import datetime
 import os
 import json
@@ -145,9 +144,6 @@ if senha_input == "admin":
     opcoes_menu = [
         "📋 Informações do Equipamento", 
         "🛠️ Registrar Manutenção", 
-        "✏️ Editar Previstos", 
-        "🖨️ Gerar QR Codes (5x5 cm)", 
-        "📊 Dashboard Geral",
         "📄 Relatório Fiscal A4"
     ]
 elif senha_input == "visa":
@@ -162,44 +158,6 @@ else:
     ]
 
 opcao = st.sidebar.radio("Navegação", opcoes_menu)
-
-# -----------------------------------------------------------------------------
-# FUNÇÃO PARA GERAR A IMAGEM DA ETIQUETA INDIVIDUAL (5x5 cm)
-# -----------------------------------------------------------------------------
-def gerar_imagem_etiqueta_5x5(tag_codigo, ambiente_nome, base_url):
-    tamanho = 600
-    etiqueta = Image.new('RGB', (tamanho, tamanho), 'white')
-    draw = ImageDraw.Draw(etiqueta)
-    
-    link_qr = f"{base_url}/?tag={tag_codigo}"
-    
-    # 1. Cabeçalho Superior Preto
-    draw.rectangle([(0, 0), (tamanho, 55)], fill="black")
-    draw.text((20, 16), "PMOC - INST. SER CONSCIENTE LTDA", fill="white")
-    
-    # 2. Identificação TAG e Ambiente
-    draw.text((20, 75), f"TAG: {tag_codigo}", fill="black")
-    draw.text((20, 110), f"Amb: {ambiente_nome}", fill="black")
-    
-    # 3. Box com Dados do RT e ART
-    draw.rectangle([(20, 145), (310, 245)], outline="black", width=2)
-    draw.text((30, 155), "RESPONSÁVEL TÉCNICO:", fill="darkblue")
-    draw.text((30, 175), "Eng. Alessandro Coelho", fill="black")
-    draw.text((30, 195), "CREA-MG: 238968-D", fill="black")
-    draw.text((30, 215), "ART: MG20265436050", fill="black")
-    
-    # 4. QR Code à Direita
-    qr = qrcode.QRCode(version=1, box_size=5, border=2)
-    qr.add_data(link_qr)
-    qr.make(fit=True)
-    img_qr = qr.make_image(fill_color="black", back_color="white").resize((240, 240))
-    etiqueta.paste(img_qr, (330, 70))
-    
-    # 5. Rodapé Informativo
-    draw.rectangle([(0, 535), (tamanho, tamanho)], fill="#f0f2f6")
-    draw.text((20, 555), "Lei Fed. 13.589/2018 | Aponte para ver o Histórico", fill="dimgray")
-    
-    return etiqueta
 
 # -----------------------------------------------------------------------------
 # 1. INFORMAÇÕES DO EQUIPAMENTO
@@ -352,4 +310,105 @@ elif opcao == "🛠️ Registrar Manutenção" and senha_input == "admin":
                 checklist_inputs["4.3 - Verificação de drenagem"] = st.checkbox("4.3 - Verificação de drenagem", value=True)
                 checklist_inputs["4.6 - Higienização com bactericida"] = st.checkbox("4.6 - Higienização com bactericida", value=True)
                 checklist_inputs["4.8 - Limpeza química das serpentinas"] = st.checkbox("4.8 - Limpeza química das serpentinas", value=True)
-                checklist_inputs["4.9 - Limpeza do ventilador/rotor"] = st
+                checklist_inputs["4.9 - Limpeza do ventilador/rotor"] = st.checkbox("4.9 - Limpeza do ventilador/rotor", value=True)
+                checklist_inputs["4.10 - Limpeza e desinfecção da bandeja"] = st.checkbox("4.10 - Limpeza e desinfecção da bandeja", value=True)
+                checklist_inputs["4.12 - Verificação de corrente/tensão"] = st.checkbox("4.12 - Verificação de corrente/tensão", value=True)
+                checklist_inputs["4.13 - Limpeza do condensador"] = st.checkbox("4.13 - Limpeza do condensador", value=True)
+                checklist_inputs["4.14 - Verificação dos compressores"] = st.checkbox("4.14 - Verificação dos compressores", value=True)
+
+            st.markdown("---")
+            st.subheader("📸 Registros e Observações")
+            obs = st.text_area("Observações Técnicas / Ocorrências")
+            foto_antes = st.file_uploader("Tirar foto do ANTES", type=["png", "jpg", "jpeg"])
+            foto_depois = st.file_uploader("Tirar foto do DEPOIS", type=["png", "jpg", "jpeg"])
+            
+            salvar = st.form_submit_button("💾 Salvar Registro de Manutenção")
+            
+            if salvar:
+                img_antes_bytes = foto_antes.getvalue() if foto_antes else None
+                img_depois_bytes = foto_depois.getvalue() if foto_depois else None
+                
+                novo_registro = {
+                    "tag": tag_codigo,
+                    "data": data_manut,
+                    "periodicidade": periodicidade,
+                    "tecnico": tecnico,
+                    "checklist": checklist_inputs,
+                    "obs": obs,
+                    "foto_antes_bytes": img_antes_bytes,
+                    "foto_depois_bytes": img_depois_bytes
+                }
+                
+                st.session_state.historico.append(novo_registro)
+                salvar_dados_disco(st.session_state.historico)
+                st.cache_data.clear()
+                st.success(f"Manutenção {periodicidade} do equipamento {tag_codigo} registrada com sucesso!")
+    else:
+        st.info("Não há equipamentos instalados no momento.")
+
+# -----------------------------------------------------------------------------
+# 3. RELATÓRIO FISCAL A4 COMPLETO
+# -----------------------------------------------------------------------------
+elif opcao == "📄 Relatório Fiscal A4" and senha_input in ["visa", "admin"]:
+    
+    col_logo, col_titulo = st.columns([1, 4])
+    with col_logo:
+        if logo_img:
+            st.image(logo_img, width=100)
+    with col_titulo:
+        st.markdown("<h2>INSTITUTO SER CONSCIENTE LTDA</h2>", unsafe_allow_html=True)
+        st.markdown("<h4>PLANO DE MANUTENÇÃO, OPERAÇÃO E CONTROLE - PMOC</h4>", unsafe_allow_html=True)
+        st.markdown("<b>Lei Federal nº 13.589/2018 | ART CREA-MG: MG20265436050</b>", unsafe_allow_html=True)
+
+    data_hoje_str = datetime.date.today().strftime('%d/%m/%Y')
+    st.markdown(f"**Data de Emissão:** {data_hoje_str}")
+    st.markdown(f"**Responsável Técnico:** Eng. Alessandro Coelho (CREA-MG 238968-D)")
+    st.markdown(f"**Administrador / Gestor:** Antônio Sérgio Silva Gomes")
+    st.markdown("---")
+    
+    st.markdown("### 📑 Relação Resumida dos Equipamentos Instalados")
+    instalados_df = [e for e in st.session_state.equipamentos if e["status"] == "Instalado"]
+    
+    dados_resumo = []
+    for eq in instalados_df:
+        hists_eq = [h for h in st.session_state.historico if h["tag"] == eq["tag"]]
+        ultima_data = hists_eq[-1]["data"] if hists_eq else "Sem registro"
+        
+        if hists_eq:
+            freq_ult = hists_eq[-1].get("periodicidade", "Semestral")
+        else:
+            freq_ult = "-"
+
+        dados_resumo.append({
+            "TAG": eq["tag"],
+            "Ambiente": eq["ambiente"],
+            "Equipamento": eq["equipamento"],
+            "BTUs": eq["btus"],
+            "Última Manutenção": ultima_data,
+            "Frequência": freq_ult,
+            "Qtd Registros": len(hists_eq)
+        })
+        
+    df_resumo = pd.DataFrame(dados_resumo)
+    st.table(df_resumo)
+    
+    st.markdown("---")
+    st.markdown("### 📖 Detalhamento Completo e Histórico de Manutenções")
+    
+    for eq in instalados_df:
+        st.markdown(f"#### 📍 Equipamento: {eq['ambiente']} (TAG: {eq['tag']})")
+        st.write(f"**Modelo:** {eq['equipamento']} | **Carga Térmica:** {eq['btus']} BTUs")
+        
+        hists_eq = [h for h in st.session_state.historico if h["tag"] == eq["tag"]]
+        if hists_eq:
+            for h in hists_eq:
+                freq_reg = h.get('periodicidade', 'Semestral')
+                st.write(f"- **Data da Manutenção:** {h['data']} ({freq_reg}) | **Técnico:** {h['tecnico']}")
+                
+                if "checklist" in h and h["checklist"]:
+                    st.markdown("  * **Itens Verificados:**")
+                    for k, v in h["checklist"].items():
+                        st.markdown(f"    - `{'✔️' if v else '❌'}` {k}")
+                
+                if h["obs"]:
+                    st.write(f"

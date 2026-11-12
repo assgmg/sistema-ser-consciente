@@ -8,12 +8,6 @@ import os
 import json
 import base64
 
-# Importações para o PDF em Grade A4 para a Gráfica
-from reportlab.lib.pagesizes import A4
-from reportlab.pdfgen import canvas
-from reportlab.lib import colors
-from reportlab.platypus import SimpleDocTemplate
-
 st.set_page_config(page_title="PMOC - Instituto Ser Consciente", layout="wide", page_icon="❄️")
 
 # -----------------------------------------------------------------------------
@@ -170,7 +164,7 @@ else:
 opcao = st.sidebar.radio("Navegação", opcoes_menu)
 
 # -----------------------------------------------------------------------------
-# FUNÇÃO PARA GERAR A IMAGEM INDIVIDUAL DA ETIQUETA (5x5 cm)
+# FUNÇÃO PARA GERAR A IMAGEM DA ETIQUETA INDIVIDUAL (5x5 cm)
 # -----------------------------------------------------------------------------
 def gerar_imagem_etiqueta_5x5(tag_codigo, ambiente_nome, base_url):
     tamanho = 600
@@ -212,7 +206,7 @@ def gerar_imagem_etiqueta_5x5(tag_codigo, ambiente_nome, base_url):
 # -----------------------------------------------------------------------------
 if opcao == "📋 Informações do Equipamento":
     st.header("📋 Informações do Equipamento - PMOC Oficial")
-    st.info("ℹ️ Projeto validado pela Vineyard Engenharia | ART CREA-MG nº MG20265436050")
+    st.info("ℹ️ Projeto validado pela Vineyard Engenharia | ART CREA-MG nº MG20265436050[cite: 54, 55]")
     
     tags_lista = [e["tag"] + " - " + e["ambiente"] for e in st.session_state.equipamentos]
     indice_inicial = 0
@@ -424,15 +418,15 @@ elif opcao == "✏️ Editar Previstos" and senha_input == "admin":
         st.info("Todos os equipamentos já estão instalados!")
 
 # -----------------------------------------------------------------------------
-# 4. GERAR QR CODES & FOLHA A4 PARA GRÁFICA (GUILHOTINA 5x5 cm)
+# 4. GERAR QR CODES & FOLHA A4 PARA GRÁFICA (5x5 cm)
 # -----------------------------------------------------------------------------
 elif opcao == "🖨️ Gerar QR Codes (5x5 cm)" and senha_input == "admin":
     st.header("🖨️ Gerador de Etiquetas 5x5 cm e Folha A4 para Gráfica")
-    st.write("Baixe a etiqueta individual ou gere o arquivo completo em PDF em grade A4 com marcas de corte para a guilhotina.")
+    st.write("Baixe a etiqueta individual ou gere a folha completa em imagem de alta resolução pronta para impressão.")
     
     base_url = st.text_input("URL base do seu sistema no Streamlit:", value="https://sistema-ser-consciente-fexfnfuwjkntnzwdwhknso.streamlit.app")
     
-    tab_ind, tab_lote = st.tabs(["📥 Etiqueta Individual (5x5 cm)", "📄 Arquivo A4 Completo para Gráfica"])
+    tab_ind, tab_lote = st.tabs(["📥 Etiqueta Individual (5x5 cm)", "📄 Folha A4 Completa para Gráfica"])
     
     with tab_ind:
         lista_eq_qr = [e["tag"] + " - " + e["ambiente"] for e in st.session_state.equipamentos]
@@ -454,4 +448,11 @@ elif opcao == "🖨️ Gerar QR Codes (5x5 cm)" and senha_input == "admin":
                         mime="image/png"
                     )
         else:
-            st
+            st.warning("Nenhum equipamento cadastrado.")
+            
+    with tab_lote:
+        st.markdown("### 🖨️ Gerar Folha A4 Completa de Etiquetas (Grade para Gráfica)")
+        st.info("O sistema montará uma folha A4 completa em alta resolução contendo todas as etiquetas dos equipamentos instalados dispostas em grade com espaço para corte na guilhotina.")
+        
+        if st.button("🚀 Gerar Folha A4 de Etiquetas"):
+            instalados = [e for e in st.session_state.equipamentos if e["status"] ==

@@ -47,7 +47,7 @@ def carregar_logo():
 logo_img = carregar_logo()
 
 # -----------------------------------------------------------------------------
-# ESTILO CSS PARA IMPRESSÃO LIMPA
+# ESTILO CSS PARA IMPRESSÃO LIMPA E MASCARA DE ETIQUETA 5x5 cm
 # -----------------------------------------------------------------------------
 st.markdown("""
     <style>
@@ -59,6 +59,28 @@ st.markdown("""
         .streamlit-expanderHeader {display: none;}
         .stAlert {display: none;}
         body {margin: 0; padding: 0;}
+    }
+    .etiqueta-box {
+        border: 3px solid #000;
+        border-radius: 8px;
+        padding: 15px;
+        background-color: #ffffff;
+        color: #000000;
+        width: 100%;
+        max-width: 450px;
+        font-family: Arial, sans-serif;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        margin-bottom: 20px;
+    }
+    .etiqueta-header {
+        background-color: #000;
+        color: #fff;
+        padding: 8px 12px;
+        font-weight: bold;
+        font-size: 14px;
+        text-align: center;
+        border-radius: 4px;
+        margin-bottom: 10px;
     }
     </style>
 """, unsafe_allow_html=True)
@@ -144,7 +166,7 @@ if senha_input == "admin":
         "📋 Informações do Equipamento", 
         "🛠️ Registrar Manutenção", 
         "✏️ Editar Previstos", 
-        "🔗 Gerador de QR Code Instantâneo", 
+        "🖨️ Etiquetas 5x5 cm (Gráfica)", 
         "📊 Dashboard Geral",
         "📄 Relatório Fiscal A4"
     ]
@@ -249,7 +271,6 @@ if opcao == "📋 Informações do Equipamento":
                 elif h.get("foto_depois"):
                     col2.image(h["foto_depois"], caption=f"Foto Depois - {h['data']}", use_container_width=True)
                 
-                # Se for admin, exibe o botão direto para apagar o registro de teste incorreto
                 if senha_input == "admin":
                     if st.button("Excluir este Registro Incorreto", key=f"btn_del_{tag_codigo}_{idx}"):
                         del st.session_state.historico[indice_real]
@@ -370,89 +391,22 @@ elif opcao == "✏️ Editar Previstos" and senha_input == "admin":
         st.info("Todos os equipamentos já estão instalados!")
 
 # -----------------------------------------------------------------------------
-# 4. GERADOR DE QR CODE INSTANTÂNEO
+# 4. MÁSCARA DA ETIQUETA 5x5 cm E QR CODE (PARA GRÁFICA)
 # -----------------------------------------------------------------------------
-elif opcao == "🔗 Gerador de QR Code Instantâneo" and senha_input == "admin":
-    st.header("🔗 Gerador Oficial de QR Codes")
-    st.info("ℹ️ Selecione o equipamento abaixo. O sistema exibe instantaneamente o QR Code oficial pronto para visualização e impressão.")
+elif opcao == "🖨️ Etiquetas 5x5 cm (Gráfica)" and senha_input == "admin":
+    st.header("🖨️ Máscara de Etiqueta 5x5 cm para Gráfica")
+    st.info("ℹ️ Esta tela exibe a máscara oficial da etiqueta com as informações técnicas exigidas e o QR Code embutido lado a lado. Perfeito para visualização e envio ou impressão pela gráfica.")
     
     base_url = "https://sistema-ser-consciente-fexfnfuwjkntnzwdwhknso.streamlit.app"
     
     lista_eq_qr = [e["tag"] + " - " + e["ambiente"] for e in st.session_state.equipamentos]
     if lista_eq_qr:
-        tag_sel_qr = st.selectbox("Selecione o Equipamento:", lista_eq_qr)
+        tag_sel_qr = st.selectbox("Selecione o Equipamento para gerar a etiqueta:", lista_eq_qr)
         tag_codigo = tag_sel_qr.split(" - ")[0]
         equip_sel = next((e for e in st.session_state.equipamentos if e["tag"] == tag_codigo), None)
         
         if equip_sel:
             link_equip = f"{base_url}/?tag={equip_sel['tag']}"
-            st.markdown(f"**Link Direto:** `{link_equip}`")
+            api_qr_url = f"https://api.qrserver.com/v1/create-qr-code/?size=180x180&data={link_equip}"
             
-            api_qr_url = f"https://api.qrserver.com/v1/create-qr-code/?size=300x300&data={link_equip}"
-            
-            st.image(api_qr_url, caption=f"QR Code Oficial - TAG: {equip_sel['tag']} ({equip_sel['ambiente']})", width=300)
-            st.success("✅ Este QR Code aponta diretamente para o histórico e status do equipamento no Instituto Ser Consciente!")
-
-# -----------------------------------------------------------------------------
-# 5. DASHBOARD GERAL
-# -----------------------------------------------------------------------------
-elif opcao == "📊 Dashboard Geral" and senha_input == "admin":
-    st.header("📊 Painel Geral de Climatização")
-    total = len(st.session_state.equipamentos)
-    instalados = len([e for e in st.session_state.equipamentos if e["status"] == "Instalado"])
-    previstos = len([e for e in st.session_state.equipamentos if e["status"] == "Previsto"])
-    
-    col1, col2, col3 = st.columns(3)
-    col1.metric("Total de Aparelhos", total)
-    col2.metric("Instalados e Ativos", instalados)
-    col3.metric("Previstos / Futuros", previstos)
-    
-    st.markdown("---")
-    st.subheader("📋 Tabela Geral de Ativos")
-    df = pd.DataFrame(st.session_state.equipamentos)
-    st.dataframe(df, use_container_width=True)
-
-# -----------------------------------------------------------------------------
-# 6. RELATÓRIO FISCAL A4 COMPLETO
-# -----------------------------------------------------------------------------
-elif opcao == "📄 Relatório Fiscal A4" and senha_input in ["visa", "admin"]:
-    
-    col_logo, col_titulo = st.columns([1, 4])
-    with col_logo:
-        if logo_img:
-            st.image(logo_img, width=100)
-    with col_titulo:
-        st.markdown("<h2>INSTITUTO SER CONSCIENTE LTDA</h2>", unsafe_allow_html=True)
-        st.markdown("<h4>PLANO DE MANUTENÇÃO, OPERAÇÃO E CONTROLE - PMOC</h4>", unsafe_allow_html=True)
-        st.markdown("<b>Lei Federal nº 13.589/2018 | ART CREA-MG: MG20265436050</b>", unsafe_allow_html=True)
-
-    data_hoje_str = datetime.date.today().strftime('%d/%m/%Y')
-    st.markdown(f"**Data de Emissão:** {data_hoje_str}")
-    st.markdown(f"**Responsável Técnico:** Eng. Alessandro Coelho (CREA-MG 238968-D)")
-    st.markdown(f"**Administrador / Gestor:** Antônio Sérgio Silva Gomes")
-    st.markdown("---")
-    
-    st.markdown("### 📑 Relação Resumida dos Equipamentos Instalados")
-    instalados_df = [e for e in st.session_state.equipamentos if e["status"] == "Instalado"]
-    
-    dados_resumo = []
-    for eq in instalados_df:
-        hists_eq = [h for h in st.session_state.historico if h["tag"] == eq["tag"]]
-        ultima_data = hists_eq[-1]["data"] if hists_eq else "Sem registro"
-        
-        if hists_eq:
-            freq_ult = hists_eq[-1].get("periodicidade", "Semestral")
-        else:
-            freq_ult = "-"
-
-        dados_resumo.append({
-            "TAG": eq["tag"],
-            "Ambiente": eq["ambiente"],
-            "Equipamento": eq["equipamento"],
-            "BTUs": eq["btus"],
-            "Última Manutenção": ultima_data,
-            "Frequência": freq_ult,
-            "Qtd Registros": len(hists_eq)
-        })
-        
-    df_resumo = pd
+            st

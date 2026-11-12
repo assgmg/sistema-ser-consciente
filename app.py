@@ -212,7 +212,7 @@ def gerar_imagem_etiqueta_5x5(tag_codigo, ambiente_nome, base_url):
 # -----------------------------------------------------------------------------
 if opcao == "📋 Informações do Equipamento":
     st.header("📋 Informações do Equipamento - PMOC Oficial")
-    st.info("ℹ️ Projeto validado pela Vineyard Engenharia | ART CREA-MG nº MG20265436050[cite: 54, 55]")
+    st.info("ℹ️ Projeto validado pela Vineyard Engenharia | ART CREA-MG nº MG20265436050")
     
     tags_lista = [e["tag"] + " - " + e["ambiente"] for e in st.session_state.equipamentos]
     indice_inicial = 0
@@ -310,4 +310,148 @@ if opcao == "📋 Informações do Equipamento":
                             st.success("Registro apagado com sucesso! Atualizando...")
                             st.rerun()
 
-                    st.markdown("
+                    st.markdown("---")
+            else:
+                st.info("Nenhum histórico cadastrado para este aparelho.")
+        else:
+            st.info("🔒 Insira a senha autorizada acima para visualizar o histórico detalhado, checklist completo e registros fotográficos deste equipamento.")
+
+# -----------------------------------------------------------------------------
+# 2. REGISTRAR MANUTENÇÃO
+# -----------------------------------------------------------------------------
+elif opcao == "🛠️ Registrar Manutenção" and senha_input == "admin":
+    st.header("🛠️ Registro de Manutenção Preventiva")
+    instalados = [e for e in st.session_state.equipamentos if e["status"] == "Instalado"]
+    tags = [e["tag"] + " - " + e["ambiente"] for e in instalados]
+    
+    if tags:
+        tag_sel = st.selectbox("Selecione o Equipamento:", tags)
+        tag_codigo = tag_sel.split(" - ")[0]
+        hoje_formatado = datetime.date.today().strftime("%d/%m/%Y")
+        
+        periodicidade = st.selectbox(
+            "Tipo de Manutenção / Periodicidade (Conforme PMOC):", 
+            ["Semestral (180 dias)", "Trimestral (90 dias)"]
+        )
+        
+        with st.form("form_manutencao"):
+            data_manut = st.text_input("Data da Manutenção (DD/MM/AAAA)", value=hoje_formatado)
+            tecnico = st.text_input("Técnico Responsável", value="Antônio Sérgio Silva Gomes")
+            
+            st.markdown("---")
+            st.subheader("📋 Atividades Obrigatórias do PMOC")
+            
+            checklist_inputs = {}
+            if "Trimestral" in periodicidade:
+                st.info("📝 Checklist **TRIMESTRAL**:")
+                checklist_inputs["4.1 - Limpeza dos filtros de ar"] = st.checkbox("4.1 - Limpeza dos filtros de ar", value=True)
+                checklist_inputs["4.2 - Limpeza externa do gabinete"] = st.checkbox("4.2 - Limpeza externa do gabinete", value=True)
+                checklist_inputs["4.3 - Verificação de drenagem"] = st.checkbox("4.3 - Verificação de drenagem", value=True)
+                checklist_inputs["4.6 - Higienização com bactericida"] = st.checkbox("4.6 - Higienização com bactericida", value=True)
+                checklist_inputs["4.9 - Limpeza do ventilador/rotor"] = st.checkbox("4.9 - Limpeza do ventilador/rotor", value=True)
+                checklist_inputs["4.10 - Limpeza da bandeja de condensado"] = st.checkbox("4.10 - Limpeza da bandeja de condensado", value=True)
+                checklist_inputs["4.11 - Reaperto de terminais/conexões"] = st.checkbox("4.11 - Reaperto de terminais/conexões", value=True)
+            else:
+                st.info("📝 Checklist **SEMESTRAL** Completo:")
+                checklist_inputs["4.1 - Limpeza dos filtros de ar"] = st.checkbox("4.1 - Limpeza dos filtros de ar", value=True)
+                checklist_inputs["4.2 - Limpeza externa do gabinete"] = st.checkbox("4.2 - Limpeza externa do gabinete", value=True)
+                checklist_inputs["4.3 - Verificação de drenagem"] = st.checkbox("4.3 - Verificação de drenagem", value=True)
+                checklist_inputs["4.6 - Higienização com bactericida"] = st.checkbox("4.6 - Higienização com bactericida", value=True)
+                checklist_inputs["4.8 - Limpeza química das serpentinas"] = st.checkbox("4.8 - Limpeza química das serpentinas", value=True)
+                checklist_inputs["4.9 - Limpeza do ventilador/rotor"] = st.checkbox("4.9 - Limpeza do ventilador/rotor", value=True)
+                checklist_inputs["4.10 - Limpeza e desinfecção da bandeja"] = st.checkbox("4.10 - Limpeza e desinfecção da bandeja", value=True)
+                checklist_inputs["4.12 - Verificação de corrente/tensão"] = st.checkbox("4.12 - Verificação de corrente/tensão", value=True)
+                checklist_inputs["4.13 - Limpeza do condensador"] = st.checkbox("4.13 - Limpeza do condensador", value=True)
+                checklist_inputs["4.14 - Verificação dos compressores"] = st.checkbox("4.14 - Verificação dos compressores", value=True)
+
+            st.markdown("---")
+            st.subheader("📸 Registros e Observações")
+            obs = st.text_area("Observações Técnicas / Ocorrências")
+            foto_antes = st.file_uploader("Tirar foto do ANTES", type=["png", "jpg", "jpeg"])
+            foto_depois = st.file_uploader("Tirar foto do DEPOIS", type=["png", "jpg", "jpeg"])
+            
+            salvar = st.form_submit_button("💾 Salvar Registro de Manutenção")
+            
+            if salvar:
+                img_antes_bytes = foto_antes.getvalue() if foto_antes else None
+                img_depois_bytes = foto_depois.getvalue() if foto_depois else None
+                
+                novo_registro = {
+                    "tag": tag_codigo,
+                    "data": data_manut,
+                    "periodicidade": periodicidade,
+                    "tecnico": tecnico,
+                    "checklist": checklist_inputs,
+                    "obs": obs,
+                    "foto_antes_bytes": img_antes_bytes,
+                    "foto_depois_bytes": img_depois_bytes
+                }
+                
+                st.session_state.historico.append(novo_registro)
+                salvar_dados_disco(st.session_state.historico)
+                st.cache_data.clear()
+                st.success(f"Manutenção {periodicidade} do equipamento {tag_codigo} registrada com sucesso!")
+    else:
+        st.info("Não há equipamentos instalados no momento.")
+
+# -----------------------------------------------------------------------------
+# 3. EDITAR PREVISTOS
+# -----------------------------------------------------------------------------
+elif opcao == "✏️ Editar Previstos" and senha_input == "admin":
+    st.header("✏️ Atualizar Equipamentos Previstos")
+    tags_previstas = [e["tag"] + " - " + e["ambiente"] for e in st.session_state.equipamentos if e["status"] == "Previsto"]
+    
+    if tags_previstas:
+        tag_sel = st.selectbox("Selecione o Equipamento Previsto:", tags_previstas)
+        tag_codigo = tag_sel.split(" - ")[0]
+        equip = next((e for e in st.session_state.equipamentos if e["tag"] == tag_codigo), None)
+        
+        if equip:
+            with st.form("form_edicao"):
+                st.write(f"**Ambiente:** {equip['ambiente']}")
+                novo_nome = st.text_input("Marca / Modelo do Equipamento Instalado", value="Split Agratto")
+                novos_btus = st.text_input("Potência (BTUs)", value=equip["btus"])
+                confirmar = st.form_submit_button("✅ Confirmar Instalação")
+                
+                if confirmar:
+                    equip["equipamento"] = novo_nome
+                    equip["btus"] = novos_btus
+                    equip["status"] = "Instalado"
+                    st.cache_data.clear()
+                    st.success(f"O equipamento {tag_codigo} agora está instalado!")
+                    st.rerun()
+    else:
+        st.info("Todos os equipamentos já estão instalados!")
+
+# -----------------------------------------------------------------------------
+# 4. GERAR QR CODES & FOLHA A4 PARA GRÁFICA (GUILHOTINA 5x5 cm)
+# -----------------------------------------------------------------------------
+elif opcao == "🖨️ Gerar QR Codes (5x5 cm)" and senha_input == "admin":
+    st.header("🖨️ Gerador de Etiquetas 5x5 cm e Folha A4 para Gráfica")
+    st.write("Baixe a etiqueta individual ou gere o arquivo completo em PDF em grade A4 com marcas de corte para a guilhotina.")
+    
+    base_url = st.text_input("URL base do seu sistema no Streamlit:", value="https://sistema-ser-consciente-fexfnfuwjkntnzwdwhknso.streamlit.app")
+    
+    tab_ind, tab_lote = st.tabs(["📥 Etiqueta Individual (5x5 cm)", "📄 Arquivo A4 Completo para Gráfica"])
+    
+    with tab_ind:
+        lista_eq_qr = [e["tag"] + " - " + e["ambiente"] for e in st.session_state.equipamentos]
+        if lista_eq_qr:
+            tag_sel_qr = st.selectbox("Selecione o Equipamento:", lista_eq_qr, key="select_qr_eq")
+            if tag_sel_qr:
+                tag_codigo = tag_sel_qr.split(" - ")[0]
+                equip_sel = next((e for e in st.session_state.equipamentos if e["tag"] == tag_codigo), None)
+                if equip_sel:
+                    img_etq = gerar_imagem_etiqueta_5x5(tag_codigo, equip_sel["ambiente"], base_url)
+                    st.image(img_etq, caption=f"Prévia da Etiqueta 5x5 cm - {tag_codigo}", width=320)
+                    
+                    buf = BytesIO()
+                    img_etq.save(buf, format="PNG")
+                    st.download_button(
+                        label=f"⬇️ Baixar Imagem 5x5 ({tag_codigo})",
+                        data=buf.getvalue(),
+                        file_name=f"etiqueta_5x5_{tag_codigo}.png",
+                        mime="image/png"
+                    )
+        else:
+            st

@@ -173,7 +173,7 @@ opcao = st.sidebar.radio("Navegação", opcoes_menu)
 # FUNÇÃO PARA GERAR A IMAGEM INDIVIDUAL DA ETIQUETA (5x5 cm)
 # -----------------------------------------------------------------------------
 def gerar_imagem_etiqueta_5x5(tag_codigo, ambiente_nome, base_url):
-    tamanho = 600  # Alta resolução 300 DPI proporcional
+    tamanho = 600
     etiqueta = Image.new('RGB', (tamanho, tamanho), 'white')
     draw = ImageDraw.Draw(etiqueta)
     
@@ -466,40 +466,28 @@ elif opcao == "🖨️ Gerar QR Codes (5x5 cm)" and senha_input == "admin":
             pdf_buffer = BytesIO()
             doc = SimpleDocTemplate(pdf_buffer, pagesize=A4, leftMargin=28, rightMargin=28, topMargin=28, bottomMargin=28)
             
-            # Dimensões da Página A4 em pontos (1 ponto = 1/72 polegada)
-            # A4 = 595.27 x 841.89 pontos
-            # Margem útil = largura 539 pt, altura 785 pt
-            # Tamanho da etiqueta 5x5 cm = 141.73 pontos x 141.73 pontos
-            
             larg_etq = 5 * 28.3465  # 5 cm em pt (~141.7 pt)
             alt_etq = 5 * 28.3465   # 5 cm em pt
             cols = 4
             rows = 5
             
-            # Espaçamentos para centralizar na folha A4
             margem_x = (595.27 - (cols * larg_etq)) / 2
             margem_y = (841.89 - (rows * alt_etq)) / 2
             
-            story = []
-            
             def desenhar_grade_a4(canvas_obj, doc_obj):
                 canvas_obj.saveState()
-                # Desenhar marcas de corte para a guilhotina nas posições da grade
                 for r in range(rows + 1):
                     y = 841.89 - margem_y - (r * alt_etq)
                     for c in range(cols + 1):
                         x = margem_x + (c * larg_etq)
-                        # Pequenas marcas de corte em cruz / canto
                         canvas_obj.setStrokeColor(colors.gray)
                         canvas_obj.setLineWidth(0.5)
-                        # Cruz externa de corte
                         canvas_obj.line(x - 10, y, x - 3, y)
                         canvas_obj.line(x + 3, y, x + 10, y)
                         canvas_obj.line(x, y - 10, x, y - 3)
                         canvas_obj.line(x, y + 3, x, y + 10)
                 canvas_obj.restoreState()
 
-            # Vamos gerar imagens temporárias em PNG de cada etiqueta e inseri-las no canvas do ReportLab
             c = canvas.Canvas(pdf_buffer, pagesize=A4)
             
             etq_idx = 0
@@ -516,77 +504,12 @@ elif opcao == "🖨️ Gerar QR Codes (5x5 cm)" and senha_input == "admin":
                 x = margem_x + (col * larg_etq)
                 y = 841.89 - margem_y - ((row + 1) * alt_etq)
                 
-                # Gerar imagem PIL da etiqueta
                 img_etq = gerar_imagem_etiqueta_5x5(eq["tag"], eq["ambiente"], base_url)
                 img_io = BytesIO()
                 img_etq.save(img_io, format="PNG")
                 img_io.seek(0)
                 
-                # Inserir no PDF
                 c.drawImage(img_io, x, y, width=larg_etq, height=alt_etq)
                 
-                # Desenhar borda fina de contorno para guiar o corte
                 c.setStrokeColor(colors.lightgrey)
-                c.setLineWidth(0.5)
-                c.rect(x, y, larg_etq, alt_etq)
-                
-                etq_idx += 1
-            
-            c.save()
-            pdf_buffer.seek(0)
-            
-            st.success("✅ Arquivo PDF A4 gerado com sucesso para a gráfica!")
-            st.download_button(
-                label="⬇️ Baixar PDF A4 de Etiquetas para Impressão Gráfica",
-                data=pdf_buffer.getvalue(),
-                file_name="etiquetas_pmoc_5x5_grafica.pdf",
-                mime="application/pdf"
-            )
-
-# -----------------------------------------------------------------------------
-# 5. DASHBOARD GERAL
-# -----------------------------------------------------------------------------
-elif opcao == "📊 Dashboard Geral" and senha_input == "admin":
-    st.header("📊 Painel Geral de Climatização")
-    total = len(st.session_state.equipamentos)
-    instalados = len([e for e in st.session_state.equipamentos if e["status"] == "Instalado"])
-    previstos = len([e for e in st.session_state.equipamentos if e["status"] == "Previsto"])
-    
-    col1, col2, col3 = st.columns(3)
-    col1.metric("Total", total)
-    col2.metric("Instalados", instalados)
-    col3.metric("Previstos", previstos)
-    
-    st.markdown("---")
-    st.subheader("📋 Tabela de Ativos")
-    df = pd.DataFrame(st.session_state.equipamentos)
-    st.dataframe(df, use_container_width=True)
-
-# -----------------------------------------------------------------------------
-# 6. RELATÓRIO FISCAL A4 COMPLETO
-# -----------------------------------------------------------------------------
-elif opcao == "📄 Relatório Fiscal A4" and senha_input in ["visa", "admin"]:
-    
-    col_logo, col_titulo = st.columns([1, 4])
-    with col_logo:
-        if logo_img:
-            st.image(logo_img, width=100)
-    with col_titulo:
-        st.markdown("<h2>INSTITUTO SER CONSCIENTE LTDA</h2>", unsafe_allow_html=True)
-        st.markdown("<h4>PLANO DE MANUTENÇÃO, OPERAÇÃO E CONTROLE - PMOC</h4>", unsafe_allow_html=True)
-        st.markdown("<b>Lei Federal nº 13.589/2018 | ART CREA-MG: MG20265436050</b>", unsafe_allow_html=True)
-
-    data_hoje_str = datetime.date.today().strftime('%d/%m/%Y')
-    st.markdown(f"**Data de Emissão:** {data_hoje_str}")
-    st.markdown(f"**Responsável Técnico:** Eng. Alessandro Ribeiro Coelho (CREA-MG 238968-D)")
-    st.markdown(f"**Administrador / Gestor:** Antônio Sérgio Silva Gomes")
-    st.markdown("---")
-    
-    st.markdown("### 📑 Relação Resumida dos Equipamentos Instalados")
-    instalados_df = [e for e in st.session_state.equipamentos if e["status"] == "Instalado"]
-    
-    dados_resumo = []
-    for eq in instalados_df:
-        hists_eq = [h for h in st.session_state.historico if h["tag"] == eq["tag"]]
-        ultima_data = hists_eq[-1]["data"] if hists_eq else "Sem registro"
-        freq_ult = hists_eq[-1].get("periodicidade", "Semestral") if h
+                c.setLineWidth(

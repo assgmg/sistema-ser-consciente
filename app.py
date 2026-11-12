@@ -367,7 +367,6 @@ elif opcao == "🛠️ Registrar Manutenção" and senha_input == "admin":
 elif opcao == "✏️ Editar Previstos" and senha_input == "admin":
     st.header("✏️ Gerenciar e Atualizar Equipamentos")
     
-    # Permitir selecionar qualquer equipamento para editar marca, modelo ou status
     lista_todos = [e["tag"] + " - " + e["ambiente"] + f" ({e['status']})" for e in st.session_state.equipamentos]
     
     if lista_todos:
@@ -415,9 +414,21 @@ elif opcao == "🖨️ Etiquetas 5x5 cm (Gráfica)" and senha_input == "admin":
             
             st.markdown("### 🏷️ Pré-visualização da Etiqueta (Dimensão proporcional 5x5 cm)")
             
-            st.markdown(f"""
+            # HTML limpo sem f-string multilinhas complexas para evitar conflitos de sintaxe
+            html_etiqueta = f"""
                 <div class="etiqueta-box">
                     <div class="etiqueta-header">PMOC - INST. SER CONSCIENTE LTDA</div>
                     <div style="display: flex; justify-content: space-between; align-items: center;">
                         <div style="font-size: 13px; line-height: 1.5;">
-                            <b>TAG:</b> {equip_
+                            <b>TAG:</b> {equip_sel['tag']}<br>
+                            <b>Ambiente:</b> {equip_sel['ambiente']}<br>
+                            <b>Equipamento:</b> {equip_sel['equipamento']}<br>
+                            <b>Carga:</b> {equip_sel['btus']} BTUs<br>
+                            <hr style="margin: 6px 0; border-top: 1px solid #ccc;">
+                            <span style="font-size: 11px; color: #333;">
+                                <b>Resp. Técnico:</b> Eng. Alessandro Coelho<br>
+                                <b>CREA-MG:</b> 238968-D | <b>ART:</b> MG20265436050
+                            </span>
+                        </div>
+                        <div style="text-align: center; margin-left: 10px;">
+                            <img src="{api_qr_url

@@ -310,13 +310,4 @@ elif opcao == "🛠️ Registrar Manutenção" and senha_input == "admin":
                 checklist_inputs["4.3 - Verificação de drenagem"] = st.checkbox("4.3 - Verificação de drenagem", value=True)
                 checklist_inputs["4.6 - Higienização com bactericida"] = st.checkbox("4.6 - Higienização com bactericida", value=True)
                 checklist_inputs["4.8 - Limpeza química das serpentinas"] = st.checkbox("4.8 - Limpeza química das serpentinas", value=True)
-                checklist_inputs["4.9 - Limpeza do ventilador/rotor"] = st.checkbox("4.9 - Limpeza do ventilador/rotor", value=True)
-                checklist_inputs["4.10 - Limpeza e desinfecção da bandeja"] = st.checkbox("4.10 - Limpeza e desinfecção da bandeja", value=True)
-                checklist_inputs["4.12 - Verificação de corrente/tensão"] = st.checkbox("4.12 - Verificação de corrente/tensão", value=True)
-                checklist_inputs["4.13 - Limpeza do condensador"] = st.checkbox("4.13 - Limpeza do condensador", value=True)
-                checklist_inputs["4.14 - Verificação dos compressores"] = st.checkbox("4.14 - Verificação dos compressores", value=True)
-
-            st.markdown("---")
-            st.subheader("📸 Registros e Observações")
-            obs = st.text_area("Observações Técnicas / Ocorrências")
-            foto_antes = st.file_uploader("Tirar foto do ANTES", type
+                checklist_inputs["4.9 - Limpeza do ventilador/rotor"] = st

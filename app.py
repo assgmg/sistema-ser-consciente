@@ -414,18 +414,111 @@ elif opcao == "🖨️ Etiquetas 5x5 cm (Gráfica)" and senha_input == "admin":
             
             st.markdown("### 🏷️ Pré-visualização da Etiqueta (Formato Quadrado 5x5 cm)")
             
-            # Layout otimizado verticalmente (quadrado compacto)
-            html_etiqueta = (
-                '<div class="etiqueta-box">'
-                '<div class="etiqueta-header">PMOC - INST. SER CONSCIENTE</div>'
-                '<div style="font-size: 11px; line-height: 1.4;">'
-                '<b>TAG:</b> ' + str(equip_sel['tag']) + '<br>'
-                '<b>Ambiente:</b> ' + str(equip_sel['ambiente']) + '<br>'
-                '<b>Equipamento:</b> ' + str(equip_sel['equipamento']) + '<br>'
-                '<b>Carga:</b> ' + str(equip_sel['btus']) + ' BTUs'
-                '</div>'
-                '<div style="text-align: center; margin: 8px 0;">'
-                '<img src="' + api_qr_url + '" width="95" height="95" style="border: 1px solid #ddd; padding: 2px; background: #fff;">'
-                '</div>'
-                '<div style="text-align: center; font-size: 9px; color: #333; line-height: 1.2;">'
-                '<b>Resp
+            # String HTML única em linha contínua, sem quebras para evitar erros de sintaxe
+            html_etiqueta = '<div class="etiqueta-box"><div class="etiqueta-header">PMOC - INST. SER CONSCIENTE</div><div style="font-size: 11px; line-height: 1.4;"><b>TAG:</b> ' + str(equip_sel['tag']) + '<br><b>Ambiente:</b> ' + str(equip_sel['ambiente']) + '<br><b>Equipamento:</b> ' + str(equip_sel['equipamento']) + '<br><b>Carga:</b> ' + str(equip_sel['btus']) + ' BTUs</div><div style="text-align: center; margin: 8px 0;"><img src="' + api_qr_url + '" width="95" height="95" style="border: 1px solid #ddd; padding: 2px; background: #fff;"></div><div style="text-align: center; font-size: 9px; color: #333; line-height: 1.2;"><b>Resp. Técnico:</b> Eng. Alessandro Coelho<br><b>CREA-MG:</b> 238968-D | <b>ART:</b> MG20265436050</div><div style="background-color: #f1f1f1; text-align: center; font-size: 8px; margin-top: 6px; padding: 2px; border-radius: 3px; color: #444;">Lei Fed. 13.589/18 — Aponte a câmera</div></div>'
+            
+            st.markdown(html_etiqueta, unsafe_allow_html=True)
+            
+            st.markdown("**Link Direto embutido no QR Code:** `" + link_equip + "`")
+            st.success("✅ Máscara quadrada otimizada com sucesso para impressão em 5x5 cm!")
+
+# -----------------------------------------------------------------------------
+# 5. DASHBOARD GERAL
+# -----------------------------------------------------------------------------
+elif opcao == "📊 Dashboard Geral" and senha_input == "admin":
+    st.header("📊 Painel Geral de Climatização")
+    total = len(st.session_state.equipamentos)
+    instalados = len([e for e in st.session_state.equipamentos if e["status"] == "Instalado"])
+    previstos = len([e for e in st.session_state.equipamentos if e["status"] == "Previsto"])
+    
+    col1, col2, col3 = st.columns(3)
+    col1.metric("Total de Aparelhos", total)
+    col2.metric("Instalados e Ativos", instalados)
+    col3.metric("Previstos / Futuros", previstos)
+    
+    st.markdown("---")
+    st.subheader("📋 Tabela Geral de Ativos")
+    df = pd.DataFrame(st.session_state.equipamentos)
+    st.dataframe(df, use_container_width=True)
+
+# -----------------------------------------------------------------------------
+# 6. RELATÓRIO FISCAL A4 COMPLETO
+# -----------------------------------------------------------------------------
+elif opcao == "📄 Relatório Fiscal A4" and senha_input in ["visa", "admin"]:
+    
+    col_logo, col_titulo = st.columns([1, 4])
+    with col_logo:
+        if logo_img:
+            st.image(logo_img, width=100)
+    with col_titulo:
+        st.markdown("<h2>INSTITUTO SER CONSCIENTE LTDA</h2>", unsafe_allow_html=True)
+        st.markdown("<h4>PLANO DE MANUTENÇÃO, OPERAÇÃO E CONTROLE - PMOC</h4>", unsafe_allow_html=True)
+        st.markdown("<b>Lei Federal nº 13.589/2018 | ART CREA-MG: MG20265436050</b>", unsafe_allow_html=True)
+
+    data_hoje_str = datetime.date.today().strftime('%d/%m/%Y')
+    st.markdown(f"**Data de Emissão:** {data_hoje_str}")
+    st.markdown(f"**Responsável Técnico:** Eng. Alessandro Coelho (CREA-MG 238968-D)")
+    st.markdown(f"**Administrador / Gestor:** Antônio Sérgio Silva Gomes")
+    st.markdown("---")
+    
+    st.markdown("### 📑 Relação Resumida dos Equipamentos Instalados")
+    instalados_df = [e for e in st.session_state.equipamentos if e["status"] == "Instalado"]
+    
+    dados_resumo = []
+    for eq in instalados_df:
+        hists_eq = [h for h in st.session_state.historico if h["tag"] == eq["tag"]]
+        ultima_data = hists_eq[-1]["data"] if hists_eq else "Sem registro"
+        
+        if hists_eq:
+            freq_ult = hists_eq[-1].get("periodicidade", "Semestral")
+        else:
+            freq_ult = "-"
+
+        dados_resumo.append({
+            "TAG": eq["tag"],
+            "Ambiente": eq["ambiente"],
+            "Equipamento": eq["equipamento"],
+            "BTUs": eq["btus"],
+            "Última Manutenção": ultima_data,
+            "Frequência": freq_ult,
+            "Qtd Registros": len(hists_eq)
+        })
+        
+    df_resumo = pd.DataFrame(dados_resumo)
+    st.table(df_resumo)
+    
+    st.markdown("---")
+    st.markdown("### 📖 Detalhamento Completo e Histórico de Manutenções")
+    
+    for eq in instalados_df:
+        st.markdown(f"#### 📍 Equipamento: {eq['ambiente']} (TAG: {eq['tag']})")
+        st.write(f"**Modelo:** {eq['equipamento']} | **Carga Térmica:** {eq['btus']} BTUs")
+        
+        hists_eq = [h for h in st.session_state.historico if h["tag"] == eq["tag"]]
+        if hists_eq:
+            for h in hists_eq:
+                freq_reg = h.get('periodicidade', 'Semestral')
+                st.write(f"- **Data da Manutenção:** {h['data']} ({freq_reg}) | **Técnico:** {h['tecnico']}")
+                
+                if "checklist" in h and h["checklist"]:
+                    st.markdown("  * **Itens Verificados:**")
+                    for k, v in h["checklist"].items():
+                        status_simbolo = "✔️" if v else "❌"
+                        st.markdown(f"    - `{status_simbolo}` {k}")
+                
+                if h["obs"]:
+                    st.write(f"  * **Observações:** {h['obs']}")
+                
+                c1, c2 = st.columns(2)
+                if h.get("foto_antes_bytes"):
+                    c1.image(h["foto_antes_bytes"], caption=f"Foto Antes - {h['data']}", width=250)
+                elif h.get("foto_antes"):
+                    c1.image(h["foto_antes"], caption=f"Foto Antes - {h['data']}", width=250)
+                    
+                if h.get("foto_depois_bytes"):
+                    c2.image(h["foto_depois_bytes"], caption=f"Foto Depois - {h['data']}", width=250)
+                elif h.get("foto_depois"):
+                    c2.image(h["foto_depois"], caption=f"Foto Depois - {h['data']}", width=250)
+        else:
+            st.write("*(Nenhuma manutenção registrada para este equipamento)*")
+        st.markdown("---")

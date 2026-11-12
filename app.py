@@ -1,11 +1,11 @@
-import streamlit as str_lib
+import streamlit as st
 import pandas as pd
 import datetime
 import os
 import json
 import base64
 
-str_lib.set_page_config(page_title="PMOC - Instituto Ser Consciente", layout="wide", page_icon="❄️")
+st.set_page_config(page_title="PMOC - Instituto Ser Consciente", layout="wide", page_icon="❄️")
 
 # -----------------------------------------------------------------------------
 # PERSISTÊNCIA (JSON)
@@ -37,7 +37,7 @@ def salvar_dados_disco(historico):
 # -----------------------------------------------------------------------------
 # LOGOMARCA
 # -----------------------------------------------------------------------------
-@str_lib.cache_resource
+@st.cache_resource
 def carregar_logo():
     if os.path.exists("Borboleta.png"):
         from PIL import Image
@@ -49,7 +49,7 @@ logo_img = carregar_logo()
 # -----------------------------------------------------------------------------
 # ESTILO CSS PARA IMPRESSÃO LIMPA E MASCARA DE ETIQUETA 5x5 cm
 # -----------------------------------------------------------------------------
-str_lib.markdown("""
+st.markdown("""
     <style>
     @media print {
         [data-testid="stSidebar"] {display: none;}
@@ -88,7 +88,7 @@ str_lib.markdown("""
 # -----------------------------------------------------------------------------
 # BASE DE DADOS OFICIAL CONFORME PMOC / ART (ENG. ALESSANDRO COELHO)
 # -----------------------------------------------------------------------------
-@str_lib.cache_data
+@st.cache_data
 def carregar_equipamentos_iniciais():
     return [
         {"tag": "CONS001", "ambiente": "Consultório 01", "equipamento": "Split Philco", "btus": "9000", "status": "Instalado"},
@@ -125,10 +125,10 @@ def carregar_equipamentos_iniciais():
         {"tag": "ADM0001", "ambiente": "Administração", "equipamento": "Split Agratto", "btus": "9000", "status": "Instalado"}
     ]
 
-if "equipamentos" not in str_lib.session_state:
-    str_lib.session_state.equipamentos = carregar_equipamentos_iniciais()
+if "equipamentos" not in st.session_state:
+    st.session_state.equipamentos = carregar_equipamentos_iniciais()
 
-if "historico" not in str_lib.session_state:
+if "historico" not in st.session_state:
     raw_hist = carregar_dados_disco()
     historico_convertido = []
     for h in raw_hist:
@@ -138,10 +138,10 @@ if "historico" not in str_lib.session_state:
         if h_conv.get("foto_depois_bytes"):
             h_conv["foto_depois_bytes"] = base64.b64decode(h_conv["foto_depois_bytes"])
         historico_convertido.append(h_conv)
-    str_lib.session_state.historico = historico_convertido
+    st.session_state.historico = historico_convertido
 
 try:
-    tag_url = str_lib.query_params.get("tag", None)
+    tag_url = st.query_params.get("tag", None)
 except:
     tag_url = None
 
@@ -149,19 +149,19 @@ except:
 # MENU LATERAL
 # -----------------------------------------------------------------------------
 if logo_img:
-    str_lib.sidebar.image(logo_img, width=120)
+    st.sidebar.image(logo_img, width=120)
 
-str_lib.sidebar.title("❄️ PMOC Digital")
-str_lib.sidebar.subheader("Instituto Ser Consciente Ltda")
-str_lib.sidebar.caption("Resp. Técnico: Eng. Alessandro Coelho (CREA-MG 238968-D)")
-str_lib.sidebar.caption("ART: MG20265436050")
+st.sidebar.title("❄️ PMOC Digital")
+st.sidebar.subheader("Instituto Ser Consciente Ltda")
+st.sidebar.caption("Resp. Técnico: Eng. Alessandro Coelho (CREA-MG 238968-D)")
+st.sidebar.caption("ART: MG20265436050")
 
-str_lib.sidebar.markdown("---")
-str_lib.sidebar.markdown("### 🔐 Acesso Restrito")
-senha_input = str_lib.sidebar.text_input("Credencial de acesso:", type="password")
+st.sidebar.markdown("---")
+st.sidebar.markdown("### 🔐 Acesso Restrito")
+senha_input = st.sidebar.text_input("Credencial de acesso:", type="password")
 
 if senha_input == "admin":
-    str_lib.sidebar.success("✅ Modo Administrador")
+    st.sidebar.success("✅ Modo Administrador")
     opcoes_menu = [
         "📋 Informações do Equipamento", 
         "🛠️ Registrar Manutenção", 
@@ -171,7 +171,7 @@ if senha_input == "admin":
         "📄 Relatório Fiscal A4"
     ]
 elif senha_input == "visa":
-    str_lib.sidebar.info("👁️ Modo Fiscalização")
+    st.sidebar.info("👁️ Modo Fiscalização")
     opcoes_menu = [
         "📋 Informações do Equipamento", 
         "📄 Relatório Fiscal A4"
@@ -181,16 +181,16 @@ else:
         "📋 Informações do Equipamento"
     ]
 
-opcao = str_lib.sidebar.radio("Navegação", opcoes_menu)
+opcao = st.sidebar.radio("Navegação", opcoes_menu)
 
 # -----------------------------------------------------------------------------
 # 1. INFORMAÇÕES DO EQUIPAMENTO
 # -----------------------------------------------------------------------------
 if opcao == "📋 Informações do Equipamento":
-    str_lib.header("📋 Informações do Equipamento - PMOC Oficial")
-    str_lib.info("ℹ️ Projeto validado pela Vineyard Engenharia | ART CREA-MG nº MG20265436050")
+    st.header("📋 Informações do Equipamento - PMOC Oficial")
+    st.info("ℹ️ Projeto validado pela Vineyard Engenharia | ART CREA-MG nº MG20265436050")
     
-    tags_lista = [e["tag"] + " - " + e["ambiente"] for e in str_lib.session_state.equipamentos]
+    tags_lista = [e["tag"] + " - " + e["ambiente"] for e in st.session_state.equipamentos]
     indice_inicial = 0
     
     if tag_url:
@@ -199,23 +199,28 @@ if opcao == "📋 Informações do Equipamento":
                 indice_inicial = i
                 break
 
-    tag_selecionada = str_lib.selectbox("Selecione a TAG do Equipamento:", tags_lista, index=indice_inicial)
+    tag_selecionada = st.selectbox("Selecione a TAG do Equipamento:", tags_lista, index=indice_inicial)
     tag_codigo = tag_selecionada.split(" - ")[0]
     
-    equip = next((e for e in str_lib.session_state.equipamentos if e["tag"] == tag_codigo), None)
+    equip = next((e for e in st.session_state.equipamentos if e["tag"] == tag_codigo), None)
     
     if equip:
-        str_lib.subheader(f"📍 {equip['ambiente']} ({equip['tag']})")
-        str_lib.write(f"**Equipamento:** {equip['equipamento']} | **Carga Térmica:** {equip['btus']} BTUs")
-        str_lib.write(f"**Status de Instalação:** `{equip['status']}`")
+        st.subheader(f"📍 {equip['ambiente']} ({equip['tag']})")
+        st.write(f"**Equipamento:** {equip['equipamento']} | **Carga Térmica:** {equip['btus']} BTUs")
+        st.write(f"**Status de Instalação:** `{equip['status']}`")
         
-        hists = [h for h in str_lib.session_state.historico if h["tag"] == tag_codigo]
+        hists = [h for h in st.session_state.historico if h["tag"] == tag_codigo]
         
         if equip["status"] == "Previsto":
-            str_lib.info("🟡 Equipamento Previsto — Aguardando Instalação Física.")
+            st.info("🟡 Equipamento Previsto — Aguardando Instalação Física.")
         elif hists:
             ultima_manut = hists[-1]
             data_ult_str = ultima_manut["data"]
             tipo_freq = ultima_manut.get("periodicidade", "Semestral (180 dias)")
             
-            dias_vencimento = 90 if "Trim
+            dias_vencimento = 90 if "Trimestral" in tipo_freq else 180
+
+            try:
+                d_obj = datetime.datetime.strptime(data_ult_str, "%d/%m/%Y").date()
+                d_prox = d_obj + datetime.timedelta(days=dias_vencimento)
+                d_prox_str = d_prox.strftime("%d/%m/%Y

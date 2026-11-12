@@ -1,11 +1,11 @@
-import streamlit as st
+import streamlit as str_lib
 import pandas as pd
 import datetime
 import os
 import json
 import base64
 
-st.set_page_config(page_title="PMOC - Instituto Ser Consciente", layout="wide", page_icon="❄️")
+str_lib.set_page_config(page_title="PMOC - Instituto Ser Consciente", layout="wide", page_icon="❄️")
 
 # -----------------------------------------------------------------------------
 # PERSISTÊNCIA (JSON)
@@ -37,7 +37,7 @@ def salvar_dados_disco(historico):
 # -----------------------------------------------------------------------------
 # LOGOMARCA
 # -----------------------------------------------------------------------------
-@st.cache_resource
+@str_lib.cache_resource
 def carregar_logo():
     if os.path.exists("Borboleta.png"):
         from PIL import Image
@@ -49,7 +49,7 @@ logo_img = carregar_logo()
 # -----------------------------------------------------------------------------
 # ESTILO CSS PARA IMPRESSÃO LIMPA E MASCARA DE ETIQUETA 5x5 cm
 # -----------------------------------------------------------------------------
-st.markdown("""
+str_lib.markdown("""
     <style>
     @media print {
         [data-testid="stSidebar"] {display: none;}
@@ -88,7 +88,7 @@ st.markdown("""
 # -----------------------------------------------------------------------------
 # BASE DE DADOS OFICIAL CONFORME PMOC / ART (ENG. ALESSANDRO COELHO)
 # -----------------------------------------------------------------------------
-@st.cache_data
+@str_lib.cache_data
 def carregar_equipamentos_iniciais():
     return [
         {"tag": "CONS001", "ambiente": "Consultório 01", "equipamento": "Split Philco", "btus": "9000", "status": "Instalado"},
@@ -125,10 +125,10 @@ def carregar_equipamentos_iniciais():
         {"tag": "ADM0001", "ambiente": "Administração", "equipamento": "Split Agratto", "btus": "9000", "status": "Instalado"}
     ]
 
-if "equipamentos" not in st.session_state:
-    st.session_state.equipamentos = carregar_equipamentos_iniciais()
+if "equipamentos" not in str_lib.session_state:
+    str_lib.session_state.equipamentos = carregar_equipamentos_iniciais()
 
-if "historico" not in st.session_state:
+if "historico" not in str_lib.session_state:
     raw_hist = carregar_dados_disco()
     historico_convertido = []
     for h in raw_hist:
@@ -138,10 +138,10 @@ if "historico" not in st.session_state:
         if h_conv.get("foto_depois_bytes"):
             h_conv["foto_depois_bytes"] = base64.b64decode(h_conv["foto_depois_bytes"])
         historico_convertido.append(h_conv)
-    st.session_state.historico = historico_convertido
+    str_lib.session_state.historico = historico_convertido
 
 try:
-    tag_url = st.query_params.get("tag", None)
+    tag_url = str_lib.query_params.get("tag", None)
 except:
     tag_url = None
 
@@ -149,19 +149,19 @@ except:
 # MENU LATERAL
 # -----------------------------------------------------------------------------
 if logo_img:
-    st.sidebar.image(logo_img, width=120)
+    str_lib.sidebar.image(logo_img, width=120)
 
-st.sidebar.title("❄️ PMOC Digital")
-st.sidebar.subheader("Instituto Ser Consciente Ltda")
-st.sidebar.caption("Resp. Técnico: Eng. Alessandro Coelho (CREA-MG 238968-D)")
-st.sidebar.caption("ART: MG20265436050")
+str_lib.sidebar.title("❄️ PMOC Digital")
+str_lib.sidebar.subheader("Instituto Ser Consciente Ltda")
+str_lib.sidebar.caption("Resp. Técnico: Eng. Alessandro Coelho (CREA-MG 238968-D)")
+str_lib.sidebar.caption("ART: MG20265436050")
 
-st.sidebar.markdown("---")
-st.sidebar.markdown("### 🔐 Acesso Restrito")
-senha_input = st.sidebar.text_input("Credencial de acesso:", type="password")
+str_lib.sidebar.markdown("---")
+str_lib.sidebar.markdown("### 🔐 Acesso Restrito")
+senha_input = str_lib.sidebar.text_input("Credencial de acesso:", type="password")
 
 if senha_input == "admin":
-    st.sidebar.success("✅ Modo Administrador")
+    str_lib.sidebar.success("✅ Modo Administrador")
     opcoes_menu = [
         "📋 Informações do Equipamento", 
         "🛠️ Registrar Manutenção", 
@@ -171,7 +171,7 @@ if senha_input == "admin":
         "📄 Relatório Fiscal A4"
     ]
 elif senha_input == "visa":
-    st.sidebar.info("👁️ Modo Fiscalização")
+    str_lib.sidebar.info("👁️ Modo Fiscalização")
     opcoes_menu = [
         "📋 Informações do Equipamento", 
         "📄 Relatório Fiscal A4"
@@ -181,16 +181,16 @@ else:
         "📋 Informações do Equipamento"
     ]
 
-opcao = st.sidebar.radio("Navegação", opcoes_menu)
+opcao = str_lib.sidebar.radio("Navegação", opcoes_menu)
 
 # -----------------------------------------------------------------------------
 # 1. INFORMAÇÕES DO EQUIPAMENTO
 # -----------------------------------------------------------------------------
 if opcao == "📋 Informações do Equipamento":
-    st.header("📋 Informações do Equipamento - PMOC Oficial")
-    st.info("ℹ️ Projeto validado pela Vineyard Engenharia | ART CREA-MG nº MG20265436050")
+    str_lib.header("📋 Informações do Equipamento - PMOC Oficial")
+    str_lib.info("ℹ️ Projeto validado pela Vineyard Engenharia | ART CREA-MG nº MG20265436050")
     
-    tags_lista = [e["tag"] + " - " + e["ambiente"] for e in st.session_state.equipamentos]
+    tags_lista = [e["tag"] + " - " + e["ambiente"] for e in str_lib.session_state.equipamentos]
     indice_inicial = 0
     
     if tag_url:
@@ -199,20 +199,20 @@ if opcao == "📋 Informações do Equipamento":
                 indice_inicial = i
                 break
 
-    tag_selecionada = st.selectbox("Selecione a TAG do Equipamento:", tags_lista, index=indice_inicial)
+    tag_selecionada = str_lib.selectbox("Selecione a TAG do Equipamento:", tags_lista, index=indice_inicial)
     tag_codigo = tag_selecionada.split(" - ")[0]
     
-    equip = next((e for e in st.session_state.equipamentos if e["tag"] == tag_codigo), None)
+    equip = next((e for e in str_lib.session_state.equipamentos if e["tag"] == tag_codigo), None)
     
     if equip:
-        st.subheader(f"📍 {equip['ambiente']} ({equip['tag']})")
-        st.write(f"**Equipamento:** {equip['equipamento']} | **Carga Térmica:** {equip['btus']} BTUs")
-        st.write(f"**Status de Instalação:** `{equip['status']}`")
+        str_lib.subheader(f"📍 {equip['ambiente']} ({equip['tag']})")
+        str_lib.write(f"**Equipamento:** {equip['equipamento']} | **Carga Térmica:** {equip['btus']} BTUs")
+        str_lib.write(f"**Status de Instalação:** `{equip['status']}`")
         
-        hists = [h for h in st.session_state.historico if h["tag"] == tag_codigo]
+        hists = [h for h in str_lib.session_state.historico if h["tag"] == tag_codigo]
         
         if equip["status"] == "Previsto":
-            st.info("🟡 Equipamento Previsto — Aguardando Instalação Física.")
+            str_lib.info("🟡 Equipamento Previsto — Aguardando Instalação Física.")
         elif hists:
             ultima_manut = hists[-1]
             data_ult_str = ultima_manut["data"]
@@ -227,40 +227,40 @@ if opcao == "📋 Informações do Equipamento":
                 hoje = datetime.date.today()
                 
                 if hoje <= d_prox:
-                    st.success(f"🟢 STATUS DA MANUTENÇÃO: EM DIA ({tipo_freq})")
+                    str_lib.success(f"🟢 STATUS DA MANUTENÇÃO: EM DIA ({tipo_freq})")
                 else:
-                    st.error(f"🔴 STATUS DA MANUTENÇÃO: PENDENTE / VENCIDA ({tipo_freq})")
+                    str_lib.error(f"🔴 STATUS DA MANUTENÇÃO: PENDENTE / VENCIDA ({tipo_freq})")
             except:
                 d_prox_str = "A calcular"
-                st.success("🟢 STATUS DA MANUTENÇÃO: REGISTRADA")
+                str_lib.success("🟢 STATUS DA MANUTENÇÃO: REGISTRADA")
 
-            st.write(f"**Última Manutenção Realizada:** {data_ult_str} — *{tipo_freq}*")
-            st.write(f"**Próxima Manutenção Programada:** {d_prox_str}")
-            st.write(f"**Técnico Executor:** {ultima_manut['tecnico']}")
+            str_lib.write(f"**Última Manutenção Realizada:** {data_ult_str} — *{tipo_freq}*")
+            str_lib.write(f"**Próxima Manutenção Programada:** {d_prox_str}")
+            str_lib.write(f"**Técnico Executor:** {ultima_manut['tecnico']}")
         else:
-            st.warning("⚪ Nenhuma manutenção registrada ainda para este equipamento.")
+            str_lib.warning("⚪ Nenhuma manutenção registrada ainda para este equipamento.")
             
-        st.markdown("---")
-        st.subheader("📋 Histórico Acumulado e Gerenciamento de Registros")
+        str_lib.markdown("---")
+        str_lib.subheader("📋 Histórico Acumulado e Gerenciamento de Registros")
         
         if hists:
             for idx, h in enumerate(reversed(hists)):
-                indice_real = len(st.session_state.historico) - 1 - idx
+                indice_real = len(str_lib.session_state.historico) - 1 - idx
                 freq_reg = h.get('periodicidade', 'Semestral')
                 
-                st.markdown(f"#### Manutenção #{len(hists)-idx} — Data: {h['data']} ({freq_reg})")
-                st.write(f"**Técnico Executor:** {h['tecnico']}")
+                str_lib.markdown(f"#### Manutenção #{len(hists)-idx} — Data: {h['data']} ({freq_reg})")
+                str_lib.write(f"**Técnico Executor:** {h['tecnico']}")
                 
                 if "checklist" in h and h["checklist"]:
-                    st.write("**Itens Verificados (PMOC):**")
+                    str_lib.write("**Itens Verificados (PMOC):**")
                     for item_nome, status_val in h["checklist"].items():
                         check_icon = "✅" if status_val else "❌"
-                        st.write(f"- {check_icon} {item_nome}")
+                        str_lib.write(f"- {check_icon} {item_nome}")
                 
                 if h.get("obs"):
-                    st.write(f"**Observações:** {h['obs']}")
+                    str_lib.write(f"**Observações:** {h['obs']}")
                 
-                col1, col2 = st.columns(2)
+                col1, col2 = str_lib.columns(2)
                 if h.get("foto_antes_bytes"):
                     col1.image(h["foto_antes_bytes"], caption=f"Foto Antes - {h['data']}", use_container_width=True)
                 elif h.get("foto_antes"):
@@ -272,147 +272,30 @@ if opcao == "📋 Informações do Equipamento":
                     col2.image(h["foto_depois"], caption=f"Foto Depois - {h['data']}", use_container_width=True)
                 
                 if senha_input == "admin":
-                    if st.button("Excluir este Registro Incorreto", key=f"btn_del_{tag_codigo}_{idx}"):
-                        del st.session_state.historico[indice_real]
-                        salvar_dados_disco(st.session_state.historico)
-                        st.cache_data.clear()
-                        st.success("Registro excluído com sucesso! Atualizando...")
-                        st.rerun()
+                    if str_lib.button("Excluir este Registro Incorreto", key=f"btn_del_{tag_codigo}_{idx}"):
+                        del str_lib.session_state.historico[indice_real]
+                        salvar_dados_disco(str_lib.session_state.historico)
+                        str_lib.cache_data.clear()
+                        str_lib.success("Registro excluído com sucesso! Atualizando...")
+                        str_lib.rerun()
 
-                st.markdown("---")
+                str_lib.markdown("---")
         else:
-            st.info("Nenhum histórico cadastrado para este aparelho.")
+            str_lib.info("Nenhum histórico cadastrado para este aparelho.")
 
 # -----------------------------------------------------------------------------
 # 2. REGISTRAR MANUTENÇÃO
 # -----------------------------------------------------------------------------
 elif opcao == "🛠️ Registrar Manutenção" and senha_input == "admin":
-    st.header("🛠️ Registro de Manutenção Preventiva")
-    instalados = [e for e in st.session_state.equipamentos if e["status"] == "Instalado"]
+    str_lib.header("🛠️ Registro de Manutenção Preventiva")
+    instalados = [e for e in str_lib.session_state.equipamentos if e["status"] == "Instalado"]
     tags = [e["tag"] + " - " + e["ambiente"] for e in instalados]
     
     if tags:
-        tag_sel = st.selectbox("Selecione o Equipamento:", tags)
+        tag_sel = str_lib.selectbox("Selecione o Equipamento:", tags)
         tag_codigo = tag_sel.split(" - ")[0]
         hoje_formatado = datetime.date.today().strftime("%d/%m/%Y")
         
-        periodicidade = st.selectbox(
+        periodicidade = str_lib.selectbox(
             "Tipo de Manutenção / Periodicidade (Conforme PMOC):", 
-            ["Semestral (180 dias)", "Trimestral (90 dias)"]
-        )
-        
-        with st.form("form_manutencao"):
-            data_manut = st.text_input("Data da Manutenção (DD/MM/AAAA)", value=hoje_formatado)
-            tecnico = st.text_input("Técnico Responsável", value="Antônio Sérgio Silva Gomes")
-            
-            st.markdown("---")
-            st.subheader("📋 Atividades Obrigatórias do PMOC")
-            
-            checklist_inputs = {}
-            if "Trimestral" in periodicidade:
-                st.info("📝 Checklist **TRIMESTRAL**:")
-                checklist_inputs["4.1 - Limpeza dos filtros de ar"] = st.checkbox("4.1 - Limpeza dos filtros de ar", value=True)
-                checklist_inputs["4.2 - Limpeza externa do gabinete"] = st.checkbox("4.2 - Limpeza externa do gabinete", value=True)
-                checklist_inputs["4.3 - Verificação de drenagem"] = st.checkbox("4.3 - Verificação de drenagem", value=True)
-                checklist_inputs["4.6 - Higienização com bactericida"] = st.checkbox("4.6 - Higienização com bactericida", value=True)
-                checklist_inputs["4.9 - Limpeza do ventilador/rotor"] = st.checkbox("4.9 - Limpeza do ventilador/rotor", value=True)
-                checklist_inputs["4.10 - Limpeza da bandeja de condensado"] = st.checkbox("4.10 - Limpeza da bandeja de condensado", value=True)
-                checklist_inputs["4.11 - Reaperto de terminais/conexões"] = st.checkbox("4.11 - Reaperto de terminais/conexões", value=True)
-            else:
-                st.info("📝 Checklist **SEMESTRAL** Completo:")
-                checklist_inputs["4.1 - Limpeza dos filtros de ar"] = st.checkbox("4.1 - Limpeza dos filtros de ar", value=True)
-                checklist_inputs["4.2 - Limpeza externa do gabinete"] = st.checkbox("4.2 - Limpeza externa do gabinete", value=True)
-                checklist_inputs["4.3 - Verificação de drenagem"] = st.checkbox("4.3 - Verificação de drenagem", value=True)
-                checklist_inputs["4.6 - Higienização com bactericida"] = st.checkbox("4.6 - Higienização com bactericida", value=True)
-                checklist_inputs["4.8 - Limpeza química das serpentinas"] = st.checkbox("4.8 - Limpeza química das serpentinas", value=True)
-                checklist_inputs["4.9 - Limpeza do ventilador/rotor"] = st.checkbox("4.9 - Limpeza do ventilador/rotor", value=True)
-                checklist_inputs["4.10 - Limpeza e desinfecção da bandeja"] = st.checkbox("4.10 - Limpeza e desinfecção da bandeja", value=True)
-                checklist_inputs["4.12 - Verificação de corrente/tensão"] = st.checkbox("4.12 - Verificação de corrente/tensão", value=True)
-                checklist_inputs["4.13 - Limpeza do condensador"] = st.checkbox("4.13 - Limpeza do condensador", value=True)
-                checklist_inputs["4.14 - Verificação dos compressores"] = st.checkbox("4.14 - Verificação dos compressores", value=True)
-
-            st.markdown("---")
-            st.subheader("📸 Registros e Observações")
-            obs = st.text_area("Observações Técnicas / Ocorrências")
-            foto_antes = st.file_uploader("Tirar foto do ANTES", type=["png", "jpg", "jpeg"])
-            foto_depois = st.file_uploader("Tirar foto do DEPOIS", type=["png", "jpg", "jpeg"])
-            
-            salvar = st.form_submit_button("💾 Salvar Registro de Manutenção")
-            
-            if salvar:
-                img_antes_bytes = foto_antes.getvalue() if foto_antes else None
-                img_depois_bytes = foto_depois.getvalue() if foto_depois else None
-                
-                novo_registro = {
-                    "tag": tag_codigo,
-                    "data": data_manut,
-                    "periodicidade": periodicidade,
-                    "tecnico": tecnico,
-                    "checklist": checklist_inputs,
-                    "obs": obs,
-                    "foto_antes_bytes": img_antes_bytes,
-                    "foto_depois_bytes": img_depois_bytes
-                }
-                
-                st.session_state.historico.append(novo_registro)
-                salvar_dados_disco(st.session_state.historico)
-                st.cache_data.clear()
-                st.success(f"Manutenção {periodicidade} do equipamento {tag_codigo} registrada com sucesso!")
-    else:
-        st.info("Não há equipamentos instalados no momento.")
-
-# -----------------------------------------------------------------------------
-# 3. EDITAR PREVISTOS / GERENCIAR EQUIPAMENTOS
-# -----------------------------------------------------------------------------
-elif opcao == "✏️ Editar Previstos" and senha_input == "admin":
-    st.header("✏️ Gerenciar e Atualizar Equipamentos")
-    
-    lista_todos = [e["tag"] + " - " + e["ambiente"] + f" ({e['status']})" for e in st.session_state.equipamentos]
-    
-    if lista_todos:
-        tag_sel_ed = st.selectbox("Selecione o Equipamento para Editar:", lista_todos)
-        tag_codigo_ed = tag_sel_ed.split(" - ")[0]
-        equip_ed = next((e for e in st.session_state.equipamentos if e["tag"] == tag_codigo_ed), None)
-        
-        if equip_ed:
-            with st.form("form_edicao_geral"):
-                st.write(f"**Ambiente:** {equip_ed['ambiente']} | **TAG:** {equip_ed['tag']}")
-                novo_nome = st.text_input("Marca / Modelo do Equipamento", value=equip_ed["equipamento"])
-                novos_btus = st.text_input("Potência (BTUs)", value=equip_ed["btus"])
-                novo_status = st.selectbox("Status de Instalação", ["Instalado", "Previsto"], index=0 if equip_ed["status"]=="Instalado" else 1)
-                
-                confirmar = st.form_submit_button("✅ Salvar Alterações")
-                
-                if confirmar:
-                    equip_ed["equipamento"] = novo_nome
-                    equip_ed["btus"] = novos_btus
-                    equip_ed["status"] = novo_status
-                    st.cache_data.clear()
-                    st.success(f"Equipamento {tag_codigo_ed} atualizado com sucesso!")
-                    st.rerun()
-    else:
-        st.info("Nenhum equipamento cadastrado.")
-
-# -----------------------------------------------------------------------------
-# 4. MÁSCARA DA ETIQUETA 5x5 cm E QR CODE (PARA GRÁFICA)
-# -----------------------------------------------------------------------------
-elif opcao == "🖨️ Etiquetas 5x5 cm (Gráfica)" and senha_input == "admin":
-    st.header("🖨️ Máscara de Etiqueta 5x5 cm para Gráfica")
-    st.info("ℹ️ Esta tela exibe a máscara oficial da etiqueta com as informações técnicas exigidas e o QR Code embutido lado a lado. Perfeito para visualização e envio ou impressão pela gráfica.")
-    
-    base_url = "https://sistema-ser-consciente-fexfnfuwjkntnzwdwhknso.streamlit.app"
-    
-    lista_eq_qr = [e["tag"] + " - " + e["ambiente"] for e in st.session_state.equipamentos]
-    if lista_eq_qr:
-        tag_sel_qr = st.selectbox("Selecione o Equipamento para gerar a etiqueta:", lista_eq_qr)
-        tag_codigo = tag_sel_qr.split(" - ")[0]
-        equip_sel = next((e for e in st.session_state.equipamentos if e["tag"] == tag_codigo), None)
-        
-        if equip_sel:
-            link_equip = base_url + "/?tag=" + equip_sel['tag']
-            api_qr_url = "https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=" + link_equip
-            
-            st.markdown("### 🏷️ Pré-visualização da Etiqueta (Dimensão proporcional 5x5 cm)")
-            
-            # Construção segura por concatenação pura para evitar erros de sintaxe de f-string
-            html_etiqueta = (
+            ["Semestral (180 dias)",

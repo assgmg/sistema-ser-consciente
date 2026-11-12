@@ -324,4 +324,36 @@ elif opcao == "🛠️ Registrar Manutenção" and senha_input == "admin":
                 checklist_inputs["4.2 - Limpeza externa do gabinete"] = st.checkbox("4.2 - Limpeza externa do gabinete", value=True)
                 checklist_inputs["4.3 - Verificação de drenagem"] = st.checkbox("4.3 - Verificação de drenagem", value=True)
                 checklist_inputs["4.6 - Higienização com bactericida"] = st.checkbox("4.6 - Higienização com bactericida", value=True)
-                checklist_inputs["4.8 - Limpeza química das serpentinas"] = st.checkbox("4.8 - Limpeza química das serpentinas", value=True
+                checklist_inputs["4.8 - Limpeza química das serpentinas"] = st.checkbox("4.8 - Limpeza química das serpentinas", value=True)
+                checklist_inputs["4.9 - Limpeza do ventilador/rotor"] = st.checkbox("4.9 - Limpeza do ventilador/rotor", value=True)
+                checklist_inputs["4.10 - Limpeza e desinfecção da bandeja"] = st.checkbox("4.10 - Limpeza e desinfecção da bandeja", value=True)
+                checklist_inputs["4.12 - Verificação de corrente/tensão"] = st.checkbox("4.12 - Verificação de corrente/tensão", value=True)
+                checklist_inputs["4.13 - Limpeza do condensador"] = st.checkbox("4.13 - Limpeza do condensador", value=True)
+                checklist_inputs["4.14 - Verificação dos compressores"] = st.checkbox("4.14 - Verificação dos compressores", value=True)
+
+            st.markdown("---")
+            st.subheader("📸 Registros e Observações")
+            obs = st.text_area("Observações Técnicas / Ocorrências")
+            foto_antes = st.file_uploader("Tirar foto do ANTES", type=["png", "jpg", "jpeg"])
+            foto_depois = st.file_uploader("Tirar foto do DEPOIS", type=["png", "jpg", "jpeg"])
+            
+            salvar = st.form_submit_button("💾 Salvar Registro de Manutenção")
+            
+            if salvar:
+                img_antes_bytes = foto_antes.getvalue() if foto_antes else None
+                img_depois_bytes = foto_depois.getvalue() if foto_depois else None
+                
+                novo_registro = {
+                    "tag": tag_codigo,
+                    "data": data_manut,
+                    "periodicidade": periodicidade,
+                    "tecnico": tecnico,
+                    "checklist": checklist_inputs,
+                    "obs": obs,
+                    "foto_antes_bytes": img_antes_bytes,
+                    "foto_depois_bytes": img_depois_bytes
+                }
+                
+                st.session_state.historico.append(novo_registro)
+                salvar_dados_disco(st.session_state.historico)
+                st.cache_data.clear

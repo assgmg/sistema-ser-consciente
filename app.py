@@ -67,7 +67,7 @@ st.markdown("""
         background-color: #ffffff;
         color: #000000;
         width: 100%;
-        max-width: 450px;
+        max-width: 480px;
         font-family: Arial, sans-serif;
         box-shadow: 0 4px 6px rgba(0,0,0,0.1);
         margin-bottom: 20px;
@@ -351,62 +351,4 @@ elif opcao == "🛠️ Registrar Manutenção" and senha_input == "admin":
                     "checklist": checklist_inputs,
                     "obs": obs,
                     "foto_antes_bytes": img_antes_bytes,
-                    "foto_depois_bytes": img_depois_bytes
-                }
-                
-                st.session_state.historico.append(novo_registro)
-                salvar_dados_disco(st.session_state.historico)
-                st.cache_data.clear()
-                st.success(f"Manutenção {periodicidade} do equipamento {tag_codigo} registrada com sucesso!")
-    else:
-        st.info("Não há equipamentos instalados no momento.")
-
-# -----------------------------------------------------------------------------
-# 3. EDITAR PREVISTOS
-# -----------------------------------------------------------------------------
-elif opcao == "✏️ Editar Previstos" and senha_input == "admin":
-    st.header("✏️ Atualizar Equipamentos Previstos")
-    tags_previstas = [e["tag"] + " - " + e["ambiente"] for e in st.session_state.equipamentos if e["status"] == "Previsto"]
-    
-    if tags_previstas:
-        tag_sel = st.selectbox("Selecione o Equipamento Previsto:", tags_previstas)
-        tag_codigo = tag_sel.split(" - ")[0]
-        equip = next((e for e in st.session_state.equipamentos if e["tag"] == tag_codigo), None)
-        
-        if equip:
-            with st.form("form_edicao"):
-                st.write(f"**Ambiente:** {equip['ambiente']}")
-                novo_nome = st.text_input("Marca / Modelo do Equipamento Instalado", value="Split Agratto")
-                novos_btus = st.text_input("Potência (BTUs)", value=equip["btus"])
-                confirmar = st.form_submit_button("✅ Confirmar Instalação")
-                
-                if confirmar:
-                    equip["equipamento"] = novo_nome
-                    equip["btus"] = novos_btus
-                    equip["status"] = "Instalado"
-                    st.cache_data.clear()
-                    st.success(f"O equipamento {tag_codigo} agora está instalado!")
-                    st.rerun()
-    else:
-        st.info("Todos os equipamentos já estão instalados!")
-
-# -----------------------------------------------------------------------------
-# 4. MÁSCARA DA ETIQUETA 5x5 cm E QR CODE (PARA GRÁFICA)
-# -----------------------------------------------------------------------------
-elif opcao == "🖨️ Etiquetas 5x5 cm (Gráfica)" and senha_input == "admin":
-    st.header("🖨️ Máscara de Etiqueta 5x5 cm para Gráfica")
-    st.info("ℹ️ Esta tela exibe a máscara oficial da etiqueta com as informações técnicas exigidas e o QR Code embutido lado a lado. Perfeito para visualização e envio ou impressão pela gráfica.")
-    
-    base_url = "https://sistema-ser-consciente-fexfnfuwjkntnzwdwhknso.streamlit.app"
-    
-    lista_eq_qr = [e["tag"] + " - " + e["ambiente"] for e in st.session_state.equipamentos]
-    if lista_eq_qr:
-        tag_sel_qr = st.selectbox("Selecione o Equipamento para gerar a etiqueta:", lista_eq_qr)
-        tag_codigo = tag_sel_qr.split(" - ")[0]
-        equip_sel = next((e for e in st.session_state.equipamentos if e["tag"] == tag_codigo), None)
-        
-        if equip_sel:
-            link_equip = f"{base_url}/?tag={equip_sel['tag']}"
-            api_qr_url = f"https://api.qrserver.com/v1/create-qr-code/?size=180x180&data={link_equip}"
-            
-            st
+                    "foto_depois_bytes": img_

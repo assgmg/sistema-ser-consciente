@@ -212,7 +212,7 @@ def gerar_imagem_etiqueta_5x5(tag_codigo, ambiente_nome, base_url):
 # -----------------------------------------------------------------------------
 if opcao == "📋 Informações do Equipamento":
     st.header("📋 Informações do Equipamento - PMOC Oficial")
-    st.info("ℹ️ Projeto validado pela Vineyard Engenharia | ART CREA-MG nº MG20265436050")
+    st.info("ℹ️ Projeto validado pela Vineyard Engenharia | ART CREA-MG nº MG20265436050[cite: 54, 55]")
     
     tags_lista = [e["tag"] + " - " + e["ambiente"] for e in st.session_state.equipamentos]
     indice_inicial = 0
@@ -310,51 +310,4 @@ if opcao == "📋 Informações do Equipamento":
                             st.success("Registro apagado com sucesso! Atualizando...")
                             st.rerun()
 
-                    st.markdown("---")
-            else:
-                st.info("Nenhum histórico cadastrado para este aparelho.")
-        else:
-            st.info("🔒 Insira a senha autorizada acima para visualizar o histórico detalhado, checklist completo e registros fotográficos deste equipamento.")
-
-# -----------------------------------------------------------------------------
-# 2. REGISTRAR MANUTENÇÃO
-# -----------------------------------------------------------------------------
-elif opcao == "🛠️ Registrar Manutenção" and senha_input == "admin":
-    st.header("🛠️ Registro de Manutenção Preventiva")
-    instalados = [e for e in st.session_state.equipamentos if e["status"] == "Instalado"]
-    tags = [e["tag"] + " - " + e["ambiente"] for e in instalados]
-    
-    if tags:
-        tag_sel = st.selectbox("Selecione o Equipamento:", tags)
-        tag_codigo = tag_sel.split(" - ")[0]
-        hoje_formatado = datetime.date.today().strftime("%d/%m/%Y")
-        
-        periodicidade = st.selectbox(
-            "Tipo de Manutenção / Periodicidade (Conforme PMOC):", 
-            ["Semestral (180 dias)", "Trimestral (90 dias)"]
-        )
-        
-        with st.form("form_manutencao"):
-            data_manut = st.text_input("Data da Manutenção (DD/MM/AAAA)", value=hoje_formatado)
-            tecnico = st.text_input("Técnico Responsável", value="Antônio Sérgio Silva Gomes")
-            
-            st.markdown("---")
-            st.subheader("📋 Atividades Obrigatórias do PMOC")
-            
-            checklist_inputs = {}
-            if "Trimestral" in periodicidade:
-                st.info("📝 Checklist **TRIMESTRAL**:")
-                checklist_inputs["4.1 - Limpeza dos filtros de ar"] = st.checkbox("4.1 - Limpeza dos filtros de ar", value=True)
-                checklist_inputs["4.2 - Limpeza externa do gabinete"] = st.checkbox("4.2 - Limpeza externa do gabinete", value=True)
-                checklist_inputs["4.3 - Verificação de drenagem"] = st.checkbox("4.3 - Verificação de drenagem", value=True)
-                checklist_inputs["4.6 - Higienização com bactericida"] = st.checkbox("4.6 - Higienização com bactericida", value=True)
-                checklist_inputs["4.9 - Limpeza do ventilador/rotor"] = st.checkbox("4.9 - Limpeza do ventilador/rotor", value=True)
-                checklist_inputs["4.10 - Limpeza da bandeja de condensado"] = st.checkbox("4.10 - Limpeza da bandeja de condensado", value=True)
-                checklist_inputs["4.11 - Reaperto de terminais/conexões"] = st.checkbox("4.11 - Reaperto de terminais/conexões", value=True)
-            else:
-                st.info("📝 Checklist **SEMESTRAL** Completo:")
-                checklist_inputs["4.1 - Limpeza dos filtros de ar"] = st.checkbox("4.1 - Limpeza dos filtros de ar", value=True)
-                checklist_inputs["4.2 - Limpeza externa do gabinete"] = st.checkbox("4.2 - Limpeza externa do gabinete", value=True)
-                checklist_inputs["4.3 - Verificação de drenagem"] = st.checkbox("4.3 - Verificação de drenagem", value=True)
-                checklist_inputs["4.6 - Higienização com bactericida"] = st.checkbox("4.6 - Higienização com bactericida", value=True)
-                checklist_inputs["4.8 - Limpeza química das
+                    st.markdown("

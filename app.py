@@ -47,7 +47,7 @@ def carregar_logo():
 logo_img = carregar_logo()
 
 # -----------------------------------------------------------------------------
-# ESTILO CSS PARA IMPRESSÃO LIMPA E MASCARA DE ETIQUETA 5x5 cm
+# ESTILO CSS PARA IMPRESSÃO LIMPA E ETIQUETAS EXATAS 5x5 cm COM QUEBRA DE PÁGINA
 # -----------------------------------------------------------------------------
 st.markdown("""
     <style>
@@ -58,30 +58,34 @@ st.markdown("""
         .stTextInput {display: none;}
         .streamlit-expanderHeader {display: none;}
         .stAlert {display: none;}
-        body {margin: 0; padding: 0;}
+        body {margin: 0; padding: 0; background: #fff;}
+        .folha-a4 {page-break-after: always; break-after: page;}
     }
     .etiqueta-box {
-        border: 2px solid #000;
-        border-radius: 6px;
-        padding: 10px;
+        border: 2px dashed #000;
+        border-radius: 4px;
+        padding: 8px;
         background-color: #ffffff;
         color: #000000;
-        width: 100%;
-        max-width: 300px;
-        font-family: Arial, sans-serif;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        margin-bottom: 15px;
+        width: 5cm;
+        height: 5cm;
         box-sizing: border-box;
+        font-family: Arial, sans-serif;
+        display: inline-flex;
+        flex-direction: column;
+        justify-content: space-between;
+        margin: 5px;
+        overflow: hidden;
+        vertical-align: top;
     }
     .etiqueta-header {
         background-color: #000;
         color: #fff;
-        padding: 4px 6px;
+        padding: 2px 4px;
         font-weight: bold;
-        font-size: 11px;
+        font-size: 9px;
         text-align: center;
-        border-radius: 3px;
-        margin-bottom: 6px;
+        border-radius: 2px;
     }
     </style>
 """, unsafe_allow_html=True)
@@ -400,7 +404,7 @@ elif opcao == "✏️ Editar Previstos" and senha_input == "admin":
 # -----------------------------------------------------------------------------
 elif opcao == "🖨️ Etiquetas 5x5 cm (Individual)" and senha_input == "admin":
     st.header("🖨️ Pré-visualização de Etiqueta Individual 5x5 cm")
-    st.info("ℹ️ Visualização unitária com QR code embutido e layout quadrado compacto.")
+    st.info("ℹ️ Visualização unitária com dimensões reais de 5x5 cm e QR Code legível.")
     
     base_url = "https://sistema-ser-consciente-fexfnfuwjkntnzwdwhknso.streamlit.app"
     
@@ -414,17 +418,17 @@ elif opcao == "🖨️ Etiquetas 5x5 cm (Individual)" and senha_input == "admin"
             link_equip = base_url + "/?tag=" + equip_sel['tag']
             api_qr_url = "https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=" + link_equip
             
-            html_etiqueta = '<div class="etiqueta-box"><div class="etiqueta-header">PMOC - INST. SER CONSCIENTE</div><div style="font-size: 11px; line-height: 1.4;"><b>TAG:</b> ' + str(equip_sel['tag']) + '<br><b>Ambiente:</b> ' + str(equip_sel['ambiente']) + '<br><b>Equipamento:</b> ' + str(equip_sel['equipamento']) + '<br><b>Carga:</b> ' + str(equip_sel['btus']) + ' BTUs</div><div style="text-align: center; margin: 6px 0;"><img src="' + api_qr_url + '" width="85" height="85" style="border: 1px solid #ddd; padding: 2px; background: #fff;"></div><div style="text-align: center; font-size: 8px; color: #333; line-height: 1.2;"><b>Resp. Técnico:</b> Eng. Alessandro Coelho<br><b>CREA-MG:</b> 238968-D | <b>ART:</b> MG20265436050</div><div style="background-color: #f1f1f1; text-align: center; font-size: 7px; margin-top: 4px; padding: 2px; border-radius: 3px; color: #444;">Lei Fed. 13.589/18 — Aponte a câmera</div></div>'
+            html_etiqueta = '<div class="etiqueta-box"><div class="etiqueta-header">PMOC - SER CONSCIENTE</div><div style="font-size: 8px; line-height: 1.2;"><b>TAG:</b> ' + str(equip_sel['tag']) + '<br><b>Amb:</b> ' + str(equip_sel['ambiente']) + '<br><b>Equip:</b> ' + str(equip_sel['equipamento']) + '<br><b>Carga:</b> ' + str(equip_sel['btus']) + ' BTUs</div><div style="text-align: center; margin: 2px 0;"><img src="' + api_qr_url + '" width="55" height="55" style="border: 1px solid #ddd; padding: 1px; background: #fff;"></div><div style="text-align: center; font-size: 6.5px; color: #333; line-height: 1;">Eng. Alessandro Coelho<br>CREA: 238968-D | ART: MG20265436050</div></div>'
             
             st.markdown(html_etiqueta, unsafe_allow_html=True)
             st.markdown("**Link Direto do QR Code:** `" + link_equip + "`")
 
 # -----------------------------------------------------------------------------
-# 5. LOTE A4 PARA GRÁFICA (GUILHOTINA / APROVEITAMENTO MÁXIMO)
+# 5. LOTE A4 PARA GRÁFICA (GUILHOTINA / COM QUEBRA DE PÁGINA)
 # -----------------------------------------------------------------------------
 elif opcao == "📑 Lote A4 para Gráfica (Guilhotina)" and senha_input == "admin":
-    st.header("📑 Gerador de Lote A4 para Gráfica (Aproveitamento Máximo)")
-    st.info("ℹ️ Selecione os equipamentos desejados. O sistema gera a grade em folha A4 otimizada com margens e marcações para corte preciso na guilhotina.")
+    st.header("📑 Gerador de Lote A4 para Gráfica (Com Quebra de Página)")
+    st.info("ℹ️ Sistema otimizado com tamanho exato de 5x5 cm por etiqueta, grade de aproveitamento máximo em folha A4 e quebras de página automáticas.")
     
     todas_tags = [e["tag"] + " - " + e["ambiente"] for e in st.session_state.equipamentos]
     
@@ -435,53 +439,57 @@ elif opcao == "📑 Lote A4 para Gráfica (Guilhotina)" and senha_input == "admi
     else:
         equipamentos_selecionados = st.multiselect("Selecione os equipamentos para o lote:", todas_tags, default=todas_tags[:6])
     
-    if st.button("🚀 Gerar Grade de Impressão A4"):
+    if st.button("🚀 Gerar Grade de Impressão A4 com Quebra de Página"):
         if not equipamentos_selecionados:
             st.warning("Selecione pelo menos um equipamento.")
         else:
-            st.success(f"Gerando lote com {len(equipamentos_selecionados)} etiquetas otimizadas em formato A4!")
+            st.success(f"Gerando lote com {len(equipamentos_selecionados)} etiquetas em dimensões reais 5x5 cm!")
             st.markdown("---")
-            st.markdown("### 📄 Pré-visualização da Folha A4 (Pronto para Imprimir / Salvar PDF)")
-            st.caption("Dica: No navegador, pressione `Ctrl + P` e escolha o destino **Salvar como PDF**, mantendo as margens padrão e gráficos em segundo plano ativados.")
+            st.markdown("### 📄 Pré-visualização (Pronto para Imprimir / Salvar PDF)")
+            st.caption("Dica: No navegador, pressione `Ctrl + P` e escolha o destino **Salvar como PDF**. Cada bloco folha A4 possui quebra de página automática.")
             
             base_url = "https://sistema-ser-consciente-fexfnfuwjkntnzwdwhknso.streamlit.app"
             
-            html_lote = '<div style="background: white; width: 100%; max-width: 800px; padding: 25px; border: 2px solid #333; margin: 0 auto; box-shadow: 0 0 10px rgba(0,0,0,0.2);">'
-            html_lote += '<div style="text-align: center; font-size: 12px; font-weight: bold; margin-bottom: 15px; border-bottom: 1px solid #ccc; padding-bottom: 5px;">FOLHA MÃE A4 — LOTE PMOC INSTITUTO SER CONSCIENTE (CORTE GUILHOTINA)</div>'
-            html_lote += '<div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; justify-items: center;">'
+            # Agrupar etiquetas em blocos por folha A4 (ex: 12 etiquetas por página para caber perfeitamente)
+            ETIQUETAS_POR_PAGINA = 12
+            chunks = [equipamentos_selecionados[i:i + ETIQUETAS_POR_PAGINA] for i in range(0, len(equipamentos_selecionados), ETIQUETAS_POR_PAGINA)]
             
-            for item_sel in equipamentos_selecionados:
-                tag_cod = item_sel.split(" - ")[0]
-                eq_obj = next((e for e in st.session_state.equipamentos if e["tag"] == tag_cod), None)
+            html_completo = ""
+            for pagina_idx, lote_pagina in enumerate(chunks):
+                html_completo += '<div class="folha-a4" style="background: white; width: 100%; max-width: 21cm; min-height: 29.7cm; padding: 1cm; margin: 0 auto 20px auto; border: 1px solid #ccc; box-sizing: border-box; page-break-after: always; break-after: page;">'
+                html_completo += f'<div style="text-align: center; font-size: 11px; font-weight: bold; margin-bottom: 10px; border-bottom: 1px solid #999; padding-bottom: 4px;">FOLHA A4 — LOTE PMOC (Página {pagina_idx+1} de {len(chunks)}) — CORTE GUILHOTINA</div>'
+                html_completo += '<div style="display: flex; flex-wrap: wrap; gap: 5px; justify-content: flex-start;">'
                 
-                if eq_obj:
-                    link_eq = base_url + "/?tag=" + eq_obj['tag']
-                    qr_url = "https://api.qrserver.com/v1/create-qr-code/?size=130x130&data=" + link_eq
+                for item_sel in lote_pagina:
+                    tag_cod = item_sel.split(" - ")[0]
+                    eq_obj = next((e for e in st.session_state.equipamentos if e["tag"] == tag_cod), None)
                     
-                    html_lote += (
-                        '<div style="border: 2px dashed #000; border-radius: 4px; padding: 8px; width: 230px; background: #fff; box-sizing: border-box; position: relative;">'
-                        '<div style="background-color: #000; color: #fff; padding: 3px; font-weight: bold; font-size: 10px; text-align: center; border-radius: 2px; margin-bottom: 5px;">PMOC - SER CONSCIENTE</div>'
-                        '<div style="font-size: 10px; line-height: 1.3;">'
-                        '<b>TAG:</b> ' + str(eq_obj['tag']) + '<br>'
-                        '<b>Ambiente:</b> ' + str(eq_obj['ambiente']) + '<br>'
-                        '<b>Equipamento:</b> ' + str(eq_obj['equipamento']) + '<br>'
-                        '<b>Carga:</b> ' + str(eq_obj['btus']) + ' BTUs'
-                        '</div>'
-                        '<div style="text-align: center; margin: 4px 0;">'
-                        '<img src="' + qr_url + '" width="75" height="75" style="border: 1px solid #ccc; padding: 1px; background: #fff;">'
-                        '</div>'
-                        '<div style="text-align: center; font-size: 7.5px; color: #333; line-height: 1.1;">'
-                        '<b>Resp. Téc:</b> Eng. Alessandro Coelho (CREA-MG 238968-D)<br>'
-                        '<b>ART:</b> MG20265436050'
-                        '</div>'
-                        '<div style="background-color: #f1f1f1; text-align: center; font-size: 6.5px; margin-top: 3px; padding: 1px; color: #444;">'
-                        'Lei Fed. 13.589/18 — Aponte a câmera'
-                        '</div>'
-                        '</div>'
-                    )
+                    if eq_obj:
+                        link_eq = base_url + "/?tag=" + eq_obj['tag']
+                        qr_url = "https://api.qrserver.com/v1/create-qr-code/?size=130x130&data=" + link_eq
+                        
+                        html_completo += (
+                            '<div class="etiqueta-box">'
+                            '<div class="etiqueta-header">PMOC - SER CONSCIENTE</div>'
+                            '<div style="font-size: 8px; line-height: 1.2;">'
+                            '<b>TAG:</b> ' + str(eq_obj['tag']) + '<br>'
+                            '<b>Amb:</b> ' + str(eq_obj['ambiente']) + '<br>'
+                            '<b>Equip:</b> ' + str(eq_obj['equipamento']) + '<br>'
+                            '<b>Carga:</b> ' + str(eq_obj['btus']) + ' BTUs'
+                            '</div>'
+                            '<div style="text-align: center; margin: 2px 0;">'
+                            '<img src="' + qr_url + '" width="55" height="55" style="border: 1px solid #ccc; padding: 1px; background: #fff;">'
+                            '</div>'
+                            '<div style="text-align: center; font-size: 6.5px; color: #333; line-height: 1;">'
+                            'Eng. Alessandro Coelho (CREA-MG 238968-D)<br>'
+                            '<b>ART:</b> MG20265436050'
+                            '</div>'
+                            '</div>'
+                        )
+                
+                html_completo += '</div></div>'
             
-            html_lote += '</div></div>'
-            st.markdown(html_lote, unsafe_allow_html=True)
+            st.markdown(html_completo, unsafe_allow_html=True)
 
 # -----------------------------------------------------------------------------
 # 6. DASHBOARD GERAL
@@ -513,73 +521,4 @@ elif opcao == "📄 Relatório Fiscal A4" and senha_input in ["visa", "admin"]:
             st.image(logo_img, width=100)
     with col_titulo:
         st.markdown("<h2>INSTITUTO SER CONSCIENTE LTDA</h2>", unsafe_allow_html=True)
-        st.markdown("<h4>PLANO DE MANUTENÇÃO, OPERAÇÃO E CONTROLE - PMOC</h4>", unsafe_allow_html=True)
-        st.markdown("<b>Lei Federal nº 13.589/2018 | ART CREA-MG: MG20265436050</b>", unsafe_allow_html=True)
-
-    data_hoje_str = datetime.date.today().strftime('%d/%m/%Y')
-    st.markdown(f"**Data de Emissão:** {data_hoje_str}")
-    st.markdown(f"**Responsável Técnico:** Eng. Alessandro Coelho (CREA-MG 238968-D)")
-    st.markdown(f"**Administrador / Gestor:** Antônio Sérgio Silva Gomes")
-    st.markdown("---")
-    
-    st.markdown("### 📑 Relação Resumida dos Equipamentos Instalados")
-    instalados_df = [e for e in st.session_state.equipamentos if e["status"] == "Instalado"]
-    
-    dados_resumo = []
-    for eq in instalados_df:
-        hists_eq = [h for h in st.session_state.historico if h["tag"] == eq["tag"]]
-        ultima_data = hists_eq[-1]["data"] if hists_eq else "Sem registro"
-        
-        if hists_eq:
-            freq_ult = hists_eq[-1].get("periodicidade", "Semestral")
-        else:
-            freq_ult = "-"
-
-        dados_resumo.append({
-            "TAG": eq["tag"],
-            "Ambiente": eq["ambiente"],
-            "Equipamento": eq["equipamento"],
-            "BTUs": eq["btus"],
-            "Última Manutenção": ultima_data,
-            "Frequência": freq_ult,
-            "Qtd Registros": len(hists_eq)
-        })
-        
-    df_resumo = pd.DataFrame(dados_resumo)
-    st.table(df_resumo)
-    
-    st.markdown("---")
-    st.markdown("### 📖 Detalhamento Completo e Histórico de Manutenções")
-    
-    for eq in instalados_df:
-        st.markdown(f"#### 📍 Equipamento: {eq['ambiente']} (TAG: {eq['tag']})")
-        st.write(f"**Modelo:** {eq['equipamento']} | **Carga Térmica:** {eq['btus']} BTUs")
-        
-        hists_eq = [h for h in st.session_state.historico if h["tag"] == eq["tag"]]
-        if hists_eq:
-            for h in hists_eq:
-                freq_reg = h.get('periodicidade', 'Semestral')
-                st.write(f"- **Data da Manutenção:** {h['data']} ({freq_reg}) | **Técnico:** {h['tecnico']}")
-                
-                if "checklist" in h and h["checklist"]:
-                    st.markdown("  * **Itens Verificados:**")
-                    for k, v in h["checklist"].items():
-                        status_simbolo = "✔️" if v else "❌"
-                        st.markdown(f"    - `{status_simbolo}` {k}")
-                
-                if h["obs"]:
-                    st.write(f"  * **Observações:** {h['obs']}")
-                
-                c1, c2 = st.columns(2)
-                if h.get("foto_antes_bytes"):
-                    c1.image(h["foto_antes_bytes"], caption=f"Foto Antes - {h['data']}", width=250)
-                elif h.get("foto_antes"):
-                    c1.image(h["foto_antes"], caption=f"Foto Antes - {h['data']}", width=250)
-                    
-                if h.get("foto_depois_bytes"):
-                    c2.image(h["foto_depois_bytes"], caption=f"Foto Depois - {h['data']}", width=250)
-                elif h.get("foto_depois"):
-                    c2.image(h["foto_depois"], caption=f"Foto Depois - {h['data']}", width=250)
-        else:
-            st.write("*(Nenhuma manutenção registrada para este equipamento)*")
-        st.markdown("---")
+        st.markdown("<h4>PLANO DE MANUTEN

@@ -66,7 +66,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # -----------------------------------------------------------------------------
-# BASE DE DADOS INICIAL (32 EQUIPAMENTOS)
+# BASE DE DADOS OFICIAL CONFORME PMOC / ART (ENG. ALESSANDRO COELHO)
 # -----------------------------------------------------------------------------
 @st.cache_data
 def carregar_equipamentos_iniciais():
@@ -92,11 +92,11 @@ def carregar_equipamentos_iniciais():
         {"tag": "CONS019", "ambiente": "Consultório 19", "equipamento": "Split Electrolux", "btus": "9000", "status": "Instalado"},
         {"tag": "CONS020", "ambiente": "Consultório 20", "equipamento": "Split Agratto", "btus": "9000", "status": "Instalado"},
         {"tag": "CONS021", "ambiente": "Consultório 21", "equipamento": "Sem instalação", "btus": "9000", "status": "Previsto"},
-        {"tag": "CONS022", "ambiente": "Consultório 22", "equipamento": "Split Agratto", "btus": "9000", "status": "Instalado"},
-        {"tag": "CONS023", "ambiente": "Consultório 23", "equipamento": "Split Agratto", "btus": "9000", "status": "Instalado"},
+        {"tag": "CONS022", "ambiente": "Consultório 22", "equipamento": "Split Agratto (Série: PQX147229)", "btus": "9000", "status": "Instalado"},
+        {"tag": "CONS023", "ambiente": "Consultório 23", "equipamento": "Split Agratto (Série: PQX147221)", "btus": "9000", "status": "Instalado"},
         {"tag": "CONS024", "ambiente": "Consultório 24", "equipamento": "Split Agratto", "btus": "9000", "status": "Instalado"},
         {"tag": "CONS025", "ambiente": "Consultório 25", "equipamento": "Split Agratto", "btus": "9000", "status": "Instalado"},
-        {"tag": "CONS026", "ambiente": "Consultório 26", "equipamento": "Split Agratto", "btus": "9000", "status": "Instalado"},
+        {"tag": "CONS026", "ambiente": "Consultório 26", "equipamento": "Split Agratto (Série: PQX150208)", "btus": "9000", "status": "Instalado"},
         {"tag": "RECP001", "ambiente": "Recepção 01", "equipamento": "Cassete Philco", "btus": "48000", "status": "Instalado"},
         {"tag": "RECP002", "ambiente": "Recepção 02", "equipamento": "Split Electrolux", "btus": "22000", "status": "Instalado"},
         {"tag": "COPA001", "ambiente": "Copa", "equipamento": "Split Agratto", "btus": "9000", "status": "Instalado"},
@@ -133,6 +133,8 @@ if logo_img:
 
 st.sidebar.title("❄️ PMOC Digital")
 st.sidebar.subheader("Instituto Ser Consciente Ltda")
+st.sidebar.caption("Resp. Técnico: Eng. Alessandro Coelho (CREA-MG 238968)")
+st.sidebar.caption("ART: MG20265436050")
 
 st.sidebar.markdown("---")
 st.sidebar.markdown("### 🔐 Acesso Restrito")
@@ -165,7 +167,8 @@ opcao = st.sidebar.radio("Navegação", opcoes_menu)
 # 1. INFORMAÇÕES DO EQUIPAMENTO
 # -----------------------------------------------------------------------------
 if opcao == "📋 Informações do Equipamento":
-    st.header("📋 Informações do Equipamento - PMOC")
+    st.header("📋 Informações do Equipamento - PMOC Oficial")
+    st.info("ℹ️ Projeto validado pela Vineyard Engenharia | ART CREA-MG nº MG20265436050[cite: 54, 55]")
     
     tags_lista = [e["tag"] + " - " + e["ambiente"] for e in st.session_state.equipamentos]
     indice_inicial = 0
@@ -193,23 +196,31 @@ if opcao == "📋 Informações do Equipamento":
         elif hists:
             ultima_manut = hists[-1]
             data_ult_str = ultima_manut["data"]
+            tipo_freq = ultima_manut.get("periodicidade", "Mensal (30 dias)")
+            
+            dias_vencimento = 30
+            if "Trimestral" in tipo_freq:
+                dias_vencimento = 90
+            elif "Semestral" in tipo_freq:
+                dias_vencimento = 180
+
             try:
                 d_obj = datetime.datetime.strptime(data_ult_str, "%d/%m/%Y").date()
-                d_prox = d_obj + datetime.timedelta(days=30)
+                d_prox = d_obj + datetime.timedelta(days=dias_vencimento)
                 d_prox_str = d_prox.strftime("%d/%m/%Y")
                 hoje = datetime.date.today()
                 
                 if hoje <= d_prox:
-                    st.success("🟢 STATUS DA MANUTENÇÃO: EM DIA")
+                    st.success(f"🟢 STATUS DA MANUTENÇÃO: EM DIA (Frequência: {tipo_freq})")
                 else:
-                    st.error("🔴 STATUS DA MANUTENÇÃO: PENDENTE (Vencida)")
+                    st.error(f"🔴 STATUS DA MANUTENÇÃO: PENDENTE / VENCIDA (Frequência: {tipo_freq})")
             except:
                 d_prox_str = "A calcular"
                 st.success("🟢 STATUS DA MANUTENÇÃO: REGISTRADA")
 
-            st.write(f"**Última Manutenção:** {data_ult_str}")
+            st.write(f"**Última Manutenção:** {data_ult_str} ({tipo_freq})")
             st.write(f"**Próxima Manutenção Preventiva:** {d_prox_str}")
-            st.write(f"**Técnico Responsável:** {ultima_manut['tecnico']}")
+            st.write(f"**Técnico Executor:** {ultima_manut['tecnico']}")
         else:
             st.warning("⚪ Nenhuma manutenção registrada ainda para este equipamento.")
             
@@ -234,8 +245,9 @@ if opcao == "📋 Informações do Equipamento":
                     txt_pecas = "Sim" if h.get('pecas') else "Não"
                     txt_isolamento = "Sim" if h.get('isolamento') else "Não"
                     txt_gas = "Sim" if h.get('gas') else "Não"
+                    freq_reg = h.get('periodicidade', 'Mensal')
                     
-                    st.markdown(f"#### Manutenção #{len(hists)-idx} — Data: {h['data']}")
+                    st.markdown(f"#### Manutenção #{len(hists)-idx} — Data: {h['data']} ({freq_reg})")
                     st.write(f"**Técnico Executor:** {h['tecnico']}")
                     st.write(f"**Checklist:** Filtros: {txt_filtros} | Dreno: {txt_dreno} | Serpentina: {txt_serpentina}")
                     st.write(f"**Serviços Adicionais:** Peças: {txt_pecas} | Isolamento: {txt_isolamento} | Carga de Gás: {txt_gas}")
@@ -257,12 +269,14 @@ if opcao == "📋 Informações do Equipamento":
                         with st.expander(f"✏️ Editar ou 🗑️ Excluir este registro ({h['data']})"):
                             with st.form(f"form_edit_{tag_codigo}_{idx}"):
                                 novo_data = st.text_input("Alterar Data (DD/MM/AAAA)", value=h['data'])
+                                novo_freq = st.selectbox("Alterar Periodicidade", ["Mensal (30 dias)", "Trimestral (90 dias)", "Semestral (180 dias)"])
                                 novo_tecnico = st.text_input("Alterar Técnico", value=h['tecnico'])
                                 novo_obs = st.text_area("Alterar Observações", value=h['obs'])
                                 
                                 salvar_edicao = st.form_submit_button("💾 Salvar Alterações")
                                 if salvar_edicao:
                                     st.session_state.historico[indice_real]["data"] = novo_data
+                                    st.session_state.historico[indice_real]["periodicidade"] = novo_freq
                                     st.session_state.historico[indice_real]["tecnico"] = novo_tecnico
                                     st.session_state.historico[indice_real]["obs"] = novo_obs
                                     salvar_dados_disco(st.session_state.historico)
@@ -298,12 +312,16 @@ elif opcao == "🛠️ Registrar Manutenção" and senha_input == "admin":
         
         with st.form("form_manutencao"):
             data_manut = st.text_input("Data da Manutenção (DD/MM/AAAA)", value=hoje_formatado)
+            periodicidade = st.selectbox(
+                "Tipo de Manutenção / Frequência:", 
+                ["Mensal (30 dias)", "Trimestral (90 dias)", "Semestral (180 dias)"]
+            )
             tecnico = st.text_input("Técnico Responsável", value="Antônio Sérgio Silva Gomes")
             
-            st.write("**Checklist Padrão de Limpeza:**")
-            filtros = st.checkbox("Filtros de Ar Limpos", value=True)
+            st.write("**Checklist Padrão de Limpeza (Conforme PMOC Oficial):**")
+            filtros = st.checkbox("Filtros de Ar Limpos / Substituídos", value=True)
             dreno = st.checkbox("Bandeja e Dreno Desobstruídos", value=True)
-            serpentina = st.checkbox("Serpentina Higienizada", value=True)
+            serpentina = st.checkbox("Serpentina Higienizada com Bactericida", value=True)
             
             st.write("**Serviços Extras Realizados:**")
             pecas = st.checkbox("Substituição de peças")
@@ -323,6 +341,7 @@ elif opcao == "🛠️ Registrar Manutenção" and senha_input == "admin":
                 novo_registro = {
                     "tag": tag_codigo,
                     "data": data_manut,
+                    "periodicidade": periodicidade,
                     "tecnico": tecnico,
                     "filtros": filtros,
                     "dreno": dreno,
@@ -338,7 +357,7 @@ elif opcao == "🛠️ Registrar Manutenção" and senha_input == "admin":
                 st.session_state.historico.append(novo_registro)
                 salvar_dados_disco(st.session_state.historico)
                 st.cache_data.clear()
-                st.success(f"Manutenção do equipamento {tag_codigo} registrada e salva permanentemente com sucesso!")
+                st.success(f"Manutenção do equipamento {tag_codigo} ({periodicidade}) registrada e salva permanentemente com sucesso!")
     else:
         st.info("Não há equipamentos instalados no momento.")
 
@@ -372,11 +391,11 @@ elif opcao == "✏️ Editar Previstos" and senha_input == "admin":
         st.info("Todos os equipamentos já estão instalados!")
 
 # -----------------------------------------------------------------------------
-# 4. GERAR QR CODES (BLINDADO CONTRA TELA BRANCA)
+# 4. GERAR QR CODES (ETIQUETA COMPACTA COM DADOS DE RT E ART)
 # -----------------------------------------------------------------------------
 elif opcao == "🖨️ Gerar QR Codes" and senha_input == "admin":
     st.header("🖨️ Gerador de QR Codes para Etiquetas")
-    st.write("A etiqueta gerada inclui o QR code, o nome da clínica e a TAG impressa claramente para validação.")
+    st.write("A etiqueta gerada inclui o QR code, dados da clínica, TAG, RT (Eng. Alessandro Coelho) e ART oficial.")
     
     base_url = st.text_input("URL base do seu sistema no Streamlit:", value="https://sistema-ser-consciente-fexfnfuwjkntnzwdwhknso.streamlit.app")
     
@@ -399,7 +418,8 @@ elif opcao == "🖨️ Gerar QR Codes" and senha_input == "admin":
                 img_qr = qr.make_image(fill_color="black", back_color="white").convert('RGB')
                 
                 largura_qr, altura_qr = img_qr.size
-                altura_banner = 140
+                # Banner expandido proporcionalmente para caber os dados do RT e ART com clareza
+                altura_banner = 185
                 etiqueta = Image.new('RGB', (largura_qr, altura_qr + altura_banner), 'white')
                 etiqueta.paste(img_qr, (0, 0))
                 
@@ -409,17 +429,20 @@ elif opcao == "🖨️ Gerar QR Codes" and senha_input == "admin":
                 except:
                     font = None
                     
-                draw.text((15, altura_qr + 10), "PMOC - Clínica Instituto Ser Consciente", fill="black", font=font)
-                draw.text((15, altura_qr + 45), f"TAG: {tag_codigo}", fill="black", font=font)
-                draw.text((15, altura_qr + 80), f"Ambiente: {ambiente_nome}", fill="black", font=font)
+                draw.text((15, altura_qr + 8), "PMOC - Inst. Ser Consciente Ltda", fill="black", font=font)
+                draw.text((15, altura_qr + 34), f"TAG: {tag_codigo} | Amb: {ambiente_nome}", fill="black", font=font)
+                draw.text((15, altura_qr + 60), "RT: Eng. Alessandro Coelho", fill="black", font=font)
+                draw.text((15, altura_qr + 86), "CREA-MG: 238968-D", fill="black", font=font)
+                draw.text((15, altura_qr + 112), "ART: MG20265436050", fill="black", font=font)
+                draw.text((15, altura_qr + 145), "Lei Federal 13.589/2018", fill="gray", font=font)
                 
                 buf = BytesIO()
                 etiqueta.save(buf, format="PNG")
                 byte_im = buf.getvalue()
                 
                 st.markdown("---")
-                st.subheader(f"Etiqueta Gerada para: {tag_codigo}")
-                st.image(etiqueta, caption=f"Etiqueta Oficial: {tag_codigo}", width=300)
+                st.subheader(f"Etiqueta Oficial Gerada para: {tag_codigo}")
+                st.image(etiqueta, caption=f"Etiqueta Completa: {tag_codigo}", width=320)
                 st.download_button(
                     label=f"⬇️ Baixar Etiqueta Completa ({tag_codigo}) para Vinil",
                     data=byte_im,
@@ -460,11 +483,12 @@ elif opcao == "📄 Relatório Fiscal A4" and senha_input in ["visa", "admin"]:
     with col_titulo:
         st.markdown("<h2>INSTITUTO SER CONSCIENTE LTDA</h2>", unsafe_allow_html=True)
         st.markdown("<h4>PLANO DE MANUTENÇÃO, OPERAÇÃO E CONTROLE - PMOC</h4>", unsafe_allow_html=True)
-        st.markdown("<b>Lei Federal nº 13.589/2018</b>", unsafe_allow_html=True)
+        st.markdown("<b>Lei Federal nº 13.589/2018 | ART CREA-MG: MG20265436050</b>[cite: 54, 55, 59]", unsafe_allow_html=True)
 
     data_hoje_str = datetime.date.today().strftime('%d/%m/%Y')
     st.markdown(f"**Data de Emissão:** {data_hoje_str}")
-    st.markdown(f"**Responsável Técnico / Administrador:** Antônio Sérgio Silva Gomes")
+    st.markdown(f"**Responsável Técnico:** Eng. Alessandro Ribeiro Coelho (CREA-MG 238968-D)")
+    st.markdown(f"**Administrador / Gestor:** Antônio Sérgio Silva Gomes")
     st.markdown("---")
     
     st.markdown("### 📑 Relação Resumida dos Equipamentos Instalados")
@@ -474,12 +498,14 @@ elif opcao == "📄 Relatório Fiscal A4" and senha_input in ["visa", "admin"]:
     for eq in instalados_df:
         hists_eq = [h for h in st.session_state.historico if h["tag"] == eq["tag"]]
         ultima_data = hists_eq[-1]["data"] if hists_eq else "Sem registro"
+        freq_ult = hists_eq[-1].get("periodicidade", "Mensal") if hists_eq else "-"
         dados_resumo.append({
             "TAG": eq["tag"],
             "Ambiente": eq["ambiente"],
             "Equipamento": eq["equipamento"],
             "BTUs": eq["btus"],
             "Última Manutenção": ultima_data,
+            "Frequência": freq_ult,
             "Qtd Registros": len(hists_eq)
         })
         
@@ -502,8 +528,9 @@ elif opcao == "📄 Relatório Fiscal A4" and senha_input in ["visa", "admin"]:
                 txt_p = "Sim" if h.get('pecas') else "Não"
                 txt_i = "Sim" if h.get('isolamento') else "Não"
                 txt_g = "Sim" if h.get('gas') else "Não"
+                freq_reg = h.get('periodicidade', 'Mensal')
 
-                st.write(f"- **Data da Manutenção:** {h['data']} | **Técnico:** {h['tecnico']}")
+                st.write(f"- **Data da Manutenção:** {h['data']} ({freq_reg}) | **Técnico:** {h['tecnico']}")
                 st.write(f"  * Checklist: Filtros: {txt_f} | Dreno: {txt_d} | Serpentina: {txt_s}")
                 st.write(f"  * Extras: Peças: {txt_p} | Isolamento: {txt_i} | Gás: {txt_g}")
                 if h["obs"]:

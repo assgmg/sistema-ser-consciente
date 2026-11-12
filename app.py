@@ -1,7 +1,8 @@
 import streamlit as st
 import pandas as pd
+import qrcode
 from io import BytesIO
-from PIL import Image
+from PIL import Image, ImageDraw, ImageFont
 import datetime
 import os
 import json
@@ -144,6 +145,9 @@ if senha_input == "admin":
     opcoes_menu = [
         "📋 Informações do Equipamento", 
         "🛠️ Registrar Manutenção", 
+        "✏️ Editar Previstos", 
+        "🖨️ Gerar QR Codes (5x5 cm)", 
+        "📊 Dashboard Geral",
         "📄 Relatório Fiscal A4"
     ]
 elif senha_input == "visa":
@@ -158,6 +162,44 @@ else:
     ]
 
 opcao = st.sidebar.radio("Navegação", opcoes_menu)
+
+# -----------------------------------------------------------------------------
+# FUNÇÃO PARA GERAR A IMAGEM DA ETIQUETA INDIVIDUAL (5x5 cm) COM QR CODE
+# -----------------------------------------------------------------------------
+def gerar_imagem_etiqueta_5x5(tag_codigo, ambiente_nome, base_url):
+    tamanho = 600
+    etiqueta = Image.new('RGB', (tamanho, tamanho), 'white')
+    draw = ImageDraw.Draw(etiqueta)
+    
+    link_qr = f"{base_url}/?tag={tag_codigo}"
+    
+    # 1. Cabeçalho Superior Preto
+    draw.rectangle([(0, 0), (tamanho, 55)], fill="black")
+    draw.text((20, 16), "PMOC - INST. SER CONSCIENTE LTDA", fill="white")
+    
+    # 2. Identificação TAG e Ambiente
+    draw.text((20, 75), f"TAG: {tag_codigo}", fill="black")
+    draw.text((20, 110), f"Amb: {ambiente_nome}", fill="black")
+    
+    # 3. Box com Dados do RT e ART
+    draw.rectangle([(20, 145), (310, 245)], outline="black", width=2)
+    draw.text((30, 155), "RESPONSÁVEL TÉCNICO:", fill="darkblue")
+    draw.text((30, 175), "Eng. Alessandro Coelho", fill="black")
+    draw.text((30, 195), "CREA-MG: 238968-D", fill="black")
+    draw.text((30, 215), "ART: MG20265436050", fill="black")
+    
+    # 4. QR Code à Direita
+    qr = qrcode.QRCode(version=1, box_size=5, border=2)
+    qr.add_data(link_qr)
+    qr.make(fit=True)
+    img_qr = qr.make_image(fill_color="black", back_color="white").resize((240, 240))
+    etiqueta.paste(img_qr, (330, 70))
+    
+    # 5. Rodapé Informativo
+    draw.rectangle([(0, 535), (tamanho, tamanho)], fill="#f0f2f6")
+    draw.text((20, 555), "Lei Fed. 13.589/2018 | Aponte para ver o Histórico", fill="dimgray")
+    
+    return etiqueta
 
 # -----------------------------------------------------------------------------
 # 1. INFORMAÇÕES DO EQUIPAMENTO
@@ -190,124 +232,4 @@ if opcao == "📋 Informações do Equipamento":
         if equip["status"] == "Previsto":
             st.info("🟡 Equipamento Previsto — Aguardando Instalação Física.")
         elif hists:
-            ultima_manut = hists[-1]
-            data_ult_str = ultima_manut["data"]
-            tipo_freq = ultima_manut.get("periodicidade", "Semestral (180 dias)")
-            
-            dias_vencimento = 90 if "Trimestral" in tipo_freq else 180
-
-            try:
-                d_obj = datetime.datetime.strptime(data_ult_str, "%d/%m/%Y").date()
-                d_prox = d_obj + datetime.timedelta(days=dias_vencimento)
-                d_prox_str = d_prox.strftime("%d/%m/%Y")
-                hoje = datetime.date.today()
-                
-                if hoje <= d_prox:
-                    st.success(f"🟢 STATUS DA MANUTENÇÃO: EM DIA ({tipo_freq})")
-                else:
-                    st.error(f"🔴 STATUS DA MANUTENÇÃO: PENDENTE / VENCIDA ({tipo_freq})")
-            except:
-                d_prox_str = "A calcular"
-                st.success("🟢 STATUS DA MANUTENÇÃO: REGISTRADA")
-
-            st.write(f"**Última Manutenção Realizada:** {data_ult_str} — *{tipo_freq}*")
-            st.write(f"**Próxima Manutenção Programada:** {d_prox_str}")
-            st.write(f"**Técnico Executor:** {ultima_manut['tecnico']}")
-        else:
-            st.warning("⚪ Nenhuma manutenção registrada ainda para este equipamento.")
-            
-        st.markdown("---")
-        st.markdown("### 🔐 Acesso ao Histórico Detalhado e Fotos")
-        senha_tela = st.text_input("Digite a senha de acesso para liberar o relatório completo:", type="password", key=f"senha_tela_{tag_codigo}")
-        
-        senha_ativa = senha_input if senha_input in ["visa", "admin"] else senha_tela
-        
-        if senha_ativa in ["visa", "admin"]:
-            st.success("Acesso autorizado ao relatório completo do equipamento.")
-            st.subheader("📋 Histórico Acumulado de Manutenções e Registros")
-            
-            if hists:
-                for idx, h in enumerate(reversed(hists)):
-                    indice_real = len(st.session_state.historico) - 1 - idx
-                    freq_reg = h.get('periodicidade', 'Semestral')
-                    
-                    st.markdown(f"#### Manutenção #{len(hists)-idx} — Data: {h['data']} ({freq_reg})")
-                    st.write(f"**Técnico Executor:** {h['tecnico']}")
-                    
-                    if "checklist" in h and h["checklist"]:
-                        st.write("**Itens Verificados (PMOC):**")
-                        for item_nome, status_val in h["checklist"].items():
-                            check_icon = "✅" if status_val else "❌"
-                            st.write(f"- {check_icon} {item_nome}")
-                    
-                    if h.get("obs"):
-                        st.write(f"**Observações:** {h['obs']}")
-                    
-                    col1, col2 = st.columns(2)
-                    if h.get("foto_antes_bytes"):
-                        col1.image(h["foto_antes_bytes"], caption=f"Foto Antes - {h['data']}", use_container_width=True)
-                    elif h.get("foto_antes"):
-                        col1.image(h["foto_antes"], caption=f"Foto Antes - {h['data']}", use_container_width=True)
-                        
-                    if h.get("foto_depois_bytes"):
-                        col2.image(h["foto_depois_bytes"], caption=f"Foto Depois - {h['data']}", use_container_width=True)
-                    elif h.get("foto_depois"):
-                        col2.image(h["foto_depois"], caption=f"Foto Depois - {h['data']}", use_container_width=True)
-                    
-                    if senha_input == "admin" or senha_tela == "admin":
-                        if st.button(f"🗑️ Excluir Definitivamente este Registro", key=f"btn_del_{tag_codigo}_{idx}"):
-                            del st.session_state.historico[indice_real]
-                            salvar_dados_disco(st.session_state.historico)
-                            st.cache_data.clear()
-                            st.success("Registro apagado com sucesso! Atualizando...")
-                            st.rerun()
-
-                    st.markdown("---")
-            else:
-                st.info("Nenhum histórico cadastrado para este aparelho.")
-        else:
-            st.info("🔒 Insira a senha autorizada acima para visualizar o histórico detalhado, checklist completo e registros fotográficos deste equipamento.")
-
-# -----------------------------------------------------------------------------
-# 2. REGISTRAR MANUTENÇÃO
-# -----------------------------------------------------------------------------
-elif opcao == "🛠️ Registrar Manutenção" and senha_input == "admin":
-    st.header("🛠️ Registro de Manutenção Preventiva")
-    instalados = [e for e in st.session_state.equipamentos if e["status"] == "Instalado"]
-    tags = [e["tag"] + " - " + e["ambiente"] for e in instalados]
-    
-    if tags:
-        tag_sel = st.selectbox("Selecione o Equipamento:", tags)
-        tag_codigo = tag_sel.split(" - ")[0]
-        hoje_formatado = datetime.date.today().strftime("%d/%m/%Y")
-        
-        periodicidade = st.selectbox(
-            "Tipo de Manutenção / Periodicidade (Conforme PMOC):", 
-            ["Semestral (180 dias)", "Trimestral (90 dias)"]
-        )
-        
-        with st.form("form_manutencao"):
-            data_manut = st.text_input("Data da Manutenção (DD/MM/AAAA)", value=hoje_formatado)
-            tecnico = st.text_input("Técnico Responsável", value="Antônio Sérgio Silva Gomes")
-            
-            st.markdown("---")
-            st.subheader("📋 Atividades Obrigatórias do PMOC")
-            
-            checklist_inputs = {}
-            if "Trimestral" in periodicidade:
-                st.info("📝 Checklist **TRIMESTRAL**:")
-                checklist_inputs["4.1 - Limpeza dos filtros de ar"] = st.checkbox("4.1 - Limpeza dos filtros de ar", value=True)
-                checklist_inputs["4.2 - Limpeza externa do gabinete"] = st.checkbox("4.2 - Limpeza externa do gabinete", value=True)
-                checklist_inputs["4.3 - Verificação de drenagem"] = st.checkbox("4.3 - Verificação de drenagem", value=True)
-                checklist_inputs["4.6 - Higienização com bactericida"] = st.checkbox("4.6 - Higienização com bactericida", value=True)
-                checklist_inputs["4.9 - Limpeza do ventilador/rotor"] = st.checkbox("4.9 - Limpeza do ventilador/rotor", value=True)
-                checklist_inputs["4.10 - Limpeza da bandeja de condensado"] = st.checkbox("4.10 - Limpeza da bandeja de condensado", value=True)
-                checklist_inputs["4.11 - Reaperto de terminais/conexões"] = st.checkbox("4.11 - Reaperto de terminais/conexões", value=True)
-            else:
-                st.info("📝 Checklist **SEMESTRAL** Completo:")
-                checklist_inputs["4.1 - Limpeza dos filtros de ar"] = st.checkbox("4.1 - Limpeza dos filtros de ar", value=True)
-                checklist_inputs["4.2 - Limpeza externa do gabinete"] = st.checkbox("4.2 - Limpeza externa do gabinete", value=True)
-                checklist_inputs["4.3 - Verificação de drenagem"] = st.checkbox("4.3 - Verificação de drenagem", value=True)
-                checklist_inputs["4.6 - Higienização com bactericida"] = st.checkbox("4.6 - Higienização com bactericida", value=True)
-                checklist_inputs["4.8 - Limpeza química das serpentinas"] = st.checkbox("4.8 - Limpeza química das serpentinas", value=True)
-                checklist_inputs["4.9 - Limpeza do ventilador/rotor"] = st
+            ultima_manut = hists

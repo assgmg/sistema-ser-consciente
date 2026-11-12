@@ -164,7 +164,7 @@ else:
 opcao = st.sidebar.radio("Navegação", opcoes_menu)
 
 # -----------------------------------------------------------------------------
-# FUNÇÃO PARA GERAR A IMAGEM DA ETIQUETA INDIVIDUAL (5x5 cm) COM QR CODE
+# FUNÇÃO PARA GERAR A IMAGEM DA ETIQUETA INDIVIDUAL (5x5 cm)
 # -----------------------------------------------------------------------------
 def gerar_imagem_etiqueta_5x5(tag_codigo, ambiente_nome, base_url):
     tamanho = 600
@@ -232,4 +232,93 @@ if opcao == "📋 Informações do Equipamento":
         if equip["status"] == "Previsto":
             st.info("🟡 Equipamento Previsto — Aguardando Instalação Física.")
         elif hists:
-            ultima_manut = hists
+            ultima_manut = hists[-1]
+            data_ult_str = ultima_manut["data"]
+            tipo_freq = ultima_manut.get("periodicidade", "Semestral (180 dias)")
+            
+            dias_vencimento = 90 if "Trimestral" in tipo_freq else 180
+
+            try:
+                d_obj = datetime.datetime.strptime(data_ult_str, "%d/%m/%Y").date()
+                d_prox = d_obj + datetime.timedelta(days=dias_vencimento)
+                d_prox_str = d_prox.strftime("%d/%m/%Y")
+                hoje = datetime.date.today()
+                
+                if hoje <= d_prox:
+                    st.success(f"🟢 STATUS DA MANUTENÇÃO: EM DIA ({tipo_freq})")
+                else:
+                    st.error(f"🔴 STATUS DA MANUTENÇÃO: PENDENTE / VENCIDA ({tipo_freq})")
+            except:
+                d_prox_str = "A calcular"
+                st.success("🟢 STATUS DA MANUTENÇÃO: REGISTRADA")
+
+            st.write(f"**Última Manutenção Realizada:** {data_ult_str} — *{tipo_freq}*")
+            st.write(f"**Próxima Manutenção Programada:** {d_prox_str}")
+            st.write(f"**Técnico Executor:** {ultima_manut['tecnico']}")
+        else:
+            st.warning("⚪ Nenhuma manutenção registrada ainda para este equipamento.")
+            
+        st.markdown("---")
+        st.markdown("### 🔐 Acesso ao Histórico Detalhado e Fotos")
+        senha_tela = st.text_input("Digite a senha de acesso para liberar o relatório completo:", type="password", key=f"senha_tela_{tag_codigo}")
+        
+        senha_ativa = senha_input if senha_input in ["visa", "admin"] else senha_tela
+        
+        if senha_ativa in ["visa", "admin"]:
+            st.success("Acesso autorizado ao relatório completo do equipamento.")
+            st.subheader("📋 Histórico Acumulado de Manutenções e Registros")
+            
+            if hists:
+                for idx, h in enumerate(reversed(hists)):
+                    indice_real = len(st.session_state.historico) - 1 - idx
+                    freq_reg = h.get('periodicidade', 'Semestral')
+                    
+                    st.markdown(f"#### Manutenção #{len(hists)-idx} — Data: {h['data']} ({freq_reg})")
+                    st.write(f"**Técnico Executor:** {h['tecnico']}")
+                    
+                    if "checklist" in h and h["checklist"]:
+                        st.write("**Itens Verificados (PMOC):**")
+                        for item_nome, status_val in h["checklist"].items():
+                            check_icon = "✅" if status_val else "❌"
+                            st.write(f"- {check_icon} {item_nome}")
+                    
+                    if h.get("obs"):
+                        st.write(f"**Observações:** {h['obs']}")
+                    
+                    col1, col2 = st.columns(2)
+                    if h.get("foto_antes_bytes"):
+                        col1.image(h["foto_antes_bytes"], caption=f"Foto Antes - {h['data']}", use_container_width=True)
+                    elif h.get("foto_antes"):
+                        col1.image(h["foto_antes"], caption=f"Foto Antes - {h['data']}", use_container_width=True)
+                        
+                    if h.get("foto_depois_bytes"):
+                        col2.image(h["foto_depois_bytes"], caption=f"Foto Depois - {h['data']}", use_container_width=True)
+                    elif h.get("foto_depois"):
+                        col2.image(h["foto_depois"], caption=f"Foto Depois - {h['data']}", use_container_width=True)
+                    
+                    if senha_input == "admin" or senha_tela == "admin":
+                        if st.button(f"🗑️ Excluir Definitivamente este Registro", key=f"btn_del_{tag_codigo}_{idx}"):
+                            del st.session_state.historico[indice_real]
+                            salvar_dados_disco(st.session_state.historico)
+                            st.cache_data.clear()
+                            st.success("Registro apagado com sucesso! Atualizando...")
+                            st.rerun()
+
+                    st.markdown("---")
+            else:
+                st.info("Nenhum histórico cadastrado para este aparelho.")
+        else:
+            st.info("🔒 Insira a senha autorizada acima para visualizar o histórico detalhado, checklist completo e registros fotográficos deste equipamento.")
+
+# -----------------------------------------------------------------------------
+# 2. REGISTRAR MANUTENÇÃO
+# -----------------------------------------------------------------------------
+elif opcao == "🛠️ Registrar Manutenção" and senha_input == "admin":
+    st.header("🛠️ Registro de Manutenção Preventiva")
+    instalados = [e for e in st.session_state.equipamentos if e["status"] == "Instalado"]
+    tags = [e["tag"] + " - " + e["ambiente"] for e in instalados]
+    
+    if tags:
+        tag_sel = st.selectbox("Selecione o Equipamento:", tags)
+        tag_codigo = tag_sel.split(" - ")[0]
+        hoje_formatado = datetime.

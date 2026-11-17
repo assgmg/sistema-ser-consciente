@@ -6,18 +6,32 @@ import json
 import base64
 import io
 
-# Importações do ReportLab para Geração de PDF Profissional para Gráfica
 from reportlab.lib.pagesizes import A4
-from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Spacer, PageBreak, Paragraph
+from reportlab.platypus import (
+    SimpleDocTemplate,
+    Table,
+    TableStyle,
+    Spacer,
+    PageBreak,
+    Paragraph,
+    Image as RLImage,
+)
 from reportlab.lib.styles import ParagraphStyle
 from reportlab.lib import colors
+from reportlab.lib.units import cm
+import urllib.request
 
-st.set_page_config(page_title="PMOC - Instituto Ser Consciente", layout="wide", page_icon="❄️")
+st.set_page_config(
+    page_title="PMOC - Instituto Ser Consciente",
+    layout="wide",
+    page_icon="❄️",
+)
 
 # -----------------------------------------------------------------------------
 # PERSISTÊNCIA (JSON) - COM SUPORTE A MÚLTIPLAS FOTOS ANTES E DEPOIS
 # -----------------------------------------------------------------------------
 ARQUIVO_DADOS = "pmoc_dados.json"
+
 
 def carregar_dados_disco():
     if os.path.exists(ARQUIVO_DADOS):
@@ -28,36 +42,41 @@ def carregar_dados_disco():
             return []
     return []
 
+
 def salvar_dados_disco(historico):
     dados_para_salvar = []
     for h in historico:
         h_copy = h.copy()
-        
-        # Compatibilidade com formato antigo (1 foto) e novo formato (lista de fotos)
+
         if "fotos_antes_bytes" in h_copy and h_copy["fotos_antes_bytes"]:
             h_copy["fotos_antes_bytes"] = [
-                base64.b64encode(b).decode("utf-8") if isinstance(b, bytes) else b 
+                base64.b64encode(b).decode("utf-8") if isinstance(b, bytes) else b
                 for b in h_copy["fotos_antes_bytes"]
             ]
         elif h_copy.get("foto_antes_bytes"):
             b = h_copy["foto_antes_bytes"]
-            h_copy["fotos_antes_bytes"] = [base64.b64encode(b).decode("utf-8") if isinstance(b, bytes) else b]
+            h_copy["fotos_antes_bytes"] = [
+                base64.b64encode(b).decode("utf-8") if isinstance(b, bytes) else b
+            ]
             h_copy.pop("foto_antes_bytes", None)
-            
+
         if "fotos_depois_bytes" in h_copy and h_copy["fotos_depois_bytes"]:
             h_copy["fotos_depois_bytes"] = [
-                base64.b64encode(b).decode("utf-8") if isinstance(b, bytes) else b 
+                base64.b64encode(b).decode("utf-8") if isinstance(b, bytes) else b
                 for b in h_copy["fotos_depois_bytes"]
             ]
         elif h_copy.get("foto_depois_bytes"):
             b = h_copy["foto_depois_bytes"]
-            h_copy["fotos_depois_bytes"] = [base64.b64encode(b).decode("utf-8") if isinstance(b, bytes) else b]
+            h_copy["fotos_depois_bytes"] = [
+                base64.b64encode(b).decode("utf-8") if isinstance(b, bytes) else b
+            ]
             h_copy.pop("foto_depois_bytes", None)
-            
+
         dados_para_salvar.append(h_copy)
-        
+
     with open(ARQUIVO_DADOS, "w", encoding="utf-8") as f:
         json.dump(dados_para_salvar, f, ensure_ascii=False, indent=4)
+
 
 # -----------------------------------------------------------------------------
 # LOGOMARCA
@@ -69,12 +88,14 @@ def carregar_logo():
         return Image.open("Borboleta.png")
     return None
 
+
 logo_img = carregar_logo()
 
 # -----------------------------------------------------------------------------
 # ESTILO CSS PARA O SISTEMA WEB
 # -----------------------------------------------------------------------------
-st.markdown("""
+st.markdown(
+    """
     <style>
     @media print {
         [data-testid="stSidebar"] {display: none;}
@@ -112,17 +133,117 @@ st.markdown("""
         border-radius: 2px;
     }
     </style>
-""", unsafe_allow_html=True)
+    """,
+    unsafe_allow_html=True,
+)
+
 
 # -----------------------------------------------------------------------------
 # BASE DE DADOS OFICIAL CONFORME PMOC / ART (ENG. ALESSANDRO COELHO)
 # -----------------------------------------------------------------------------
 @st.cache_data
 def carregar_equipamentos_iniciais():
+    dados = [
+        ("CONS001", "Consultório 01", "Split Philco", "9000", "Instalado"),
+        ("CONS002", "Consultório 02", "Split Philco", "9000", "Instalado"),
+        ("CONS003", "Consultório 03", "Split Agratto", "9000", "Instalado"),
+        ("CONS004", "Consultório 04", "Split Britania", "9000", "Instalado"),
+        ("CONS005", "Consultório 05", "Split Agratto", "9000", "Instalado"),
+        ("CONS006", "Consultório 06", "Split Britania", "9000", "Instalado"),
+        ("CONS007", "Consultório 07", "Sem instalação", "9000", "Previsto"),
+        ("CONS008", "Consultório 08", "Split Agratto", "9000", "Instalado"),
+        ("CONS009", "Consultório 09", "Split Agratto", "9000", "Instalado"),
+        ("CONS010", "Consultório 10", "Split Agratto", "9000", "Instalado"),
+        ("CONS011", "Consultório 11", "Split Philco", "9000", "Instalado"),
+        ("CONS012", "Consultório 12", "Sem instalação", "9000", "Previsto"),
+        ("CONS013", "Consultório 13", "Split Agratto", "9000", "Instalado"),
+        ("CONS014", "Consultório 14", "Sem instalação", "9000", "Previsto"),
+        ("CONS015", "Consultório 15", "Split Agratto", "9000", "Instalado"),
+        ("CONS016", "Consultório 16", "Sem instalação", "9000", "Previsto"),
+        ("CONS017", "Consultório 17", "Split Agratto", "9000", "Instalado"),
+        ("CONS018", "Consultório 18", "Split Agratto", "9000", "Instalado"),
+        ("CONS019", "Consultório 19", "Split Electrolux", "9000", "Instalado"),
+        ("CONS020", "Consultório 20", "Split Agratto", "9000", "Instalado"),
+        ("CONS021", "Consultório 21", "Sem instalação", "9000", "Previsto"),
+        ("CONS022", "Consultório 22", "Split Agratto (Série: PQX147229)", "9000", "Instalado"),
+        ("CONS023", "Consultório 23", "Split Agratto (Série: PQX147221)", "9000", "Instalado"),
+        ("CONS024", "Consultório 24", "Split Agratto", "9000", "Instalado"),
+        ("CONS025", "Consultório 25", "Split Agratto", "9000", "Instalado"),
+        ("CONS026", "Consultório 26", "Split Agratto (Série: PQX150208)", "9000", "Instalado"),
+        ("RECP001", "Recepção 01", "Cassete Philco", "48000", "Instalado"),
+        ("RECP002", "Recepção 02", "Split Electrolux", "22000", "Instalado"),
+        ("COPA001", "Copa", "Split Agratto", "9000", "Instalado"),
+        ("MULTI001", "Espaço Multiatividades", "Sem instalação", "34000", "Previsto"),
+        ("FRALD01", "Fraldário", "Sem instalação", "9000", "Previsto"),
+        ("ADM0001", "Administração", "Split Agratto", "9000", "Instalado"),
+    ]
     return [
-        {"tag": "CONS001", "ambiente": "Consultório 01", "equipamento": "Split Philco", "btus": "9000", "status": "Instalado"},
-        {"tag": "CONS002", "ambiente": "Consultório 02", "equipamento": "Split Philco", "btus": "9000", "status": "Instalado"},
-        {"tag": "CONS003", "ambiente": "Consultório 03", "equipamento": "Split Agratto", "btus": "9000", "status": "Instalado"},
-        {"tag": "CONS004", "ambiente": "Consultório 04", "equipamento": "Split Britania", "btus": "9000", "status": "Instalado"},
-        {"tag": "CONS005", "ambiente": "Consultório 05", "equipamento": "Split Agratto", "btus": "9000", "status": "Instalado"},
-        {"tag": "CONS006", "ambiente": "Consultório 06", "equipamento": "Split Britania", "btus": "9000", "status": "
+        {
+            "tag": t,
+            "ambiente": a,
+            "equipamento": e,
+            "btus": b,
+            "status": s,
+        }
+        for t, a, e, b, s in dados
+    ]
+
+
+if "equipamentos" not in st.session_state:
+    st.session_state.equipamentos = carregar_equipamentos_iniciais()
+
+if "historico" not in st.session_state:
+    raw_hist = carregar_dados_disco()
+    historico_convertido = []
+    for h in raw_hist:
+        h_conv = h.copy()
+
+        if "fotos_antes_bytes" in h_conv and h_conv["fotos_antes_bytes"]:
+            h_conv["fotos_antes_bytes"] = [
+                base64.b64decode(b) if isinstance(b, str) else b
+                for b in h_conv["fotos_antes_bytes"]
+            ]
+        elif h_conv.get("foto_antes_bytes"):
+            b = h_conv.pop("foto_antes_bytes")
+            h_conv["fotos_antes_bytes"] = [
+                base64.b64decode(b) if isinstance(b, str) else b
+            ]
+        else:
+            h_conv["fotos_antes_bytes"] = []
+
+        if "fotos_depois_bytes" in h_conv and h_conv["fotos_depois_bytes"]:
+            h_conv["fotos_depois_bytes"] = [
+                base64.b64decode(b) if isinstance(b, str) else b
+                for b in h_conv["fotos_depois_bytes"]
+            ]
+        elif h_conv.get("foto_depois_bytes"):
+            b = h_conv.pop("foto_depois_bytes")
+            h_conv["fotos_depois_bytes"] = [
+                base64.b64decode(b) if isinstance(b, str) else b
+            ]
+        else:
+            h_conv["fotos_depois_bytes"] = []
+
+        historico_convertido.append(h_conv)
+    st.session_state.historico = historico_convertido
+
+try:
+    tag_url = st.query_params.get("tag", None)
+except Exception:
+    tag_url = None
+
+
+# -----------------------------------------------------------------------------
+# FUNÇÃO AUXILIAR PARA EXIBIR GALERIA DE FOTOS ANTES E DEPOIS
+# -----------------------------------------------------------------------------
+def exibir_fotos_registro(h, largura_relatorio=None):
+    fotos_antes = h.get("fotos_antes_bytes", [])
+    if not fotos_antes and h.get("foto_antes"):
+        fotos_antes = [h["foto_antes"]]
+
+    fotos_depois = h.get("fotos_depois_bytes", [])
+    if not fotos_depois and h.get("foto_depois"):
+        fotos_depois = [h["foto_depois"]]
+
+    if fotos_antes or fotos_depois:
+        col1, col2

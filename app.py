@@ -79,13 +79,13 @@ def salvar_dados_disco(historico):
 
 
 # -----------------------------------------------------------------------------
-# LOGOMARCA
+# LOGOMARCA (Corrigido para 'logo.png')
 # -----------------------------------------------------------------------------
 @st.cache_resource
 def carregar_logo():
-    if os.path.exists("Borboleta.png"):
+    if os.path.exists("logo.png"):
         from PIL import Image
-        return Image.open("Borboleta.png")
+        return Image.open("logo.png")
     return None
 
 
@@ -239,11 +239,4 @@ except Exception:
 def exibir_fotos_registro(h, largura_relatorio=None):
     fotos_antes = h.get("fotos_antes_bytes", [])
     if not fotos_antes and h.get("foto_antes"):
-        fotos_antes = [h["foto_antes"]]
-
-    fotos_depois = h.get("fotos_depois_bytes", [])
-    if not fotos_depois and h.get("foto_depois"):
-        fotos_depois = [h["foto_depois"]]
-
-    if fotos_antes or fotos_depois:
-        col1, col2
+        fotos_antes = [h["

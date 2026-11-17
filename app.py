@@ -27,9 +27,6 @@ st.set_page_config(
     page_icon="❄️",
 )
 
-# -----------------------------------------------------------------------------
-# PERSISTÊNCIA (JSON) - COM SUPORTE A MÚLTIPLAS FOTOS ANTES E DEPOIS
-# -----------------------------------------------------------------------------
 ARQUIVO_DADOS = "pmoc_dados.json"
 
 
@@ -78,16 +75,12 @@ def salvar_dados_disco(historico):
         json.dump(dados_para_salvar, f, ensure_ascii=False, indent=4)
 
 
-# -----------------------------------------------------------------------------
-# LOGOMARCA (Corrigida e Otimizada para exibição limpa)
-# -----------------------------------------------------------------------------
 @st.cache_resource
 def carregar_logo():
     if os.path.exists("logo.png"):
         try:
             from PIL import Image
-            img = Image.open("logo.png")
-            return img
+            return Image.open("logo.png")
         except Exception:
             return None
     return None
@@ -95,9 +88,6 @@ def carregar_logo():
 
 logo_img = carregar_logo()
 
-# -----------------------------------------------------------------------------
-# ESTILO CSS PARA O SISTEMA WEB
-# -----------------------------------------------------------------------------
 st.markdown(
     """
     <style>
@@ -142,9 +132,6 @@ st.markdown(
 )
 
 
-# -----------------------------------------------------------------------------
-# BASE DE DADOS OFICIAL CONFORME PMOC / ART (ENG. ALESSANDRO COELHO)
-# -----------------------------------------------------------------------------
 @st.cache_data
 def carregar_equipamentos_iniciais():
     dados = [
@@ -237,9 +224,6 @@ except Exception:
     tag_url = None
 
 
-# -----------------------------------------------------------------------------
-# FUNÇÃO AUXILIAR PARA EXIBIR GALERIA DE FOTOS ANTES E DEPOIS
-# -----------------------------------------------------------------------------
 def exibir_fotos_registro(h, largura_relatorio=None):
     fotos_antes = h.get("fotos_antes_bytes", [])
     if not fotos_antes and h.get("foto_antes"):
@@ -271,12 +255,8 @@ def exibir_fotos_registro(h, largura_relatorio=None):
                         st.image(img_data, caption=legenda, use_container_width=True)
 
 
-# -----------------------------------------------------------------------------
-# MENU LATERAL & CONTROLE DE ACESSO CONDICIONAL
-# -----------------------------------------------------------------------------
 if logo_img is not None:
     try:
-        # Ajustado para largura proporcional limpa sem distorcer
         st.sidebar.image(logo_img, use_container_width=True)
     except Exception:
         pass
@@ -332,9 +312,6 @@ else:
 opcao = st.sidebar.radio("Navegação", opcoes_menu)
 
 
-# -----------------------------------------------------------------------------
-# 1. INFORMAÇÕES DO EQUIPAMENTO
-# -----------------------------------------------------------------------------
 if opcao == "📋 Informações do Equipamento":
     st.header("📋 Informações do Equipamento - PMOC Oficial")
     st.info("ℹ️ Projeto validado pela Vineyard Engenharia | ART CREA-MG nº MG20265436050")
@@ -454,9 +431,6 @@ if opcao == "📋 Informações do Equipamento":
             st.info("Nenhum histórico cadastrado para este aparelho.")
 
 
-# -----------------------------------------------------------------------------
-# 2. REGISTRAR MANUTENÇÃO (COM MÚLTIPLAS FOTOS ANTES E DEPOIS)
-# -----------------------------------------------------------------------------
 elif opcao == "🛠️ Registrar Manutenção" and senha_input_ativo == "admin":
     st.header("🛠️ Registro de Manutenção Preventiva")
     instalados = [e for e in st.session_state.equipamentos if e["status"] == "Instalado"]
@@ -560,9 +534,6 @@ elif opcao == "🛠️ Registrar Manutenção" and senha_input_ativo == "admin":
         st.info("Não há equipamentos instalados no momento.")
 
 
-# -----------------------------------------------------------------------------
-# 3. EDITAR PREVISTOS / GERENCIAR EQUIPAMENTOS
-# -----------------------------------------------------------------------------
 elif opcao == "✏️ Editar Previstos" and senha_input_ativo == "admin":
     st.header("✏️ Gerenciar e Atualizar Equipamentos")
 
@@ -600,9 +571,6 @@ elif opcao == "✏️ Editar Previstos" and senha_input_ativo == "admin":
         st.info("Nenhum equipamento cadastrado.")
 
 
-# -----------------------------------------------------------------------------
-# 4. MÁSCARA DA ETIQUETA 5x5 cm INDIVIDUAL
-# -----------------------------------------------------------------------------
 elif opcao == "🖨️ Etiquetas 5x5 cm (Individual)" and senha_input_ativo == "admin":
     st.header("🖨️ Pré-visualização de Etiqueta Individual 5x5 cm")
     st.info("ℹ️ Visualização unitária com dimensões reais de 5x5 cm e QR Code legível.")
@@ -630,4 +598,9 @@ elif opcao == "🖨️ Etiquetas 5x5 cm (Individual)" and senha_input_ativo == "
                 "</div>"
                 '<div style="text-align: center; margin: 2px 0;">'
                 '<img src="' + api_qr_url + '" width="55" height="55" '
-                'style="border: 1px solid #ddd; padding:
+                'style="border: 1px solid #ddd; padding: 1px; background: #fff;">'
+                "</div>"
+                '<div style="text-align: center; font-size: 6.5px; color: #333; line-height: 1;">'
+                "Eng. Alessandro Coelho<br>CREA: 238968-D | ART: MG20265436050"
+                "</div>"
+                "</div>

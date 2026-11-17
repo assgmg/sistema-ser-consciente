@@ -27,6 +27,9 @@ st.set_page_config(
     page_icon="❄️",
 )
 
+# -----------------------------------------------------------------------------
+# PERSISTÊNCIA (JSON) - COM SUPORTE A MÚLTIPLAS FOTOS ANTES E DEPOIS
+# -----------------------------------------------------------------------------
 ARQUIVO_DADOS = "pmoc_dados.json"
 
 
@@ -98,6 +101,9 @@ def carregar_logo():
 
 logo_img = carregar_logo()
 
+# -----------------------------------------------------------------------------
+# ESTILO CSS PARA O SISTEMA WEB
+# -----------------------------------------------------------------------------
 st.markdown(
     """
     <style>
@@ -142,6 +148,9 @@ st.markdown(
 )
 
 
+# -----------------------------------------------------------------------------
+# BASE DE DADOS OFICIAL CONFORME PMOC / ART (ENG. ALESSANDRO COELHO)
+# -----------------------------------------------------------------------------
 @st.cache_data
 def carregar_equipamentos_iniciais():
     dados = [
@@ -175,4 +184,108 @@ def carregar_equipamentos_iniciais():
         ("RECP002", "Recepção 02", "Split Electrolux", "22000", "Instalado"),
         ("COPA001", "Copa", "Split Agratto", "9000", "Instalado"),
         ("MULTI001", "Espaço Multiatividades", "Sem instalação", "34000", "Previsto"),
-        ("FRALD01", "
+        ("FRALD01", "Fraldário", "Sem instalação", "9000", "Previsto"),
+        ("ADM0001", "Administração", "Split Agratto", "9000", "Instalado"),
+    ]
+    return [
+        {
+            "tag": t,
+            "ambiente": a,
+            "equipamento": e,
+            "btus": b,
+            "status": s,
+        }
+        for t, a, e, b, s in dados
+    ]
+
+
+if "equipamentos" not in st.session_state:
+    st.session_state.equipamentos = carregar_equipamentos_iniciais()
+
+if "historico" not in st.session_state:
+    raw_hist = carregar_dados_disco()
+    historico_convertido = []
+    for h in raw_hist:
+        h_conv = h.copy()
+
+        if "fotos_antes_bytes" in h_conv and h_conv["fotos_antes_bytes"]:
+            h_conv["fotos_antes_bytes"] = [
+                base64.b64decode(b) if isinstance(b, str) else b
+                for b in h_conv["fotos_antes_bytes"]
+            ]
+        elif h_conv.get("foto_antes_bytes"):
+            b = h_conv.pop("foto_antes_bytes")
+            h_conv["fotos_antes_bytes"] = [
+                base64.b64decode(b) if isinstance(b, str) else b
+            ]
+        else:
+            h_conv["fotos_antes_bytes"] = []
+
+        if "fotos_depois_bytes" in h_conv and h_conv["fotos_depois_bytes"]:
+            h_conv["fotos_depois_bytes"] = [
+                base64.b64decode(b) if isinstance(b, str) else b
+                for b in h_conv["fotos_depois_bytes"]
+            ]
+        elif h_conv.get("foto_depois_bytes"):
+            b = h_conv.pop("foto_depois_bytes")
+            h_conv["fotos_depois_bytes"] = [
+                base64.b64decode(b) if isinstance(b, str) else b
+            ]
+        else:
+            h_conv["fotos_depois_bytes"] = []
+
+        historico_convertido.append(h_conv)
+    st.session_state.historico = historico_convertido
+
+try:
+    tag_url = st.query_params.get("tag", None)
+except Exception:
+    tag_url = None
+
+
+# -----------------------------------------------------------------------------
+# FUNÇÃO AUXILIAR PARA EXIBIR GALERIA DE FOTOS ANTES E DEPOIS
+# -----------------------------------------------------------------------------
+def exibir_fotos_registro(h, largura_relatorio=None):
+    fotos_antes = h.get("fotos_antes_bytes", [])
+    if not fotos_antes and h.get("foto_antes"):
+        fotos_antes = [h["foto_antes"]]
+
+    fotos_depois = h.get("fotos_depois_bytes", [])
+    if not fotos_depois and h.get("foto_depois"):
+        fotos_depois = [h["foto_depois"]]
+
+    if fotos_antes or fotos_depois:
+        col1, col2 = st.columns(2)
+        with col1:
+            if fotos_antes:
+                st.markdown("**📷 Fotos ANTES:**")
+                for i, img_data in enumerate(fotos_antes):
+                    legenda = f"Antes #{i+1} - {h['data']}"
+                    if largura_relatorio:
+                        st.image(img_data, caption=legenda, width=largura_relatorio)
+                    else:
+                        st.image(img_data, caption=legenda, use_container_width=True)
+        with col2:
+            if fotos_depois:
+                st.markdown("**📷 Fotos DEPOIS:**")
+                for i, img_data in enumerate(fotos_depois):
+                    legenda = f"Depois #{i+1} - {h['data']}"
+                    if largura_relatorio:
+                        st.image(img_data, caption=legenda, width=largura_relatorio)
+                    else:
+                        st.image(img_data, caption=legenda, use_container_width=True)
+
+
+# -----------------------------------------------------------------------------
+# MENU LATERAL & CONTROLE DE ACESSO CONDICIONAL (LOGIN LIMPO)
+# -----------------------------------------------------------------------------
+if logo_img is not None:
+    try:
+        st.sidebar.image(logo_img, use_container_width=True)
+    except Exception:
+        pass
+
+st.sidebar.title("❄️ PMOC Digital")
+st.sidebar.subheader("Instituto Ser Consciente Ltda")
+st.sidebar.caption("Resp. Técnico: Eng.

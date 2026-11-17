@@ -271,7 +271,7 @@ def exibir_fotos_registro(h, largura_relatorio=None):
 
 
 # -----------------------------------------------------------------------------
-# MENU LATERAL
+# MENU LATERAL & CONTROLE DE ACESSO CONDICIONAL (SEM O CAMPO DE SENHA PÓS-LOGIN)
 # -----------------------------------------------------------------------------
 if logo_img is not None:
     try:
@@ -285,11 +285,29 @@ st.sidebar.caption("Resp. Técnico: Eng. Alessandro Coelho (CREA-MG 238968-D)")
 st.sidebar.caption("ART: MG20265436050")
 
 st.sidebar.markdown("---")
-st.sidebar.markdown("### 🔐 Acesso Restrito")
-senha_input = st.sidebar.text_input("Credencial de acesso:", type="password")
 
-if senha_input == "admin":
-    st.sidebar.success("✅ Modo Administrador")
+if "senha_salva" not in st.session_state:
+    st.session_state.senha_salva = ""
+
+if st.session_state.senha_salva not in ["admin", "visa"]:
+    st.sidebar.markdown("### 🔐 Acesso Restrito")
+    senha_input = st.sidebar.text_input("Credencial de acesso:", type="password")
+    if senha_input in ["admin", "visa"]:
+        st.session_state.senha_salva = senha_input
+        st.rerun()
+    senha_input_ativo = senha_input
+else:
+    senha_input_ativo = st.session_state.senha_salva
+    st.sidebar.success(
+        "✅ Modo Administrador" if senha_input_ativo == "admin" else "👁️ Modo Fiscalização"
+    )
+    if st.sidebar.button("🚪 Sair / Desconectar"):
+        st.session_state.senha_salva = ""
+        st.rerun()
+
+st.sidebar.markdown("---")
+
+if senha_input_ativo == "admin":
     opcoes_menu = [
         "📋 Informações do Equipamento",
         "🛠️ Registrar Manutenção",
@@ -299,8 +317,7 @@ if senha_input == "admin":
         "📊 Dashboard Geral",
         "📄 Relatório Fiscal A4",
     ]
-elif senha_input == "visa":
-    st.sidebar.info("👁️ Modo Fiscalização")
+elif senha_input_ativo == "visa":
     opcoes_menu = [
         "📋 Informações do Equipamento",
         "📄 Relatório Fiscal A4",
@@ -391,7 +408,7 @@ if opcao == "📋 Informações do Equipamento":
 
                 exibir_fotos_registro(h)
 
-                if senha_input == "admin":
+                if senha_input_ativo == "admin":
                     with st.expander(f"➕ Adicionar mais fotos a esta manutenção ({h['data']})"):
                         novas_antes = st.file_uploader(
                             "Selecionar fotos adicionais do ANTES",
@@ -438,7 +455,7 @@ if opcao == "📋 Informações do Equipamento":
 # -----------------------------------------------------------------------------
 # 2. REGISTRAR MANUTENÇÃO (COM MÚLTIPLAS FOTOS ANTES E DEPOIS)
 # -----------------------------------------------------------------------------
-elif opcao == "🛠️ Registrar Manutenção" and senha_input == "admin":
+elif opcao == "🛠️ Registrar Manutenção" and senha_input_ativo == "admin":
     st.header("🛠️ Registro de Manutenção Preventiva")
     instalados = [e for e in st.session_state.equipamentos if e["status"] == "Instalado"]
     tags = [e["tag"] + " - " + e["ambiente"] for e in instalados]
@@ -544,7 +561,7 @@ elif opcao == "🛠️ Registrar Manutenção" and senha_input == "admin":
 # -----------------------------------------------------------------------------
 # 3. EDITAR PREVISTOS / GERENCIAR EQUIPAMENTOS
 # -----------------------------------------------------------------------------
-elif opcao == "✏️ Editar Previstos" and senha_input == "admin":
+elif opcao == "✏️ Editar Previstos" and senha_input_ativo == "admin":
     st.header("✏️ Gerenciar e Atualizar Equipamentos")
 
     lista_todos = [
@@ -584,7 +601,7 @@ elif opcao == "✏️ Editar Previstos" and senha_input == "admin":
 # -----------------------------------------------------------------------------
 # 4. MÁSCARA DA ETIQUETA 5x5 cm INDIVIDUAL
 # -----------------------------------------------------------------------------
-elif opcao == "🖨️ Etiquetas 5x5 cm (Individual)" and senha_input == "admin":
+elif opcao == "🖨️ Etiquetas 5x5 cm (Individual)" and senha_input_ativo == "admin":
     st.header("🖨️ Pré-visualização de Etiqueta Individual 5x5 cm")
     st.info("ℹ️ Visualização unitária com dimensões reais de 5x5 cm e QR Code legível.")
 
@@ -626,7 +643,7 @@ elif opcao == "🖨️ Etiquetas 5x5 cm (Individual)" and senha_input == "admin"
 # -----------------------------------------------------------------------------
 # 5. LOTE A4 PARA GRÁFICA (GERAÇÃO DE PDF REAL COM REPORTLAB)
 # -----------------------------------------------------------------------------
-elif opcao == "📑 Lote A4 para Gráfica (Guilhotina)" and senha_input == "admin":
+elif opcao == "📑 Lote A4 para Gráfica (Guilhotina)" and senha_input_ativo == "admin":
     st.header("📑 Gerador de Arquivo PDF Pronto para Gráfica (5x5 cm)")
     st.info(
         "ℹ️ O sistema gera um arquivo PDF com tamanho exato de 5x5 cm por etiqueta, "
@@ -829,7 +846,7 @@ elif opcao == "📑 Lote A4 para Gráfica (Guilhotina)" and senha_input == "admi
 # -----------------------------------------------------------------------------
 # 6. DASHBOARD GERAL
 # -----------------------------------------------------------------------------
-elif opcao == "📊 Dashboard Geral" and senha_input == "admin":
+elif opcao == "📊 Dashboard Geral" and senha_input_ativo == "admin":
     st.header("📊 Painel Geral de Climatização")
     total = len(st.session_state.equipamentos)
     instalados = len([e for e in st.session_state.equipamentos if e["status"] == "Instalado"])
@@ -849,7 +866,7 @@ elif opcao == "📊 Dashboard Geral" and senha_input == "admin":
 # -----------------------------------------------------------------------------
 # 7. RELATÓRIO FISCAL A4 COMPLETO
 # -----------------------------------------------------------------------------
-elif opcao == "📄 Relatório Fiscal A4" and senha_input in ["visa", "admin"]:
+elif opcao == "📄 Relatório Fiscal A4" and senha_input_ativo in ["visa", "admin"]:
     col_logo, col_titulo = st.columns([1, 4])
     with col_logo:
         if logo_img is not None:
@@ -869,7 +886,7 @@ elif opcao == "📄 Relatório Fiscal A4" and senha_input in ["visa", "admin"]:
     st.markdown("---")
 
     st.markdown("### 📑 Relação Resumida dos Equipamentos Instalados")
-    instalados_df = [e for e in st.session_substate.equipamentos if e["status"] == "Instalado"] if "equipamentos" in st.session_state else []
+    instalados_df = [e for e in st.session_state.equipamentos if e["status"] == "Instalado"] if "equipamentos" in st.session_state else []
 
     dados_resumo = []
     for eq in instalados_df:

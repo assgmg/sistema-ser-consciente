@@ -587,20 +587,20 @@ elif opcao == "🖨️ Etiquetas 5x5 cm (Individual)" and senha_input_ativo == "
             link_equip = base_url + "/?tag=" + equip_sel["tag"]
             api_qr_url = "https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=" + link_equip
 
-            html_etiqueta = (
-                '<div class="etiqueta-box">'
-                '<div class="etiqueta-header">PMOC - SER CONSCIENTE</div>'
-                '<div style="font-size: 8px; line-height: 1.2;">'
-                "<b>TAG:</b> " + str(equip_sel["tag"]) + "<br>"
-                "<b>Amb:</b> " + str(equip_sel["ambiente"]) + "<br>"
-                "<b>Equip:</b> " + str(equip_sel["equipamento"]) + "<br>"
-                "<b>Carga:</b> " + str(equip_sel["btus"]) + " BTUs"
-                "</div>"
-                '<div style="text-align: center; margin: 2px 0;">'
-                '<img src="' + api_qr_url + '" width="55" height="55" '
-                'style="border: 1px solid #ddd; padding: 1px; background: #fff;">'
-                "</div>"
-                '<div style="text-align: center; font-size: 6.5px; color: #333; line-height: 1;">'
-                "Eng. Alessandro Coelho<br>CREA: 238968-D | ART: MG20265436050"
-                "</div>"
-                "</div>
+          html_etiqueta = f"""
+    <div class="etiqueta-box">
+        <div class="etiqueta-header">PMOC - SER CONSCIENTE</div>
+        <div style="font-size: 8px; line-height: 1.2;">
+            <b>TAG:</b> {equip_sel["tag"]}<br>
+            <b>Amb:</b> {equip_sel["ambiente"]}<br>
+            <b>Equip:</b> {equip_sel["equipamento"]}<br>
+            <b>Carga:</b> {equip_sel["btus"]} BTUs
+        </div>
+        <div style="text-align: center; margin: 2px 0;">
+            <img src="{api_qr_url}" width="55" height="55" style="border: 1px solid #ddd; padding: 1px; background: #fff;">
+        </div>
+        <div style="text-align: center; font-size: 6.5px; color: #333; line-height: 1;">
+            Eng. Alessandro Coelho<br>CREA: 238968-D | ART: MG20265436050
+        </div>
+    </div>
+    """

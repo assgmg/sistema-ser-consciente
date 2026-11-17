@@ -4,11 +4,18 @@ import datetime
 import os
 import json
 import base64
+import io
+
+# Importações do ReportLab para Geração de PDF Profissional para Gráfica
+from reportlab.lib.pagesizes import A4
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Spacer, PageBreak, Paragraph
+from reportlab.lib.styles import ParagraphStyle
+from reportlab.lib import colors
 
 st.set_page_config(page_title="PMOC - Instituto Ser Consciente", layout="wide", page_icon="❄️")
 
 # -----------------------------------------------------------------------------
-# PERSISTÊNCIA (JSON)
+# PERSISTÊNCIA (JSON) - COM SUPORTE A MÚLTIPLAS FOTOS ANTES E DEPOIS
 # -----------------------------------------------------------------------------
 ARQUIVO_DADOS = "pmoc_dados.json"
 
@@ -17,7 +24,7 @@ def carregar_dados_disco():
         try:
             with open(ARQUIVO_DADOS, "r", encoding="utf-8") as f:
                 return json.load(f)
-        except:
+        except Exception:
             return []
     return []
 
@@ -25,10 +32,28 @@ def salvar_dados_disco(historico):
     dados_para_salvar = []
     for h in historico:
         h_copy = h.copy()
-        if h_copy.get("foto_antes_bytes"):
-            h_copy["foto_antes_bytes"] = base64.b64encode(h_copy["foto_antes_bytes"]).decode("utf-8")
-        if h_copy.get("foto_depois_bytes"):
-            h_copy["foto_depois_bytes"] = base64.b64encode(h_copy["foto_depois_bytes"]).decode("utf-8")
+        
+        # Compatibilidade com formato antigo (1 foto) e novo formato (lista de fotos)
+        if "fotos_antes_bytes" in h_copy and h_copy["fotos_antes_bytes"]:
+            h_copy["fotos_antes_bytes"] = [
+                base64.b64encode(b).decode("utf-8") if isinstance(b, bytes) else b 
+                for b in h_copy["fotos_antes_bytes"]
+            ]
+        elif h_copy.get("foto_antes_bytes"):
+            b = h_copy["foto_antes_bytes"]
+            h_copy["fotos_antes_bytes"] = [base64.b64encode(b).decode("utf-8") if isinstance(b, bytes) else b]
+            h_copy.pop("foto_antes_bytes", None)
+            
+        if "fotos_depois_bytes" in h_copy and h_copy["fotos_depois_bytes"]:
+            h_copy["fotos_depois_bytes"] = [
+                base64.b64encode(b).decode("utf-8") if isinstance(b, bytes) else b 
+                for b in h_copy["fotos_depois_bytes"]
+            ]
+        elif h_copy.get("foto_depois_bytes"):
+            b = h_copy["foto_depois_bytes"]
+            h_copy["fotos_depois_bytes"] = [base64.b64encode(b).decode("utf-8") if isinstance(b, bytes) else b]
+            h_copy.pop("foto_depois_bytes", None)
+            
         dados_para_salvar.append(h_copy)
         
     with open(ARQUIVO_DADOS, "w", encoding="utf-8") as f:
@@ -47,7 +72,7 @@ def carregar_logo():
 logo_img = carregar_logo()
 
 # -----------------------------------------------------------------------------
-# ESTILO CSS PARA IMPRESSÃO LIMPA E ETIQUETAS EXATAS 5x5 cm COM QUEBRA DE PÁGINA
+# ESTILO CSS PARA O SISTEMA WEB
 # -----------------------------------------------------------------------------
 st.markdown("""
     <style>
@@ -59,7 +84,6 @@ st.markdown("""
         .streamlit-expanderHeader {display: none;}
         .stAlert {display: none;}
         body {margin: 0; padding: 0; background: #fff;}
-        .folha-a4 {page-break-after: always; break-after: page;}
     }
     .etiqueta-box {
         border: 2px dashed #000;
@@ -101,492 +125,4 @@ def carregar_equipamentos_iniciais():
         {"tag": "CONS003", "ambiente": "Consultório 03", "equipamento": "Split Agratto", "btus": "9000", "status": "Instalado"},
         {"tag": "CONS004", "ambiente": "Consultório 04", "equipamento": "Split Britania", "btus": "9000", "status": "Instalado"},
         {"tag": "CONS005", "ambiente": "Consultório 05", "equipamento": "Split Agratto", "btus": "9000", "status": "Instalado"},
-        {"tag": "CONS006", "ambiente": "Consultório 06", "equipamento": "Split Britania", "btus": "9000", "status": "Instalado"},
-        {"tag": "CONS007", "ambiente": "Consultório 07", "equipamento": "Sem instalação", "btus": "9000", "status": "Previsto"},
-        {"tag": "CONS008", "ambiente": "Consultório 08", "equipamento": "Split Agratto", "btus": "9000", "status": "Instalado"},
-        {"tag": "CONS009", "ambiente": "Consultório 09", "equipamento": "Split Agratto", "btus": "9000", "status": "Instalado"},
-        {"tag": "CONS010", "ambiente": "Consultório 10", "equipamento": "Split Agratto", "btus": "9000", "status": "Instalado"},
-        {"tag": "CONS011", "ambiente": "Consultório 11", "equipamento": "Split Philco", "btus": "9000", "status": "Instalado"},
-        {"tag": "CONS012", "ambiente": "Consultório 12", "equipamento": "Sem instalação", "btus": "9000", "status": "Previsto"},
-        {"tag": "CONS013", "ambiente": "Consultório 13", "equipamento": "Split Agratto", "btus": "9000", "status": "Instalado"},
-        {"tag": "CONS014", "ambiente": "Consultório 14", "equipamento": "Sem instalação", "btus": "9000", "status": "Previsto"},
-        {"tag": "CONS015", "ambiente": "Consultório 15", "equipamento": "Split Agratto", "btus": "9000", "status": "Instalado"},
-        {"tag": "CONS016", "ambiente": "Consultório 16", "equipamento": "Sem instalação", "btus": "9000", "status": "Previsto"},
-        {"tag": "CONS017", "ambiente": "Consultório 17", "equipamento": "Split Agratto", "btus": "9000", "status": "Instalado"},
-        {"tag": "CONS018", "ambiente": "Consultório 18", "equipamento": "Split Agratto", "btus": "9000", "status": "Instalado"},
-        {"tag": "CONS019", "ambiente": "Consultório 19", "equipamento": "Split Electrolux", "btus": "9000", "status": "Instalado"},
-        {"tag": "CONS020", "ambiente": "Consultório 20", "equipamento": "Split Agratto", "btus": "9000", "status": "Instalado"},
-        {"tag": "CONS021", "ambiente": "Consultório 21", "equipamento": "Sem instalação", "btus": "9000", "status": "Previsto"},
-        {"tag": "CONS022", "ambiente": "Consultório 22", "equipamento": "Split Agratto (Série: PQX147229)", "btus": "9000", "status": "Instalado"},
-        {"tag": "CONS023", "ambiente": "Consultório 23", "equipamento": "Split Agratto (Série: PQX147221)", "btus": "9000", "status": "Instalado"},
-        {"tag": "CONS024", "ambiente": "Consultório 24", "equipamento": "Split Agratto", "btus": "9000", "status": "Instalado"},
-        {"tag": "CONS025", "ambiente": "Consultório 25", "equipamento": "Split Agratto", "btus": "9000", "status": "Instalado"},
-        {"tag": "CONS026", "ambiente": "Consultório 26", "equipamento": "Split Agratto (Série: PQX150208)", "btus": "9000", "status": "Instalado"},
-        {"tag": "RECP001", "ambiente": "Recepção 01", "equipamento": "Cassete Philco", "btus": "48000", "status": "Instalado"},
-        {"tag": "RECP002", "ambiente": "Recepção 02", "equipamento": "Split Electrolux", "btus": "22000", "status": "Instalado"},
-        {"tag": "COPA001", "ambiente": "Copa", "equipamento": "Split Agratto", "btus": "9000", "status": "Instalado"},
-        {"tag": "MULTI001", "ambiente": "Espaço Multiatividades", "equipamento": "Sem instalação", "btus": "34000", "status": "Previsto"},
-        {"tag": "FRALD01", "ambiente": "Fraldário", "equipamento": "Sem instalação", "btus": "9000", "status": "Previsto"},
-        {"tag": "ADM0001", "ambiente": "Administração", "equipamento": "Split Agratto", "btus": "9000", "status": "Instalado"}
-    ]
-
-if "equipamentos" not in st.session_state:
-    st.session_state.equipamentos = carregar_equipamentos_iniciais()
-
-if "historico" not in st.session_state:
-    raw_hist = carregar_dados_disco()
-    historico_convertido = []
-    for h in raw_hist:
-        h_conv = h.copy()
-        if h_conv.get("foto_antes_bytes"):
-            h_conv["foto_antes_bytes"] = base64.b64decode(h_conv["foto_antes_bytes"])
-        if h_conv.get("foto_depois_bytes"):
-            h_conv["foto_depois_bytes"] = base64.b64decode(h_conv["foto_depois_bytes"])
-        historico_convertido.append(h_conv)
-    st.session_state.historico = historico_convertido
-
-try:
-    tag_url = st.query_params.get("tag", None)
-except:
-    tag_url = None
-
-# -----------------------------------------------------------------------------
-# MENU LATERAL
-# -----------------------------------------------------------------------------
-if logo_img:
-    st.sidebar.image(logo_img, width=120)
-
-st.sidebar.title("❄️ PMOC Digital")
-st.sidebar.subheader("Instituto Ser Consciente Ltda")
-st.sidebar.caption("Resp. Técnico: Eng. Alessandro Coelho (CREA-MG 238968-D)")
-st.sidebar.caption("ART: MG20265436050")
-
-st.sidebar.markdown("---")
-st.sidebar.markdown("### 🔐 Acesso Restrito")
-senha_input = st.sidebar.text_input("Credencial de acesso:", type="password")
-
-if senha_input == "admin":
-    st.sidebar.success("✅ Modo Administrador")
-    opcoes_menu = [
-        "📋 Informações do Equipamento", 
-        "🛠️ Registrar Manutenção", 
-        "✏️ Editar Previstos", 
-        "🖨️ Etiquetas 5x5 cm (Individual)", 
-        "📑 Lote A4 para Gráfica (Guilhotina)",
-        "📊 Dashboard Geral",
-        "📄 Relatório Fiscal A4"
-    ]
-elif senha_input == "visa":
-    st.sidebar.info("👁️ Modo Fiscalização")
-    opcoes_menu = [
-        "📋 Informações do Equipamento", 
-        "📄 Relatório Fiscal A4"
-    ]
-else:
-    opcoes_menu = [
-        "📋 Informações do Equipamento"
-    ]
-
-opcao = st.sidebar.radio("Navegação", opcoes_menu)
-
-# -----------------------------------------------------------------------------
-# 1. INFORMAÇÕES DO EQUIPAMENTO
-# -----------------------------------------------------------------------------
-if opcao == "📋 Informações do Equipamento":
-    st.header("📋 Informações do Equipamento - PMOC Oficial")
-    st.info("ℹ️ Projeto validado pela Vineyard Engenharia | ART CREA-MG nº MG20265436050")
-    
-    tags_lista = [e["tag"] + " - " + e["ambiente"] for e in st.session_state.equipamentos]
-    indice_inicial = 0
-    
-    if tag_url:
-        for i, t in enumerate(tags_lista):
-            if tag_url in t:
-                indice_inicial = i
-                break
-
-    tag_selecionada = st.selectbox("Selecione a TAG do Equipamento:", tags_lista, index=indice_inicial)
-    tag_codigo = tag_selecionada.split(" - ")[0]
-    
-    equip = next((e for e in st.session_state.equipamentos if e["tag"] == tag_codigo), None)
-    
-    if equip:
-        st.subheader(f"📍 {equip['ambiente']} ({equip['tag']})")
-        st.write(f"**Equipamento:** {equip['equipamento']} | **Carga Térmica:** {equip['btus']} BTUs")
-        st.write(f"**Status de Instalação:** `{equip['status']}`")
-        
-        hists = [h for h in st.session_state.historico if h["tag"] == tag_codigo]
-        
-        if equip["status"] == "Previsto":
-            st.info("🟡 Equipamento Previsto — Aguardando Instalação Física.")
-        elif hists:
-            ultima_manut = hists[-1]
-            data_ult_str = ultima_manut["data"]
-            tipo_freq = ultima_manut.get("periodicidade", "Semestral (180 dias)")
-            
-            dias_vencimento = 90 if "Trimestral" in tipo_freq else 180
-
-            try:
-                d_obj = datetime.datetime.strptime(data_ult_str, "%d/%m/%Y").date()
-                d_prox = d_obj + datetime.timedelta(days=dias_vencimento)
-                d_prox_str = d_prox.strftime("%d/%m/%Y")
-                hoje = datetime.date.today()
-                
-                if hoje <= d_prox:
-                    st.success(f"🟢 STATUS DA MANUTENÇÃO: EM DIA ({tipo_freq})")
-                else:
-                    st.error(f"🔴 STATUS DA MANUTENÇÃO: PENDENTE / VENCIDA ({tipo_freq})")
-            except:
-                d_prox_str = "A calcular"
-                st.success("🟢 STATUS DA MANUTENÇÃO: REGISTRADA")
-
-            st.write(f"**Última Manutenção Realizada:** {data_ult_str} — *{tipo_freq}*")
-            st.write(f"**Próxima Manutenção Programada:** {d_prox_str}")
-            st.write(f"**Técnico Executor:** {ultima_manut['tecnico']}")
-        else:
-            st.warning("⚪ Nenhuma manutenção registrada ainda para este equipamento.")
-            
-        st.markdown("---")
-        st.subheader("📋 Histórico Acumulado e Gerenciamento de Registros")
-        
-        if hists:
-            for idx, h in enumerate(reversed(hists)):
-                indice_real = len(st.session_state.historico) - 1 - idx
-                freq_reg = h.get('periodicidade', 'Semestral')
-                
-                st.markdown(f"#### Manutenção #{len(hists)-idx} — Data: {h['data']} ({freq_reg})")
-                st.write(f"**Técnico Executor:** {h['tecnico']}")
-                
-                if "checklist" in h and h["checklist"]:
-                    st.write("**Itens Verificados (PMOC):**")
-                    for item_nome, status_val in h["checklist"].items():
-                        check_icon = "✅" if status_val else "❌"
-                        st.write(f"- {check_icon} {item_nome}")
-                
-                if h.get("obs"):
-                    st.write(f"**Observações:** {h['obs']}")
-                
-                col1, col2 = st.columns(2)
-                if h.get("foto_antes_bytes"):
-                    col1.image(h["foto_antes_bytes"], caption=f"Foto Antes - {h['data']}", use_container_width=True)
-                elif h.get("foto_antes"):
-                    col1.image(h["foto_antes"], caption=f"Foto Antes - {h['data']}", use_container_width=True)
-                    
-                if h.get("foto_depois_bytes"):
-                    col2.image(h["foto_depois_bytes"], caption=f"Foto Depois - {h['data']}", use_container_width=True)
-                elif h.get("foto_depois"):
-                    col2.image(h["foto_depois"], caption=f"Foto Depois - {h['data']}", use_container_width=True)
-                
-                if senha_input == "admin":
-                    if st.button("Excluir este Registro Incorreto", key=f"btn_del_{tag_codigo}_{idx}"):
-                        del st.session_state.historico[indice_real]
-                        salvar_dados_disco(st.session_state.historico)
-                        st.cache_data.clear()
-                        st.success("Registro excluído com sucesso! Atualizando...")
-                        st.rerun()
-
-                st.markdown("---")
-        else:
-            st.info("Nenhum histórico cadastrado para este aparelho.")
-
-# -----------------------------------------------------------------------------
-# 2. REGISTRAR MANUTENÇÃO
-# -----------------------------------------------------------------------------
-elif opcao == "🛠️ Registrar Manutenção" and senha_input == "admin":
-    st.header("🛠️ Registro de Manutenção Preventiva")
-    instalados = [e for e in st.session_state.equipamentos if e["status"] == "Instalado"]
-    tags = [e["tag"] + " - " + e["ambiente"] for e in instalados]
-    
-    if tags:
-        tag_sel = st.selectbox("Selecione o Equipamento:", tags)
-        tag_codigo = tag_sel.split(" - ")[0]
-        hoje_formatado = datetime.date.today().strftime("%d/%m/%Y")
-        
-        periodicidade = st.selectbox(
-            "Tipo de Manutenção / Periodicidade (Conforme PMOC):", 
-            ["Semestral (180 dias)", "Trimestral (90 dias)"]
-        )
-        
-        with st.form("form_manutencao"):
-            data_manut = st.text_input("Data da Manutenção (DD/MM/AAAA)", value=hoje_formatado)
-            tecnico = st.text_input("Técnico Responsável", value="Antônio Sérgio Silva Gomes")
-            
-            st.markdown("---")
-            st.subheader("📋 Atividades Obrigatórias do PMOC")
-            
-            checklist_inputs = {}
-            if "Trimestral" in periodicidade:
-                st.info("📝 Checklist **TRIMESTRAL**:")
-                checklist_inputs["4.1 - Limpeza dos filtros de ar"] = st.checkbox("4.1 - Limpeza dos filtros de ar", value=True)
-                checklist_inputs["4.2 - Limpeza externa do gabinete"] = st.checkbox("4.2 - Limpeza externa do gabinete", value=True)
-                checklist_inputs["4.3 - Verificação de drenagem"] = st.checkbox("4.3 - Verificação de drenagem", value=True)
-                checklist_inputs["4.6 - Higienização com bactericida"] = st.checkbox("4.6 - Higienização com bactericida", value=True)
-                checklist_inputs["4.9 - Limpeza do ventilador/rotor"] = st.checkbox("4.9 - Limpeza do ventilador/rotor", value=True)
-                checklist_inputs["4.10 - Limpeza da bandeja de condensado"] = st.checkbox("4.10 - Limpeza da bandeja de condensado", value=True)
-                checklist_inputs["4.11 - Reaperto de terminais/conexões"] = st.checkbox("4.11 - Reaperto de terminais/conexões", value=True)
-            else:
-                st.info("📝 Checklist **SEMESTRAL** Completo:")
-                checklist_inputs["4.1 - Limpeza dos filtros de ar"] = st.checkbox("4.1 - Limpeza dos filtros de ar", value=True)
-                checklist_inputs["4.2 - Limpeza externa do gabinete"] = st.checkbox("4.2 - Limpeza externa do gabinete", value=True)
-                checklist_inputs["4.3 - Verificação de drenagem"] = st.checkbox("4.3 - Verificação de drenagem", value=True)
-                checklist_inputs["4.6 - Higienização com bactericida"] = st.checkbox("4.6 - Higienização com bactericida", value=True)
-                checklist_inputs["4.8 - Limpeza química das serpentinas"] = st.checkbox("4.8 - Limpeza química das serpentinas", value=True)
-                checklist_inputs["4.9 - Limpeza do ventilador/rotor"] = st.checkbox("4.9 - Limpeza do ventilador/rotor", value=True)
-                checklist_inputs["4.10 - Limpeza e desinfecção da bandeja"] = st.checkbox("4.10 - Limpeza e desinfecção da bandeja", value=True)
-                checklist_inputs["4.12 - Verificação de corrente/tensão"] = st.checkbox("4.12 - Verificação de corrente/tensão", value=True)
-                checklist_inputs["4.13 - Limpeza do condensador"] = st.checkbox("4.13 - Limpeza do condensador", value=True)
-                checklist_inputs["4.14 - Verificação dos compressores"] = st.checkbox("4.14 - Verificação dos compressores", value=True)
-
-            st.markdown("---")
-            st.subheader("📸 Registros e Observações")
-            obs = st.text_area("Observações Técnicas / Ocorrências")
-            foto_antes = st.file_uploader("Tirar foto do ANTES", type=["png", "jpg", "jpeg"])
-            foto_depois = st.file_uploader("Tirar foto do DEPOIS", type=["png", "jpg", "jpeg"])
-            
-            salvar = st.form_submit_button("💾 Salvar Registro de Manutenção")
-            
-            if salvar:
-                img_antes_bytes = foto_antes.getvalue() if foto_antes else None
-                img_depois_bytes = foto_depois.getvalue() if foto_depois else None
-                
-                novo_registro = {
-                    "tag": tag_codigo,
-                    "data": data_manut,
-                    "periodicidade": periodicidade,
-                    "tecnico": tecnico,
-                    "checklist": checklist_inputs,
-                    "obs": obs,
-                    "foto_antes_bytes": img_antes_bytes,
-                    "foto_depois_bytes": img_depois_bytes
-                }
-                
-                st.session_state.historico.append(novo_registro)
-                salvar_dados_disco(st.session_state.historico)
-                st.cache_data.clear()
-                st.success(f"Manutenção {periodicidade} do equipamento {tag_codigo} registrada com sucesso!")
-    else:
-        st.info("Não há equipamentos instalados no momento.")
-
-# -----------------------------------------------------------------------------
-# 3. EDITAR PREVISTOS / GERENCIAR EQUIPAMENTOS
-# -----------------------------------------------------------------------------
-elif opcao == "✏️ Editar Previstos" and senha_input == "admin":
-    st.header("✏️ Gerenciar e Atualizar Equipamentos")
-    
-    lista_todos = [e["tag"] + " - " + e["ambiente"] + f" ({e['status']})" for e in st.session_state.equipamentos]
-    
-    if lista_todos:
-        tag_sel_ed = st.selectbox("Selecione o Equipamento para Editar:", lista_todos)
-        tag_codigo_ed = tag_sel_ed.split(" - ")[0]
-        equip_ed = next((e for e in st.session_state.equipamentos if e["tag"] == tag_codigo_ed), None)
-        
-        if equip_ed:
-            with st.form("form_edicao_geral"):
-                st.write(f"**Ambiente:** {equip_ed['ambiente']} | **TAG:** {equip_ed['tag']}")
-                novo_nome = st.text_input("Marca / Modelo do Equipamento", value=equip_ed["equipamento"])
-                novos_btus = st.text_input("Potência (BTUs)", value=equip_ed["btus"])
-                novo_status = st.selectbox("Status de Instalação", ["Instalado", "Previsto"], index=0 if equip_ed["status"]=="Instalado" else 1)
-                
-                confirmar = st.form_submit_button("✅ Salvar Alterações")
-                
-                if confirmar:
-                    equip_ed["equipamento"] = novo_nome
-                    equip_ed["btus"] = novos_btus
-                    equip_ed["status"] = novo_status
-                    st.cache_data.clear()
-                    st.success(f"Equipamento {tag_codigo_ed} atualizado com sucesso!")
-                    st.rerun()
-    else:
-        st.info("Nenhum equipamento cadastrado.")
-
-# -----------------------------------------------------------------------------
-# 4. MÁSCARA DA ETIQUETA 5x5 cm INDIVIDUAL
-# -----------------------------------------------------------------------------
-elif opcao == "🖨️ Etiquetas 5x5 cm (Individual)" and senha_input == "admin":
-    st.header("🖨️ Pré-visualização de Etiqueta Individual 5x5 cm")
-    st.info("ℹ️ Visualização unitária com dimensões reais de 5x5 cm e QR Code legível.")
-    
-    base_url = "https://sistema-ser-consciente-fexfnfuwjkntnzwdwhknso.streamlit.app"
-    
-    lista_eq_qr = [e["tag"] + " - " + e["ambiente"] for e in st.session_state.equipamentos]
-    if lista_eq_qr:
-        tag_sel_qr = st.selectbox("Selecione o Equipamento:", lista_eq_qr)
-        tag_codigo = tag_sel_qr.split(" - ")[0]
-        equip_sel = next((e for e in st.session_state.equipamentos if e["tag"] == tag_codigo), None)
-        
-        if equip_sel:
-            link_equip = base_url + "/?tag=" + equip_sel['tag']
-            api_qr_url = "https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=" + link_equip
-            
-            html_etiqueta = '<div class="etiqueta-box"><div class="etiqueta-header">PMOC - SER CONSCIENTE</div><div style="font-size: 8px; line-height: 1.2;"><b>TAG:</b> ' + str(equip_sel['tag']) + '<br><b>Amb:</b> ' + str(equip_sel['ambiente']) + '<br><b>Equip:</b> ' + str(equip_sel['equipamento']) + '<br><b>Carga:</b> ' + str(equip_sel['btus']) + ' BTUs</div><div style="text-align: center; margin: 2px 0;"><img src="' + api_qr_url + '" width="55" height="55" style="border: 1px solid #ddd; padding: 1px; background: #fff;"></div><div style="text-align: center; font-size: 6.5px; color: #333; line-height: 1;">Eng. Alessandro Coelho<br>CREA: 238968-D | ART: MG20265436050</div></div>'
-            
-            st.markdown(html_etiqueta, unsafe_allow_html=True)
-            st.markdown("**Link Direto do QR Code:** `" + link_equip + "`")
-
-# -----------------------------------------------------------------------------
-# 5. LOTE A4 PARA GRÁFICA (GUILHOTINA / COM QUEBRA DE PÁGINA)
-# -----------------------------------------------------------------------------
-elif opcao == "📑 Lote A4 para Gráfica (Guilhotina)" and senha_input == "admin":
-    st.header("📑 Gerador de Lote A4 para Gráfica (Com Quebra de Página)")
-    st.info("ℹ️ Sistema otimizado com tamanho exato de 5x5 cm por etiqueta, grade de aproveitamento máximo em folha A4 e quebras de página automáticas.")
-    
-    todas_tags = [e["tag"] + " - " + e["ambiente"] for e in st.session_state.equipamentos]
-    
-    selecionar_todos = st.checkbox("Selecionar todos os equipamentos cadastrados", value=True)
-    
-    if selecionar_todos:
-        equipamentos_selecionados = todas_tags
-    else:
-        equipamentos_selecionados = st.multiselect("Selecione os equipamentos para o lote:", todas_tags, default=todas_tags[:6])
-    
-    if st.button("🚀 Gerar Grade de Impressão A4 com Quebra de Página"):
-        if not equipamentos_selecionados:
-            st.warning("Selecione pelo menos um equipamento.")
-        else:
-            st.success(f"Gerando lote com {len(equipamentos_selecionados)} etiquetas em dimensões reais 5x5 cm!")
-            st.markdown("---")
-            st.markdown("### 📄 Pré-visualização (Pronto para Imprimir / Salvar PDF)")
-            st.caption("Dica: No navegador, pressione `Ctrl + P` e escolha o destino **Salvar como PDF**. Cada bloco folha A4 possui quebra de página automática.")
-            
-            base_url = "https://sistema-ser-consciente-fexfnfuwjkntnzwdwhknso.streamlit.app"
-            
-            ETIQUETAS_POR_PAGINA = 12
-            chunks = [equipamentos_selecionados[i:i + ETIQUETAS_POR_PAGINA] for i in range(0, len(equipamentos_selecionados), ETIQUETAS_POR_PAGINA)]
-            
-            html_completo = ""
-            for pagina_idx, lote_pagina in enumerate(chunks):
-                html_completo += '<div class="folha-a4" style="background: white; width: 100%; max-width: 21cm; min-height: 29.7cm; padding: 1cm; margin: 0 auto 20px auto; border: 1px solid #ccc; box-sizing: border-box; page-break-after: always; break-after: page;">'
-                html_completo += f'<div style="text-align: center; font-size: 11px; font-weight: bold; margin-bottom: 10px; border-bottom: 1px solid #999; padding-bottom: 4px;">FOLHA A4 — LOTE PMOC (Página {pagina_idx+1} de {len(chunks)}) — CORTE GUILHOTINA</div>'
-                html_completo += '<div style="display: flex; flex-wrap: wrap; gap: 5px; justify-content: flex-start;">'
-                
-                for item_sel in lote_pagina:
-                    tag_cod = item_sel.split(" - ")[0]
-                    eq_obj = next((e for e in st.session_state.equipamentos if e["tag"] == tag_cod), None)
-                    
-                    if eq_obj:
-                        link_eq = base_url + "/?tag=" + eq_obj['tag']
-                        qr_url = "https://api.qrserver.com/v1/create-qr-code/?size=130x130&data=" + link_eq
-                        
-                        html_completo += (
-                            '<div class="etiqueta-box">'
-                            '<div class="etiqueta-header">PMOC - SER CONSCIENTE</div>'
-                            '<div style="font-size: 8px; line-height: 1.2;">'
-                            '<b>TAG:</b> ' + str(eq_obj['tag']) + '<br>'
-                            '<b>Amb:</b> ' + str(eq_obj['ambiente']) + '<br>'
-                            '<b>Equip:</b> ' + str(eq_obj['equipamento']) + '<br>'
-                            '<b>Carga:</b> ' + str(eq_obj['btus']) + ' BTUs'
-                            '</div>'
-                            '<div style="text-align: center; margin: 2px 0;">'
-                            '<img src="' + qr_url + '" width="55" height="55" style="border: 1px solid #ccc; padding: 1px; background: #fff;">'
-                            '</div>'
-                            '<div style="text-align: center; font-size: 6.5px; color: #333; line-height: 1;">'
-                            'Eng. Alessandro Coelho (CREA-MG 238968-D)<br>'
-                            '<b>ART:</b> MG20265436050'
-                            '</div>'
-                            '</div>'
-                        )
-                
-                html_completo += '</div></div>'
-            
-            st.markdown(html_completo, unsafe_allow_html=True)
-
-# -----------------------------------------------------------------------------
-# 6. DASHBOARD GERAL
-# -----------------------------------------------------------------------------
-elif opcao == "📊 Dashboard Geral" and senha_input == "admin":
-    st.header("📊 Painel Geral de Climatização")
-    total = len(st.session_state.equipamentos)
-    instalados = len([e for e in st.session_state.equipamentos if e["status"] == "Instalado"])
-    previstos = len([e for e in st.session_state.equipamentos if e["status"] == "Previsto"])
-    
-    col1, col2, col3 = st.columns(3)
-    col1.metric("Total de Aparelhos", total)
-    col2.metric("Instalados e Ativos", instalados)
-    col3.metric("Previstos / Futuros", previstos)
-    
-    st.markdown("---")
-    st.subheader("📋 Tabela Geral de Ativos")
-    df = pd.DataFrame(st.session_state.equipamentos)
-    st.dataframe(df, use_container_width=True)
-
-# -----------------------------------------------------------------------------
-# 7. RELATÓRIO FISCAL A4 COMPLETO
-# -----------------------------------------------------------------------------
-elif opcao == "📄 Relatório Fiscal A4" and senha_input in ["visa", "admin"]:
-    
-    col_logo, col_titulo = st.columns([1, 4])
-    with col_logo:
-        if logo_img:
-            st.image(logo_img, width=100)
-    with col_titulo:
-        st.markdown("<h2>INSTITUTO SER CONSCIENTE LTDA</h2>", unsafe_allow_html=True)
-        st.markdown("<h4>PLANO DE MANUTENÇÃO, OPERAÇÃO E CONTROLE - PMOC</h4>", unsafe_allow_html=True)
-        st.markdown("<b>Lei Federal nº 13.589/2018 | ART CREA-MG: MG20265436050</b>", unsafe_allow_html=True)
-
-    data_hoje_str = datetime.date.today().strftime('%d/%m/%Y')
-    st.markdown(f"**Data de Emissão:** {data_hoje_str}")
-    st.markdown(f"**Responsável Técnico:** Eng. Alessandro Coelho (CREA-MG 238968-D)")
-    st.markdown(f"**Administrador / Gestor:** Antônio Sérgio Silva Gomes")
-    st.markdown("---")
-    
-    st.markdown("### 📑 Relação Resumida dos Equipamentos Instalados")
-    instalados_df = [e for e in st.session_state.equipamentos if e["status"] == "Instalado"]
-    
-    dados_resumo = []
-    for eq in instalados_df:
-        hists_eq = [h for h in st.session_state.historico if h["tag"] == eq["tag"]]
-        ultima_data = hists_eq[-1]["data"] if hists_eq else "Sem registro"
-        
-        if hists_eq:
-            freq_ult = hists_eq[-1].get("periodicidade", "Semestral")
-        else:
-            freq_ult = "-"
-
-        dados_resumo.append({
-            "TAG": eq["tag"],
-            "Ambiente": eq["ambiente"],
-            "Equipamento": eq["equipamento"],
-            "BTUs": eq["btus"],
-            "Última Manutenção": ultima_data,
-            "Frequência": freq_ult,
-            "Qtd Registros": len(hists_eq)
-        })
-        
-    df_resumo = pd.DataFrame(dados_resumo)
-    st.table(df_resumo)
-    
-    st.markdown("---")
-    st.markdown("### 📖 Detalhamento Completo e Histórico de Manutenções")
-    
-    for eq in instalados_df:
-        st.markdown(f"#### 📍 Equipamento: {eq['ambiente']} (TAG: {eq['tag']})")
-        st.write(f"**Modelo:** {eq['equipamento']} | **Carga Térmica:** {eq['btus']} BTUs")
-        
-        hists_eq = [h for h in st.session_state.historico if h["tag"] == eq["tag"]]
-        if hists_eq:
-            for h in hists_eq:
-                freq_reg = h.get('periodicidade', 'Semestral')
-                st.write(f"- **Data da Manutenção:** {h['data']} ({freq_reg}) | **Técnico:** {h['tecnico']}")
-                
-                if "checklist" in h and h["checklist"]:
-                    st.markdown("  * **Itens Verificados:**")
-                    for k, v in h["checklist"].items():
-                        status_simbolo = "✔️" if v else "❌"
-                        st.markdown(f"    - `{status_simbolo}` {k}")
-                
-                if h["obs"]:
-                    st.write(f"  * **Observações:** {h['obs']}")
-                
-                c1, c2 = st.columns(2)
-                if h.get("foto_antes_bytes"):
-                    c1.image(h["foto_antes_bytes"], caption=f"Foto Antes - {h['data']}", width=250)
-                elif h.get("foto_antes"):
-                    c1.image(h["foto_antes"], caption=f"Foto Antes - {h['data']}", width=250)
-                    
-                if h.get("foto_depois_bytes"):
-                    c2.image(h["foto_depois_bytes"], caption=f"Foto Depois - {h['data']}", width=250)
-                elif h.get("foto_depois"):
-                    c2.image(h["foto_depois"], caption=f"Foto Depois - {h['data']}", width=250)
-        else:
-            st.write("*(Nenhuma manutenção registrada para este equipamento)*")
-        st.markdown("---")
+        {"tag": "CONS006", "ambiente": "Consultório 06", "equipamento": "Split Britania", "btus": "9000", "status": "

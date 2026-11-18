@@ -476,4 +476,216 @@ elif opcao == "🛠️ Registrar Manutenção" and senha_input_ativo == "admin":
                     "checklist": checklist_inputs,
                     "obs": obs,
                     "fotos_antes_bytes": lista_antes_bytes,
-                    "fotos
+                    "fotos_depois_bytes": lista_depois_bytes,
+                }
+
+                st.session_state.historico.append(novo_registro)
+                salvar_dados_disco(st.session_state.historico)
+                st.cache_data.clear()
+                st.success(f"✅ Manutenção registrada com sucesso!")
+    else:
+        st.info("Não há equipamentos instalados no momento.")
+
+elif opcao == "✏️ Editar Previstos" and senha_input_ativo == "admin":
+    st.header("✏️ Gerenciar e Atualizar Equipamentos")
+    lista_todos = [e["tag"] + " - " + e["ambiente"] + f" ({e['status']})" for e in st.session_state.equipamentos]
+
+    if lista_todos:
+        tag_sel_ed = st.selectbox("Selecione o Equipamento para Editar:", lista_todos)
+        tag_codigo_ed = tag_sel_ed.split(" - ")[0]
+        equip_ed = next((e for e in st.session_state.equipamentos if e["tag"] == tag_codigo_ed), None)
+
+        if equip_ed:
+            with st.form("form_edicao_geral"):
+                st.write(f"**Ambiente:** {equip_ed['ambiente']} | **TAG:** {equip_ed['tag']}")
+                novo_nome = st.text_input("Marca / Modelo do Equipamento", value=equip_ed["equipamento"])
+                novos_btus = st.text_input("Potência (BTUs)", value=equip_ed["btus"])
+                novo_status = st.selectbox("Status de Instalação", ["Instalado", "Previsto"], index=0 if equip_ed["status"] == "Instalado" else 1)
+
+                confirmar = st.form_submit_button("✅ Salvar Alterações")
+
+                if confirmar:
+                    equip_ed["equipamento"] = novo_nome
+                    equip_ed["btus"] = novos_btus
+                    equip_ed["status"] = novo_status
+                    st.cache_data.clear()
+                    st.success(f"Equipamento {tag_codigo_ed} atualizado com sucesso!")
+                    st.rerun()
+
+elif opcao == "🖨️ Etiquetas 5x5 cm (Individual)" and senha_input_ativo == "admin":
+    st.header("🖨️ Pré-visualização de Etiqueta Individual 5x5 cm")
+    base_url = "https://sistema-ser-consciente-fexfnfuwjkntnzwdwhknso.streamlit.app"
+    lista_eq_qr = [e["tag"] + " - " + e["ambiente"] for e in st.session_state.equipamentos]
+    if lista_eq_qr:
+        tag_sel_qr = st.selectbox("Selecione o Equipamento:", lista_eq_qr)
+        tag_codigo = tag_sel_qr.split(" - ")[0]
+        equip_sel = next((e for e in st.session_state.equipamentos if e["tag"] == tag_codigo), None)
+
+        if equip_sel:
+            link_equip = base_url + "/?tag=" + equip_sel["tag"]
+            api_qr_url = "https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=" + link_equip
+
+            html_etiqueta = f'<div class="etiqueta-box"><div class="etiqueta-header">PMOC - SER CONSCIENTE</div><div style="font-size: 8px; line-height: 1.1;"><b>TAG:</b> {equip_sel["tag"]}<br><b>Amb:</b> {equip_sel["ambiente"]}<br><b>Equip:</b> {equip_sel["equipamento"]}<br><b>Carga:</b> {equip_sel["btus"]} BTUs</div><div style="text-align: center; margin: 1px 0;"><img src="{api_qr_url}" width="65" height="65" style="border: 1px solid #ddd; padding: 1px; background: #fff;"></div><div style="text-align: center; font-size: 6px; color: #000; font-weight: bold; line-height: 1;">Eng. Alessandro Coelho (CREA-MG 238968-D)<br>ART: MG20265436050</div></div>'
+
+            st.markdown(html_etiqueta, unsafe_allow_html=True)
+
+elif opcao == "📑 Lote A4 para Gráfica (Guilhotina)" and senha_input_ativo == "admin":
+    st.header("📑 Gerador de Arquivo PDF Pronto para Gráfica (5x5 cm)")
+    todas_tags = [e["tag"] + " - " + e["ambiente"] for e in st.session_state.equipamentos]
+    selecionar_todos = st.checkbox("Selecionar todos os equipamentos cadastrados", value=True)
+
+    if selecionar_todos:
+        equipamentos_selecionados = todas_tags
+    else:
+        equipamentos_selecionados = st.multiselect("Selecione os equipamentos:", todas_tags, default=todas_tags[:6])
+
+    if st.button("🚀 Gerar PDF Oficial para Download"):
+        if not equipamentos_selecionados:
+            st.warning("Selecione pelo menos um equipamento.")
+        else:
+            with st.spinner("Gerando arquivo PDF..."):
+                try:
+                    pdf_buffer = io.BytesIO()
+                    doc = SimpleDocTemplate(pdf_buffer, pagesize=A4, leftMargin=1.5*cm, rightMargin=1.5*cm, topMargin=1.0*cm, bottomMargin=1.0*cm)
+                    story = []
+                    base_url = "https://sistema-ser-consciente-fexfnfuwjkntnzwdwhknso.streamlit.app"
+                    celulas_pagina = []
+
+                    for idx, item_sel in enumerate(equipamentos_selecionados):
+                        tag_cod = item_sel.split(" - ")[0]
+                        eq_obj = next((e for e in st.session_state.equipamentos if e["tag"] == tag_cod), None)
+                        if eq_obj:
+                            link_eq = base_url + "/?tag=" + eq_obj["tag"]
+                            qr_url = "https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=" + link_eq
+                            qr_img_obj = None
+                            try:
+                                req = urllib.request.urlopen(qr_url, timeout=3)
+                                qr_bytes = req.read()
+                                qr_io = io.BytesIO(qr_bytes)
+                                qr_img_obj = RLImage(qr_io, width=1.6*cm, height=1.6*cm)
+                            except Exception:
+                                pass
+
+                            estilo_header = ParagraphStyle("EtqHeader", fontName="Helvetica-Bold", fontSize=7.5, leading=9, textColor=colors.whitesmoke, alignment=1)
+                            estilo_texto = ParagraphStyle("EtqText", fontName="Helvetica", fontSize=6.0, leading=7.5, textColor=colors.black, alignment=0)
+                            estilo_footer = ParagraphStyle("EtqFooter", fontName="Helvetica-Bold", fontSize=5.5, leading=7, textColor=colors.black, alignment=1)
+
+                            t_header = Table([[Paragraph("<b>PMOC - SER CONSCIENTE</b>", estilo_header)]], colWidths=[4.6*cm])
+                            t_header.setStyle(TableStyle([("BACKGROUND", (0, 0), (-1, -1), colors.black), ("ALIGN", (0, 0), (-1, -1), "CENTER"), ("TOPPADDING", (0, 0), (-1, -1), 1), ("BOTTOMPADDING", (0, 0), (-1, -1), 1)]))
+
+                            txt_dados = Paragraph(f"<b>TAG:</b> {eq_obj['tag']}<br/><b>Amb:</b> {eq_obj['ambiente']}<br/><b>Equip:</b> {eq_obj['equipamento']}<br/><b>Carga:</b> {eq_obj['btus']} BTUs", estilo_texto)
+                            txt_rodape = Paragraph("Eng. Alessandro Coelho (CREA-MG 238968-D)<br/><b>ART:</b> MG20265436050", estilo_footer)
+
+                            conteudo_etiqueta = [t_header, Spacer(1, 1), txt_dados, Spacer(1, 0.5)]
+                            if qr_img_obj:
+                                conteudo_etiqueta.append(qr_img_obj)
+                            conteudo_etiqueta.append(Spacer(1, 0.5))
+                            conteudo_etiqueta.append(txt_rodape)
+
+                            t_etiqueta = Table([[conteudo_etiqueta]], colWidths=[5.0*cm], rowHeights=[5.0*cm])
+                            t_etiqueta.setStyle(TableStyle([("BACKGROUND", (0, 0), (-1, -1), colors.white), ("BOX", (0, 0), (-1, -1), 1, colors.black), ("VALIGN", (0, 0), (-1, -1), "TOP"), ("ALIGN", (0, 0), (-1, -1), "CENTER"), ("TOPPADDING", (0, 0), (-1, -1), 2), ("BOTTOMPADDING", (0, 0), (-1, -1), 2), ("LEFTPADDING", (0, 0), (-1, -1), 2), ("RIGHTPADDING", (0, 0), (-1, -1), 2)]))
+
+                            celulas_pagina.append(t_etiqueta)
+
+                            if len(celulas_pagina) == 15 or (idx == len(equipamentos_selecionados) - 1):
+                                linhas_tabela = []
+                                linha_atual = []
+                                for cell in celulas_pagina:
+                                    linha_atual.append(cell)
+                                    if len(linha_atual) == 3:
+                                        linhas_tabela.append(linha_atual)
+                                        linha_atual = []
+                                if linha_atual:
+                                    while len(linha_atual) < 3:
+                                        linha_atual.append("")
+                                    linhas_tabela.append(linha_atual)
+
+                                t_pagina = Table(linhas_tabela, colWidths=[5.0*cm, 5.0*cm, 5.0*cm], rowHeights=[5.0*cm] * len(linhas_tabela))
+                                t_pagina.setStyle(TableStyle([("VALIGN", (0, 0), (-1, -1), "MIDDLE"), ("ALIGN", (0, 0), (-1, -1), "CENTER"), ("LEFTPADDING", (0, 0), (-1, -1), 0), ("RIGHTPADDING", (0, 0), (-1, -1), 0), ("TOPPADDING", (0, 0), (-1, -1), 0), ("BOTTOMPADDING", (0, 0), (-1, -1), 0)]))
+                                story.append(t_pagina)
+                                if idx < len(equipamentos_selecionados) - 1:
+                                    story.append(PageBreak())
+                                celulas_pagina = []
+
+                    doc.build(story)
+                    pdf_buffer.seek(0)
+                    st.success("✅ Arquivo PDF gerado com sucesso!")
+                    st.download_button(label="📥 Baixar PDF Pronto para a Gráfica", data=pdf_buffer, file_name="etiquetas_pmoc_5x5cm_grafica.pdf", mime="application/pdf")
+                except Exception as e:
+                    st.error(f"Erro ao gerar PDF: {e}")
+
+elif opcao == "📊 Dashboard Geral" and senha_input_ativo == "admin":
+    st.header("📊 Painel Geral de Climatização")
+    total = len(st.session_state.equipamentos)
+    instalados = len([e for e in st.session_state.equipamentos if e["status"] == "Instalado"])
+    previstos = len([e for e in st.session_state.equipamentos if e["status"] == "Previsto"])
+
+    col1, col2, col3 = st.columns(3)
+    col1.metric("Total de Aparelhos", total)
+    col2.metric("Instalados e Ativos", instalados)
+    col3.metric("Previstos / Futuros", previstos)
+    st.markdown("---")
+    df = pd.DataFrame(st.session_state.equipamentos)
+    st.dataframe(df, use_container_width=True)
+
+elif opcao == "📄 Relatório Fiscal A4" and senha_input_ativo in ["visa", "admin"]:
+    col_logo, col_titulo = st.columns([1, 4])
+    with col_logo:
+        if logo_img is not None:
+            try:
+                st.image(logo_img, width=120)
+            except Exception:
+                pass
+    with col_titulo:
+        st.markdown("<h2>INSTITUTO SER CONSCIENTE LTDA</h2>", unsafe_allow_html=True)
+        st.markdown("<h4>PLANO DE MANUTENÇÃO, OPERAÇÃO E CONTROLE - PMOC</h4>", unsafe_allow_html=True)
+        st.markdown("<b>Lei Federal nº 13.589/2018 | ART CREA-MG: MG20265436050</b>", unsafe_allow_html=True)
+
+    data_hoje_str = datetime.date.today().strftime("%d/%m/%Y")
+    st.markdown(f"**Data de Emissão:** {data_hoje_str}")
+    st.markdown("**Responsável Técnico:** Eng. Alessandro Coelho (CREA-MG 238968-D)")
+    st.markdown("**Administrador / Gestor:** Antônio Sérgio Silva Gomes")
+    st.markdown("---")
+
+    st.markdown("### 📑 Relação Resumida dos Equipamentos Instalados")
+    instalados_df = [e for e in st.session_state.equipamentos if e["status"] == "Instalado"] if "equipamentos" in st.session_state else []
+
+    dados_resumo = []
+    for eq in instalados_df:
+        hists_eq = [h for h in st.session_state.historico if h["tag"] == eq["tag"]]
+        ultima_data = hists_eq[-1]["data"] if hists_eq else "Sem registro"
+        freq_ult = hists_eq[-1].get("periodicidade", "Semestral") if hists_eq else "-"
+        dados_resumo.append({
+            "TAG": eq["tag"],
+            "Ambiente": eq["ambiente"],
+            "Equipamento": eq["equipamento"],
+            "BTUs": eq["btus"],
+            "Última Manutenção": ultima_data,
+            "Frequência": freq_ult,
+            "Qtd Registros": len(hists_eq),
+        })
+
+    df_resumo = pd.DataFrame(dados_resumo)
+    st.table(df_resumo)
+    st.markdown("---")
+    st.markdown("### 📖 Detalhamento Completo e Histórico de Manutenções")
+
+    for eq in instalados_df:
+        st.markdown(f"#### 📍 Equipamento: {eq['ambiente']} (TAG: {eq['tag']})")
+        st.write(f"**Modelo:** {eq['equipamento']} | **Carga Térmica:** {eq['btus']} BTUs")
+        hists_eq = [h for h in st.session_state.historico if h["tag"] == eq["tag"]]
+        if hists_eq:
+            for h in hists_eq:
+                freq_reg = h.get("periodicidade", "Semestral")
+                st.write(f"- **Data da Manutenção:** {h['data']} ({freq_reg}) | **Técnico:** {h['tecnico']}")
+                if "checklist" in h and h["checklist"]:
+                    st.markdown("  * **Itens Verificados:**")
+                    for k, v in h["checklist"].items():
+                        status_simbolo = "✔️" if v else "❌"
+                        st.markdown(f"    - `{status_simbolo}` {k}")
+                if h["obs"]:
+                    st.write(f"  * **Observações:** {h['obs']}")
+                exibir_fotos_registro(h, largura_relatorio=250)
+        else:
+            st.write("*(Nenhuma manutenção registrada para este equipamento)*")
+        st.markdown("---")

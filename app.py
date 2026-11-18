@@ -546,7 +546,8 @@ elif opcao == "📑 Lote A4 para Gráfica (Guilhotina)" and senha_input_ativo ==
             with st.spinner("Gerando arquivo PDF..."):
                 try:
                     pdf_buffer = io.BytesIO()
-                    doc = SimpleDocTemplate(pdf_buffer, pagesize=A4, leftMargin=1.5*cm, rightMargin=1.5*cm, topMargin=1.5*cm, bottomMargin=1.5*cm)
+                    # Margens exatas de 1.5cm para centralizar perfeitamente 3 colunas de 5cm na A4 (1.5 + 5 + 5 + 5 + 1.5 = 21cm)
+                    doc = SimpleDocTemplate(pdf_buffer, pagesize=A4, leftMargin=1.5*cm, rightMargin=1.5*cm, topMargin=1.0*cm, bottomMargin=1.0*cm)
                     story = []
                     base_url = "https://sistema-ser-consciente-fexfnfuwjkntnzwdwhknso.streamlit.app"
                     celulas_pagina = []
@@ -562,7 +563,7 @@ elif opcao == "📑 Lote A4 para Gráfica (Guilhotina)" and senha_input_ativo ==
                                 req = urllib.request.urlopen(qr_url, timeout=3)
                                 qr_bytes = req.read()
                                 qr_io = io.BytesIO(qr_bytes)
-                                qr_img_obj = RLImage(qr_io, width=1.4*cm, height=1.4*cm)
+                                qr_img_obj = RLImage(qr_io, width=1.3*cm, height=1.3*cm)
                             except Exception:
                                 pass
 
@@ -576,14 +577,15 @@ elif opcao == "📑 Lote A4 para Gráfica (Guilhotina)" and senha_input_ativo ==
                             txt_dados = Paragraph(f"<b>TAG:</b> {eq_obj['tag']}<br/><b>Amb:</b> {eq_obj['ambiente']}<br/><b>Equip:</b> {eq_obj['equipamento']}<br/><b>Carga:</b> {eq_obj['btus']} BTUs", estilo_texto)
                             txt_rodape = Paragraph("Eng. Alessandro Coelho (CREA-MG 238968-D)<br/><b>ART:</b> MG20265436050", estilo_footer)
 
-                            conteudo_etiqueta = [t_header, Spacer(1, 2), txt_dados, Spacer(1, 2)]
+                            conteudo_etiqueta = [t_header, Spacer(1, 2), txt_dados, Spacer(1, 1)]
                             if qr_img_obj:
                                 conteudo_etiqueta.append(qr_img_obj)
-                            conteudo_etiqueta.append(Spacer(1, 2))
+                            conteudo_etiqueta.append(Spacer(1, 1))
                             conteudo_etiqueta.append(txt_rodape)
 
+                            # Dimensões exatas de 5.0 x 5.0 cm reais para corte na guilhotina
                             t_etiqueta = Table([[conteudo_etiqueta]], colWidths=[5.0*cm], rowHeights=[5.0*cm])
-                            t_etiqueta.setStyle(TableStyle([("BACKGROUND", (0, 0), (-1, -1), colors.white), ("BOX", (0, 0), (-1, -1), 1, colors.black), ("VALIGN", (0, 0), (-1, -1), "TOP"), ("ALIGN", (0, 0), (-1, -1), "CENTER"), ("TOPPADDING", (0, 0), (-1, -1), 4), ("BOTTOMPADDING", (0, 0), (-1, -1), 4), ("LEFTPADDING", (0, 0), (-1, -1), 4), ("RIGHTPADDING", (0, 0), (-1, -1), 4)]))
+                            t_etiqueta.setStyle(TableStyle([("BACKGROUND", (0, 0), (-1, -1), colors.white), ("BOX", (0, 0), (-1, -1), 1, colors.black), ("VALIGN", (0, 0), (-1, -1), "TOP"), ("ALIGN", (0, 0), (-1, -1), "CENTER"), ("TOPPADDING", (0, 0), (-1, -1), 3), ("BOTTOMPADDING", (0, 0), (-1, -1), 3), ("LEFTPADDING", (0, 0), (-1, -1), 3), ("RIGHTPADDING", (0, 0), (-1, -1), 3)]))
 
                             celulas_pagina.append(t_etiqueta)
 
@@ -600,7 +602,7 @@ elif opcao == "📑 Lote A4 para Gráfica (Guilhotina)" and senha_input_ativo ==
                                         linha_atual.append("")
                                     linhas_tabela.append(linha_atual)
 
-                                t_pagina = Table(linhas_tabela, colWidths=[5.6*cm, 5.6*cm, 5.6*cm], rowHeights=[5.3*cm] * len(linhas_tabela))
+                                t_pagina = Table(linhas_tabela, colWidths=[5.0*cm, 5.0*cm, 5.0*cm], rowHeights=[5.0*cm] * len(linhas_tabela))
                                 t_pagina.setStyle(TableStyle([("VALIGN", (0, 0), (-1, -1), "MIDDLE"), ("ALIGN", (0, 0), (-1, -1), "CENTER"), ("LEFTPADDING", (0, 0), (-1, -1), 0), ("RIGHTPADDING", (0, 0), (-1, -1), 0), ("TOPPADDING", (0, 0), (-1, -1), 0), ("BOTTOMPADDING", (0, 0), (-1, -1), 0)]))
                                 story.append(t_pagina)
                                 if idx < len(equipamentos_selecionados) - 1:
@@ -644,4 +646,48 @@ elif opcao == "📄 Relatório Fiscal A4" and senha_input_ativo in ["visa", "adm
     data_hoje_str = datetime.date.today().strftime("%d/%m/%Y")
     st.markdown(f"**Data de Emissão:** {data_hoje_str}")
     st.markdown("**Responsável Técnico:** Eng. Alessandro Coelho (CREA-MG 238968-D)")
-    st
+    st.markdown("**Administrador / Gestor:** Antônio Sérgio Silva Gomes")
+    st.markdown("---")
+
+    st.markdown("### 📑 Relação Resumida dos Equipamentos Instalados")
+    instalados_df = [e for e in st.session_state.equipamentos if e["status"] == "Instalado"] if "equipamentos" in st.session_state else []
+
+    dados_resumo = []
+    for eq in instalados_df:
+        hists_eq = [h for h in st.session_state.historico if h["tag"] == eq["tag"]]
+        ultima_data = hists_eq[-1]["data"] if hists_eq else "Sem registro"
+        freq_ult = hists_eq[-1].get("periodicidade", "Semestral") if hists_eq else "-"
+        dados_resumo.append({
+            "TAG": eq["tag"],
+            "Ambiente": eq["ambiente"],
+            "Equipamento": eq["equipamento"],
+            "BTUs": eq["btus"],
+            "Última Manutenção": ultima_data,
+            "Frequência": freq_ult,
+            "Qtd Registros": len(hists_eq),
+        })
+
+    df_resumo = pd.DataFrame(dados_resumo)
+    st.table(df_resumo)
+    st.markdown("---")
+    st.markdown("### 📖 Detalhamento Completo e Histórico de Manutenções")
+
+    for eq in instalados_df:
+        st.markdown(f"#### 📍 Equipamento: {eq['ambiente']} (TAG: {eq['tag']})")
+        st.write(f"**Modelo:** {eq['equipamento']} | **Carga Térmica:** {eq['btus']} BTUs")
+        hists_eq = [h for h in st.session_state.historico if h["tag"] == eq["tag"]]
+        if hists_eq:
+            for h in hists_eq:
+                freq_reg = h.get("periodicidade", "Semestral")
+                st.write(f"- **Data da Manutenção:** {h['data']} ({freq_reg}) | **Técnico:** {h['tecnico']}")
+                if "checklist" in h and h["checklist"]:
+                    st.markdown("  * **Itens Verificados:**")
+                    for k, v in h["checklist"].items():
+                        status_simbolo = "✔️" if v else "❌"
+                        st.markdown(f"    - `{status_simbolo}` {k}")
+                if h["obs"]:
+                    st.write(f"  * **Observações:** {h['obs']}")
+                exibir_fotos_registro(h, largura_relatorio=250)
+        else:
+            st.write("*(Nenhuma manutenção registrada para este equipamento)*")
+        st.markdown("---")

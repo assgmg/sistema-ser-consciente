@@ -523,4 +523,9 @@ elif opcao == "✏️ Editar Previstos":
                     if confirmar:
                         equip_ed["equipamento"] = novo_nome
                         equip_ed["btus"] = novos_btus
-                        equip_ed["status"]
+                        equip_ed["status"] = novo_status
+                        st.cache_data.clear()
+                        st.success(f"Equipamento {tag_codigo_ed} atualizado com sucesso!")
+                        st.rerun()
+
+elif opcao == "🖨️ Etiquetas 5x

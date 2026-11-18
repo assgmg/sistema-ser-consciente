@@ -525,7 +525,7 @@ elif opcao == "🖨️ Etiquetas 5x5 cm (Individual)" and senha_input_ativo == "
             link_equip = base_url + "/?tag=" + equip_sel["tag"]
             api_qr_url = "https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=" + link_equip
 
-            html_etiqueta = f'<div class="etiqueta-box"><div class="etiqueta-header">PMOC - SER CONSCIENTE</div><div style="font-size: 8px; line-height: 1.2;"><b>TAG:</b> {equip_sel["tag"]}<br><b>Amb:</b> {equip_sel["ambiente"]}<br><b>Equip:</b> {equip_sel["equipamento"]}<br><b>Carga:</b> {equip_sel["btus"]} BTUs</div><div style="text-align: center; margin: 2px 0;"><img src="{api_qr_url}" width="55" height="55" style="border: 1px solid #ddd; padding: 1px; background: #fff;"></div><div style="text-align: center; font-size: 6.5px; color: #333; line-height: 1;">Eng. Alessandro Coelho<br>CREA: 238968-D | ART: MG20265436050</div></div>'
+            html_etiqueta = f'<div class="etiqueta-box"><div class="etiqueta-header">PMOC - SER CONSCIENTE</div><div style="font-size: 8px; line-height: 1.2;"><b>TAG:</b> {equip_sel["tag"]}<br><b>Amb:</b> {equip_sel["ambiente"]}<br><b>Equip:</b> {equip_sel["equipamento"]}<br><b>Carga:</b> {equip_sel["btus"]} BTUs</div><div style="text-align: center; margin: 2px 0;"><img src="{api_qr_url}" width="55" height="55" style="border: 1px solid #ddd; padding: 1px; background: #fff;"></div><div style="text-align: center; font-size: 6.5px; color: #000; font-weight: bold; line-height: 1;">Eng. Alessandro Coelho<br>CREA: 238968-D | ART: MG20265436050</div></div>'
 
             st.markdown(html_etiqueta, unsafe_allow_html=True)
 
@@ -546,7 +546,6 @@ elif opcao == "📑 Lote A4 para Gráfica (Guilhotina)" and senha_input_ativo ==
             with st.spinner("Gerando arquivo PDF..."):
                 try:
                     pdf_buffer = io.BytesIO()
-                    # Margens exatas de 1.5cm para centralizar perfeitamente 3 colunas de 5cm na A4 (1.5 + 5 + 5 + 5 + 1.5 = 21cm)
                     doc = SimpleDocTemplate(pdf_buffer, pagesize=A4, leftMargin=1.5*cm, rightMargin=1.5*cm, topMargin=1.0*cm, bottomMargin=1.0*cm)
                     story = []
                     base_url = "https://sistema-ser-consciente-fexfnfuwjkntnzwdwhknso.streamlit.app"
@@ -563,13 +562,14 @@ elif opcao == "📑 Lote A4 para Gráfica (Guilhotina)" and senha_input_ativo ==
                                 req = urllib.request.urlopen(qr_url, timeout=3)
                                 qr_bytes = req.read()
                                 qr_io = io.BytesIO(qr_bytes)
-                                qr_img_obj = RLImage(qr_io, width=1.3*cm, height=1.3*cm)
+                                qr_img_obj = RLImage(qr_io, width=1.2*cm, height=1.2*cm)
                             except Exception:
                                 pass
 
                             estilo_header = ParagraphStyle("EtqHeader", fontName="Helvetica-Bold", fontSize=7.5, leading=9, textColor=colors.whitesmoke, alignment=1)
                             estilo_texto = ParagraphStyle("EtqText", fontName="Helvetica", fontSize=6.5, leading=8, textColor=colors.black, alignment=0)
-                            estilo_footer = ParagraphStyle("EtqFooter", fontName="Helvetica", fontSize=5.5, leading=7, textColor=colors.darkgrey, alignment=1)
+                            # Rodapé ajustado para preto forte, tamanho legível e negrito
+                            estilo_footer = ParagraphStyle("EtqFooter", fontName="Helvetica-Bold", fontSize=6.0, leading=7.5, textColor=colors.black, alignment=1)
 
                             t_header = Table([[Paragraph("<b>PMOC - SER CONSCIENTE</b>", estilo_header)]], colWidths=[4.6*cm])
                             t_header.setStyle(TableStyle([("BACKGROUND", (0, 0), (-1, -1), colors.black), ("ALIGN", (0, 0), (-1, -1), "CENTER"), ("TOPPADDING", (0, 0), (-1, -1), 2), ("BOTTOMPADDING", (0, 0), (-1, -1), 2)]))
@@ -577,13 +577,12 @@ elif opcao == "📑 Lote A4 para Gráfica (Guilhotina)" and senha_input_ativo ==
                             txt_dados = Paragraph(f"<b>TAG:</b> {eq_obj['tag']}<br/><b>Amb:</b> {eq_obj['ambiente']}<br/><b>Equip:</b> {eq_obj['equipamento']}<br/><b>Carga:</b> {eq_obj['btus']} BTUs", estilo_texto)
                             txt_rodape = Paragraph("Eng. Alessandro Coelho (CREA-MG 238968-D)<br/><b>ART:</b> MG20265436050", estilo_footer)
 
-                            conteudo_etiqueta = [t_header, Spacer(1, 2), txt_dados, Spacer(1, 1)]
+                            conteudo_etiqueta = [t_header, Spacer(1, 1), txt_dados, Spacer(1, 1)]
                             if qr_img_obj:
                                 conteudo_etiqueta.append(qr_img_obj)
                             conteudo_etiqueta.append(Spacer(1, 1))
                             conteudo_etiqueta.append(txt_rodape)
 
-                            # Dimensões exatas de 5.0 x 5.0 cm reais para corte na guilhotina
                             t_etiqueta = Table([[conteudo_etiqueta]], colWidths=[5.0*cm], rowHeights=[5.0*cm])
                             t_etiqueta.setStyle(TableStyle([("BACKGROUND", (0, 0), (-1, -1), colors.white), ("BOX", (0, 0), (-1, -1), 1, colors.black), ("VALIGN", (0, 0), (-1, -1), "TOP"), ("ALIGN", (0, 0), (-1, -1), "CENTER"), ("TOPPADDING", (0, 0), (-1, -1), 3), ("BOTTOMPADDING", (0, 0), (-1, -1), 3), ("LEFTPADDING", (0, 0), (-1, -1), 3), ("RIGHTPADDING", (0, 0), (-1, -1), 3)]))
 

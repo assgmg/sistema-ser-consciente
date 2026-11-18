@@ -528,4 +528,211 @@ elif opcao == "✏️ Editar Previstos":
                         st.success(f"Equipamento {tag_codigo_ed} atualizado com sucesso!")
                         st.rerun()
 
-elif opcao == "🖨️ Etiquetas 5x
+elif opcao == "🖨️ Etiquetas 5x5 cm (Individual)":
+    st.header("🖨️ Pré-visualização de Etiqueta Individual 5x5 cm")
+    base_url = "https://sistema-ser-consciente-fexfnfuwjkntnzwdwhknso.streamlit.app"
+    lista_eq_qr = [e["tag"] + " - " + e["ambiente"] for e in st.session_state.equipamentos]
+    if lista_eq_qr:
+        tag_sel_qr = st.selectbox("Selecione o Equipamento:", lista_eq_qr)
+        tag_codigo = tag_sel_qr.split(" - ")[0]
+        equip_sel = next((e for e in st.session_state.equipamentos if e["tag"] == tag_codigo), None)
+
+        if equip_sel:
+            link_equip = base_url + "/?tag=" + equip_sel["tag"]
+            api_qr_url = "https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=" + link_equip
+
+            html_etiqueta = f'<div class="etiqueta-box"><div class="etiqueta-header">PMOC - SER CONSCIENTE</div><div style="font-size: 8px; line-height: 1.1;"><b>TAG:</b> {equip_sel["tag"]}<br><b>Amb:</b> {equip_sel["ambiente"]}<br><b>Equip:</b> {equip_sel["equipamento"]}<br><b>Carga:</b> {equip_sel["btus"]} BTUs</div><div style="text-align: center; margin: 1px 0;"><img src="{api_qr_url}" width="65" height="65" style="border: 1px solid #ddd; padding: 1px; background: #fff;"></div><div style="text-align: center; font-size: 6px; color: #000; font-weight: bold; line-height: 1;">Eng. Alessandro Coelho (CREA-MG 238968-D)<br>ART: MG20265436050</div></div>'
+
+            st.markdown(html_etiqueta, unsafe_allow_html=True)
+
+elif opcao == "📑 Lote A4 para Gráfica (Guilhotina)":
+    st.header("📑 Gerador de Arquivo PDF Pronto para Gráfica (5x5 cm)")
+    todas_tags = [e["tag"] + " - " + e["ambiente"] for e in st.session_state.equipamentos]
+    selecionar_todos = st.checkbox("Selecionar todos os equipamentos cadastrados", value=True)
+
+    if selecionar_todos:
+        equipamentos_selecionados = todas_tags
+    else:
+        equipamentos_selecionados = st.multiselect("Selecione os equipamentos:", todas_tags, default=todas_tags[:6])
+
+    if st.button("🚀 Gerar PDF Oficial para Download"):
+        if not equipamentos_selecionados:
+            st.warning("Selecione pelo menos um equipamento.")
+        else:
+            with st.spinner("Gerando arquivo PDF..."):
+                try:
+                    pdf_buffer = io.BytesIO()
+                    doc = SimpleDocTemplate(pdf_buffer, pagesize=A4, leftMargin=1.5*cm, rightMargin=1.5*cm, topMargin=1.0*cm, bottomMargin=1.0*cm)
+                    story = []
+                    base_url = "https://sistema-ser-consciente-fexfnfuwjkntnzwdwhknso.streamlit.app"
+                    celulas_pagina = []
+
+                    for idx, item_sel in enumerate(equipamentos_selecionados):
+                        tag_cod = item_sel.split(" - ")[0]
+                        eq_obj = next((e for e in st.session_state.equipamentos if e["tag"] == tag_cod), None)
+                        if eq_obj:
+                            link_eq = base_url + "/?tag=" + eq_obj["tag"]
+                            qr_url = "https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=" + link_eq
+                            qr_img_obj = None
+                            try:
+                                req = urllib.request.urlopen(qr_url, timeout=3)
+                                qr_bytes = req.read()
+                                qr_io = io.BytesIO(qr_bytes)
+                                qr_img_obj = RLImage(qr_io, width=1.6*cm, height=1.6*cm)
+                            except Exception:
+                                pass
+
+                            estilo_header = ParagraphStyle("EtqHeader", fontName="Helvetica-Bold", fontSize=7.5, leading=9, textColor=colors.whitesmoke, alignment=1)
+                            estilo_texto = ParagraphStyle("EtqText", fontName="Helvetica", fontSize=6.0, leading=7.5, textColor=colors.black, alignment=0)
+                            estilo_footer = ParagraphStyle("EtqFooter", fontName="Helvetica-Bold", fontSize=5.5, leading=7, textColor=colors.black, alignment=1)
+
+                            t_header = Table([[Paragraph("<b>PMOC - SER CONSCIENTE</b>", estilo_header)]], colWidths=[4.6*cm])
+                            t_header.setStyle(TableStyle([("BACKGROUND", (0, 0), (-1, -1), colors.black), ("ALIGN", (0, 0), (-1, -1), "CENTER"), ("TOPPADDING", (0, 0), (-1, -1), 1), ("BOTTOMPADDING", (0, 0), (-1, -1), 1)]))
+
+                            txt_dados = Paragraph(f"<b>TAG:</b> {eq_obj['tag']}<br/><b>Amb:</b> {eq_obj['ambiente']}<br/><b>Equip:</b> {eq_obj['equipamento']}<br/><b>Carga:</b> {eq_obj['btus']} BTUs", estilo_texto)
+                            txt_rodape = Paragraph("Eng. Alessandro Coelho (CREA-MG 238968-D)<br/><b>ART:</b> MG20265436050", estilo_footer)
+
+                            conteudo_etiqueta = [t_header, Spacer(1, 1), txt_dados, Spacer(1, 0.5)]
+                            if qr_img_obj:
+                                conteudo_etiqueta.append(qr_img_obj)
+                            conteudo_etiqueta.append(Spacer(1, 0.5))
+                            conteudo_etiqueta.append(txt_rodape)
+
+                            t_etiqueta = Table([[conteudo_etiqueta]], colWidths=[5.0*cm], rowHeights=[5.0*cm])
+                            t_etiqueta.setStyle(TableStyle([("BACKGROUND", (0, 0), (-1, -1), colors.white), ("BOX", (0, 0), (-1, -1), 1, colors.black), ("VALIGN", (0, 0), (-1, -1), "TOP"), ("ALIGN", (0, 0), (-1, -1), "CENTER"), ("TOPPADDING", (0, 0), (-1, -1), 2), ("BOTTOMPADDING", (0, 0), (-1, -1), 2), ("LEFTPADDING", (0, 0), (-1, -1), 2), ("RIGHTPADDING", (0, 0), (-1, -1), 2)]))
+
+                            celulas_pagina.append(t_etiqueta)
+
+                            if len(celulas_pagina) == 15 or (idx == len(equipamentos_selecionados) - 1):
+                                linhas_tabela = []
+                                linha_atual = []
+                                for cell in celulas_pagina:
+                                    linha_atual.append(cell)
+                                    if len(linha_atual) == 3:
+                                        linhas_tabela.append(linha_atual)
+                                        linha_atual = []
+                                if linha_atual:
+                                    while len(linha_atual) < 3:
+                                        linha_atual.append("")
+                                    linhas_tabela.append(linha_atual)
+
+                                t_pagina = Table(linhas_tabela, colWidths=[5.0*cm, 5.0*cm, 5.0*cm], rowHeights=[5.0*cm] * len(linhas_tabela))
+                                t_pagina.setStyle(TableStyle([("VALIGN", (0, 0), (-1, -1), "MIDDLE"), ("ALIGN", (0, 0), (-1, -1), "CENTER"), ("LEFTPADDING", (0, 0), (-1, -1), 0), ("RIGHTPADDING", (0, 0), (-1, -1), 0), ("TOPPADDING", (0, 0), (-1, -1), 0), ("BOTTOMPADDING", (0, 0), (-1, -1), 0)]))
+                                story.append(t_pagina)
+                                if idx < len(equipamentos_selecionados) - 1:
+                                    story.append(PageBreak())
+                                celulas_pagina = []
+
+                    doc.build(story)
+                    pdf_buffer.seek(0)
+                    st.success("✅ Arquivo PDF gerado com sucesso!")
+                    st.download_button(label="📥 Baixar PDF Pronto para a Gráfica", data=pdf_buffer, file_name="etiquetas_pmoc_5x5cm_grafica.pdf", mime="application/pdf")
+                except Exception as e:
+                    st.error(f"Erro ao gerar PDF: {e}")
+
+elif opcao == "📊 Dashboard Geral":
+    st.header("📊 Painel Geral de Climatização")
+    total = len(st.session_state.equipamentos)
+    instalados = len([e for e in st.session_state.equipamentos if e["status"] == "Instalado"])
+    previstos = len([e for e in st.session_state.equipamentos if e["status"] == "Previsto"])
+
+    col1, col2, col3 = st.columns(3)
+    col1.metric("Total de Aparelhos", total)
+    col2.metric("Instalados e Ativos", instalados)
+    col3.metric("Previstos / Futuros", previstos)
+    st.markdown("---")
+    df = pd.DataFrame(st.session_state.equipamentos)
+    st.dataframe(df, use_container_width=True)
+
+elif opcao == "📄 Relatório Fiscal A4":
+    st.header("📄 Relatório Fiscal Oficial A4 (Pronto para Impressão)")
+    st.info("ℹ️ Para garantir uma fiscalização sem páginas em branco, falhas de layout ou desperdício de papel, o relatório completo do PMOC é gerado em um arquivo PDF executivo de alta qualidade.")
+
+    if st.button("🚀 Gerar PDF Oficial do Relatório Fiscal"):
+        with st.spinner("Compilando relatório fiscal em PDF..."):
+            try:
+                pdf_buffer = io.BytesIO()
+                doc = SimpleDocTemplate(pdf_buffer, pagesize=A4, leftMargin=1.5*cm, rightMargin=1.5*cm, topMargin=1.5*cm, bottomMargin=1.5*cm)
+                story = []
+                styles = getSampleStyleSheet()
+
+                estilo_titulo = ParagraphStyle("RelTitulo", fontName="Helvetica-Bold", fontSize=14, leading=18, textColor=colors.HexColor("#111111"), alignment=1)
+                estilo_sub = ParagraphStyle("RelSub", fontName="Helvetica-Bold", fontSize=10, leading=14, textColor=colors.HexColor("#333333"), alignment=1)
+                estilo_info = ParagraphStyle("RelInfo", fontName="Helvetica", fontSize=9, leading=13, textColor=colors.HexColor("#444444"))
+                estilo_Secao = ParagraphStyle("RelSecao", fontName="Helvetica-Bold", fontSize=12, leading=16, textColor=colors.HexColor("#000000"), spaceBefore=10, spaceAfter=6)
+                estilo_texto = ParagraphStyle("RelTexto", fontName="Helvetica", fontSize=8.5, leading=12, textColor=colors.HexColor("#222222"))
+
+                story.append(Paragraph("<b>INSTITUTO SER CONSCIENTE LTDA</b>", estilo_titulo))
+                story.append(Paragraph("PLANO DE MANUTENÇÃO, OPERAÇÃO E CONTROLE - PMOC", estilo_sub))
+                story.append(Paragraph("Lei Federal nº 13.589/2018 | ART CREA-MG: MG20265436050", estilo_sub))
+                story.append(Spacer(1, 10))
+
+                data_hoje_str = datetime.date.today().strftime("%d/%m/%Y")
+                story.append(Paragraph(f"<b>Data de Emissão:</b> {data_hoje_str}", estilo_info))
+                story.append(Paragraph("<b>Responsável Técnico:</b> Eng. Alessandro Coelho (CREA-MG 238968-D)", estilo_info))
+                story.append(Paragraph("<b>Administrador / Gestor:</b> Antônio Sérgio Silva Gomes", estilo_info))
+                story.append(Spacer(1, 10))
+
+                story.append(Paragraph("📑 Relação Resumida dos Equipamentos Instalados", estilo_Secao))
+                instalados_df = [e for e in st.session_state.equipamentos if e["status"] == "Instalado"]
+
+                dados_tabela = [["TAG", "Ambiente", "Equipamento", "BTUs", "Última Manutenção", "Próxima", "Frequência"]]
+                for eq in instalados_df:
+                    hists_eq = [h for h in st.session_state.historico if h["tag"] == eq["tag"]]
+                    if hists_eq:
+                        ultima_manut = hists_eq[-1]
+                        ultima_data = ultima_manut["data"]
+                        freq_ult = ultima_manut.get("periodicidade", "Semestral")
+                        dias_vencimento = 90 if "Trimestral" in freq_ult else 180
+                        try:
+                            d_obj = datetime.datetime.strptime(ultima_data, "%d/%m/%Y").date()
+                            d_prox = d_obj + datetime.timedelta(days=dias_vencimento)
+                            prox_data_str = d_prox.strftime("%d/%m/%Y")
+                        except Exception:
+                            prox_data_str = "A calcular"
+                    else:
+                        ultima_data = "Sem registro"
+                        freq_ult = "-"
+                        prox_data_str = "-"
+
+                    dados_tabela.append([eq["tag"], eq["ambiente"], eq["equipamento"], str(eq["btus"]), ultima_data, prox_data_str, freq_ult[:10]])
+
+                t_resumo = Table(dados_tabela, colWidths=[2.0*cm, 3.2*cm, 3.2*cm, 1.6*cm, 2.5*cm, 2.2*cm, 2.3*cm])
+                t_resumo.setStyle(TableStyle([
+                    ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#000000")),
+                    ("TEXTCOLOR", (0, 0), (-1, 0), colors.whitesmoke),
+                    ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+                    ("FONTSIZE", (0, 0), (-1, -1), 7.5),
+                    ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+                    ("GRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#cccccc")),
+                    ("TOPPADDING", (0, 0), (-1, -1), 3),
+                    ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
+                ]))
+                story.append(t_resumo)
+                story.append(Spacer(1, 15))
+
+                story.append(Paragraph("📖 Detalhamento Completo e Histórico de Manutenções", estilo_Secao))
+                for eq in instalados_df:
+                    story.append(Paragraph(f"<b>📍 Equipamento: {eq['ambiente']} (TAG: {eq['tag']})</b> — {eq['equipamento']} ({eq['btus']} BTUs)", estilo_texto))
+                    hists_eq = [h for h in st.session_state.historico if h["tag"] == eq["tag"]]
+                    if hists_eq:
+                        for h in hists_eq:
+                            freq_reg = h.get("periodicidade", "Semestral")
+                            story.append(Paragraph(f"• <b>Data:</b> {h['data']} ({freq_reg}) | <b>Técnico:</b> {h['tecnico']}", estilo_texto))
+                            if h.get("obs"):
+                                story.append(Paragraph(f"  <b>Obs:</b> {h['obs']}", estilo_texto))
+                    else:
+                        story.append(Paragraph("  <i>(Nenhuma manutenção registrada)</i>", estilo_texto))
+                    story.append(Spacer(1, 6))
+
+                doc.build(story)
+                pdf_buffer.seek(0)
+                st.success("✅ Relatório Fiscal em PDF gerado com sucesso!")
+                st.download_button(
+                    label="📥 Baixar Relatório Fiscal Oficial (PDF)",
+                    data=pdf_buffer,
+                    file_name="relatorio_fiscal_pmoc.pdf",
+                    mime="application/pdf"
+                )
+            except Exception as e:
+                st.error(f"Erro ao compilar PDF fiscal: {e}")

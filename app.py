@@ -209,28 +209,3 @@ def exibir_fotos_registro(h, largura_relatorio=None):
         col1, col2 = st.columns(2)
         with col1:
             if fotos_antes:
-                st.markdown("**📷 Fotos ANTES:**")
-                for i, img_data in enumerate(fotos_antes):
-                    legenda = f"Antes #{i+1} - {h['data']}"
-                    if largura_relatorio:
-                        st.image(img_data, caption=legenda, width=largura_relatorio)
-                    else:
-                        st.image(img_data, caption=legenda, use_container_width=True)
-        with col2:
-            if fotos_depois:
-                st.markdown("**📷 Fotos DEPOIS:**")
-                for i, img_data in enumerate(fotos_depois):
-                    legenda = f"Depois #{i+1} - {h['data']}"
-                    if largura_relatorio:
-                        st.image(img_data, caption=legenda, width=largura_relatorio)
-                    else:
-                        st.image(img_data, caption=legenda, use_container_width=True)
-
-if logo_img is not None:
-    try:
-        st.sidebar.image(logo_img, use_container_width=True)
-    except Exception:
-        pass
-
-st.sidebar.title("❄️ PMOC Digital")
-st.sidebar.subheader("Instituto Ser Consciente Ltda")

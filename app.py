@@ -350,10 +350,3 @@ if opcao == "📋 Informações do Equipamento":
                 for idx, h in enumerate(reversed(hists)):
                     indice_real = st.session_state.historico.index(h)
                     freq_reg = h.get("periodicidade", "Semestral")
-
-                    st.markdown(f"#### Manutenção #{len(hists)-idx} — Data: {h['data']} ({freq_reg})")
-                    st.write(f"**Técnico Executor:** {h['tecnico']}")
-
-                    if "checklist" in h and h["checklist"]:
-                        st.write("**Itens Verificados (PMOC):**")
-                        for item_nome, status_val in h["checklist"].items():

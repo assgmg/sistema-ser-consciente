@@ -284,17 +284,14 @@ if opcao == "📋 Informações do Equipamento":
     st.header("📋 Informações do Equipamento - PMOC Oficial")
     st.info("ℹ️ Projeto validado pela Vineyard Engenharia | ART CREA-MG nº MG20265436050")
 
-    tags_lista = [e["tag"] + " - " + e["ambiente"] for e in st.session_state.equipamentos]
-    indice_inicial = 0
-
+    # Se acessou via QR Code (tag na URL), trava direto no equipamento correspondente sem mostrar selectbox
     if tag_url:
-        for i, t in enumerate(tags_lista):
-            if tag_url in t:
-                indice_inicial = i
-                break
-
-    tag_selecionada = st.selectbox("Selecione a TAG do Equipamento:", tags_lista, index=indice_inicial)
-    tag_codigo = tag_selecionada.split(" - ")[0]
+        tag_codigo = tag_url.strip().upper()
+        st.success(f"📱 Acesso via QR Code — Exibindo diretamente o equipamento: **{tag_codigo}**")
+    else:
+        tags_lista = [e["tag"] + " - " + e["ambiente"] for e in st.session_state.equipamentos]
+        tag_selecionada = st.selectbox("Selecione a TAG do Equipamento:", tags_lista)
+        tag_codigo = tag_selecionada.split(" - ")[0]
 
     equip = next((e for e in st.session_state.equipamentos if e["tag"] == tag_codigo), None)
 

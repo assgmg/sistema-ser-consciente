@@ -558,14 +558,3 @@ elif opcao == "📑 Lote A4 para Gráfica (Guilhotina)" and senha_input_ativo ==
         equipamentos_selecionados = todas_tags
     else:
         equipamentos_selecionados = st.multiselect("Selecione os equipamentos:", todas_tags, default=todas_tags[:6])
-
-    if st.button("🚀 Gerar PDF Oficial para Download"):
-        if not equipamentos_selecionados:
-            st.warning("Selecione pelo menos um equipamento.")
-        else:
-            with st.spinner("Gerando arquivo PDF..."):
-                try:
-                    pdf_buffer = io.BytesIO()
-                    doc = SimpleDocTemplate(pdf_buffer, pagesize=A4, leftMargin=1.5*cm, rightMargin=1.5*cm, topMargin=1.0*cm, bottomMargin=1.0*cm)
-                    story = []
-                    base_url = "

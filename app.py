@@ -284,10 +284,9 @@ if opcao == "📋 Informações do Equipamento":
     st.header("📋 Informações do Equipamento - PMOC Oficial")
     st.info("ℹ️ Projeto validado pela Vineyard Engenharia | ART CREA-MG nº MG20265436050")
 
-    # Se acessou via QR Code (tag na URL), trava direto no equipamento correspondente sem mostrar selectbox
     if tag_url:
         tag_codigo = tag_url.strip().upper()
-        st.success(f"📱 Acesso via QR Code — Exibindo diretamente o equipamento: **{tag_codigo}**")
+        st.info(f"📱 Acesso via QR Code — Equipamento identificado: **{tag_codigo}**")
     else:
         tags_lista = [e["tag"] + " - " + e["ambiente"] for e in st.session_state.equipamentos]
         tag_selecionada = st.selectbox("Selecione a TAG do Equipamento:", tags_lista)
@@ -331,69 +330,82 @@ if opcao == "📋 Informações do Equipamento":
             st.warning("⚪ Nenhuma manutenção registrada ainda para este equipamento.")
 
         st.markdown("---")
-        st.subheader("📋 Histórico Acumulado e Gerenciamento de Registros")
 
-        if hists:
-            for idx, h in enumerate(reversed(hists)):
-                indice_real = st.session_state.historico.index(h)
-                freq_reg = h.get("periodicidade", "Semestral")
+        # CONTROLE DE ACESSO AO HISTÓRICO VIA QR CODE
+        liberado_historico = True
+        if tag_url and senha_input_ativo not in ["admin", "visa"]:
+            liberado_historico = False
+            st.warning("🔒 **Área Restrita / Fiscalização:** O histórico detalhado e os registros fotográficos deste equipamento exigem credenciais de acesso.")
+            senha_fiscal = st.text_input("Digite a senha de liberação (Fiscalização/Admin):", type="password", key="senha_qr_fiscal")
+            if senha_fiscal in ["admin", "visa"]:
+                st.session_state.senha_salva = senha_fiscal
+                st.success("✅ Acesso liberado com sucesso!")
+                st.rerun()
 
-                st.markdown(f"#### Manutenção #{len(hists)-idx} — Data: {h['data']} ({freq_reg})")
-                st.write(f"**Técnico Executor:** {h['tecnico']}")
+        if liberado_historico:
+            st.subheader("📋 Histórico Acumulado e Gerenciamento de Registros")
 
-                if "checklist" in h and h["checklist"]:
-                    st.write("**Itens Verificados (PMOC):**")
-                    for item_nome, status_val in h["checklist"].items():
-                        check_icon = "✅" if status_val else "❌"
-                        st.write(f"- {check_icon} {item_nome}")
+            if hists:
+                for idx, h in enumerate(reversed(hists)):
+                    indice_real = st.session_state.historico.index(h)
+                    freq_reg = h.get("periodicidade", "Semestral")
 
-                if h.get("obs"):
-                    st.write(f"**Observações:** {h['obs']}")
+                    st.markdown(f"#### Manutenção #{len(hists)-idx} — Data: {h['data']} ({freq_reg})")
+                    st.write(f"**Técnico Executor:** {h['tecnico']}")
 
-                exibir_fotos_registro(h)
+                    if "checklist" in h and h["checklist"]:
+                        st.write("**Itens Verificados (PMOC):**")
+                        for item_nome, status_val in h["checklist"].items():
+                            check_icon = "✅" if status_val else "❌"
+                            st.write(f"- {check_icon} {item_nome}")
 
-                if senha_input_ativo == "admin":
-                    with st.expander(f"➕ Adicionar mais fotos a esta manutenção ({h['data']})"):
-                        novas_antes = st.file_uploader(
-                            "Selecionar fotos adicionais do ANTES",
-                            type=["png", "jpg", "jpeg"],
-                            accept_multiple_files=True,
-                            key=f"add_antes_{tag_codigo}_{idx}"
-                        )
-                        novas_depois = st.file_uploader(
-                            "Selecionar fotos adicionais do DEPOIS",
-                            type=["png", "jpg", "jpeg"],
-                            accept_multiple_files=True,
-                            key=f"add_depois_{tag_codigo}_{idx}"
-                        )
-                        if st.button("💾 Anexar Novas Fotos ao Registro", key=f"btn_add_fotos_{tag_codigo}_{idx}"):
-                            if novas_antes or novas_depois:
-                                if "fotos_antes_bytes" not in st.session_state.historico[indice_real]:
-                                    st.session_state.historico[indice_real]["fotos_antes_bytes"] = []
-                                if "fotos_depois_bytes" not in st.session_state.historico[indice_real]:
-                                    st.session_state.historico[indice_real]["fotos_depois_bytes"] = []
+                    if h.get("obs"):
+                        st.write(f"**Observações:** {h['obs']}")
 
-                                for f in novas_antes:
-                                    st.session_state.historico[indice_real]["fotos_antes_bytes"].append(f.getvalue())
-                                for f in novas_depois:
-                                    st.session_state.historico[indice_real]["fotos_depois_bytes"].append(f.getvalue())
+                    exibir_fotos_registro(h)
 
-                                salvar_dados_disco(st.session_state.historico)
-                                st.success("Fotos adicionadas com sucesso!")
-                                st.rerun()
-                            else:
-                                st.warning("Selecione pelo menos uma foto para anexar.")
+                    if senha_input_ativo == "admin":
+                        with st.expander(f"➕ Adicionar mais fotos a esta manutenção ({h['data']})"):
+                            novas_antes = st.file_uploader(
+                                "Selecionar fotos adicionais do ANTES",
+                                type=["png", "jpg", "jpeg"],
+                                accept_multiple_files=True,
+                                key=f"add_antes_{tag_codigo}_{idx}"
+                            )
+                            novas_depois = st.file_uploader(
+                                "Selecionar fotos adicionais do DEPOIS",
+                                type=["png", "jpg", "jpeg"],
+                                accept_multiple_files=True,
+                                key=f"add_depois_{tag_codigo}_{idx}"
+                            )
+                            if st.button("💾 Anexar Novas Fotos ao Registro", key=f"btn_add_fotos_{tag_codigo}_{idx}"):
+                                if novas_antes or novas_depois:
+                                    if "fotos_antes_bytes" not in st.session_state.historico[indice_real]:
+                                        st.session_state.historico[indice_real]["fotos_antes_bytes"] = []
+                                    if "fotos_depois_bytes" not in st.session_state.historico[indice_real]:
+                                        st.session_state.historico[indice_real]["fotos_depois_bytes"] = []
 
-                    if st.button("🗑️ Excluir este Registro Incorreto", key=f"btn_del_{tag_codigo}_{idx}"):
-                        del st.session_state.historico[indice_real]
-                        salvar_dados_disco(st.session_state.historico)
-                        st.cache_data.clear()
-                        st.success("Registro excluído com sucesso! Atualizando...")
-                        st.rerun()
+                                    for f in novas_antes:
+                                        st.session_state.historico[indice_real]["fotos_antes_bytes"].append(f.getvalue())
+                                    for f in novas_depois:
+                                        st.session_state.historico[indice_real]["fotos_depois_bytes"].append(f.getvalue())
 
-                st.markdown("---")
-        else:
-            st.info("Nenhum histórico cadastrado para este aparelho.")
+                                    salvar_dados_disco(st.session_state.historico)
+                                    st.success("Fotos adicionadas com sucesso!")
+                                    st.rerun()
+                                else:
+                                    st.warning("Selecione pelo menos uma foto para anexar.")
+
+                        if st.button("🗑️ Excluir este Registro Incorreto", key=f"btn_del_{tag_codigo}_{idx}"):
+                            del st.session_state.historico[indice_real]
+                            salvar_dados_disco(st.session_state.historico)
+                            st.cache_data.clear()
+                            st.success("Registro excluído com sucesso! Atualizando...")
+                            st.rerun()
+
+                    st.markdown("---")
+            else:
+                st.info("Nenhum histórico cadastrado para este aparelho.")
 
 elif opcao == "🛠️ Registrar Manutenção" and senha_input_ativo == "admin":
     st.header("🛠️ Registro de Manutenção Preventiva")
@@ -607,7 +619,7 @@ elif opcao == "📑 Lote A4 para Gráfica (Guilhotina)" and senha_input_ativo ==
                     doc.build(story)
                     pdf_buffer.seek(0)
                     st.success("✅ Arquivo PDF gerado com sucesso!")
-                    st.download_button(label="📥 Baixar PDF Pronto para a Gráfica", data=pdf_buffer, file_name="etiquetas_pmoc_5x5cm_grafica.pdf", mime="application/pdf")
+                    st.download_button(label="📥 Baixar PDF Pronto para A Gráfica", data=pdf_buffer, file_name="etiquetas_pmoc_5x5cm_grafica.pdf", mime="application/pdf")
                 except Exception as e:
                     st.error(f"Erro ao gerar PDF: {e}")
 
@@ -685,20 +697,4 @@ elif opcao == "📄 Relatório Fiscal A4" and senha_input_ativo in ["visa", "adm
 
     for eq in instalados_df:
         st.markdown(f"#### 📍 Equipamento: {eq['ambiente']} (TAG: {eq['tag']})")
-        st.write(f"**Modelo:** {eq['equipamento']} | **Carga Térmica:** {eq['btus']} BTUs")
-        hists_eq = [h for h in st.session_state.historico if h["tag"] == eq["tag"]]
-        if hists_eq:
-            for h in hists_eq:
-                freq_reg = h.get("periodicidade", "Semestral")
-                st.write(f"- **Data da Manutenção:** {h['data']} ({freq_reg}) | **Técnico:** {h['tecnico']}")
-                if "checklist" in h and h["checklist"]:
-                    st.markdown("  * **Itens Verificados:**")
-                    for k, v in h["checklist"].items():
-                        status_simbolo = "✔️" if v else "❌"
-                        st.markdown(f"    - `{status_simbolo}` {k}")
-                if h["obs"]:
-                    st.write(f"  * **Observações:** {h['obs']}")
-                exibir_fotos_registro(h, largura_relatorio=250)
-        else:
-            st.write("*(Nenhuma manutenção registrada para este equipamento)*")
-        st.markdown("---")
+        st.write(f"**Modelo:** {eq['equipamento']} | **Carga

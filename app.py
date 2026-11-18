@@ -280,6 +280,10 @@ elif senha_input_ativo == "visa":
 else:
     opcoes_menu = [
         "📋 Informações do Equipamento",
+        "📄 Relatório Fiscal A4",
+        "📊 Dashboard Geral",
+        "🖨️ Etiquetas 5x5 cm (Individual)",
+        "📑 Lote A4 para Gráfica (Guilhotina)",
     ]
 
 opcao = st.sidebar.radio("Navegação", opcoes_menu)
@@ -341,4 +345,20 @@ if opcao == "📋 Informações do Equipamento":
             st.warning("🔒 **Área Restrita / Fiscalização:** O histórico detalhado e os registros fotográficos deste equipamento exigem a senha de liberação.")
             
             with st.form("form_senha_qr"):
-                senha_fiscal_input
+                senha_fiscal_input = st.text_input("Digite a senha de acesso (Fiscalização/Admin):", type="password")
+                btn_enviar_senha = st.form_submit_button("🔓 Liberar Histórico")
+                
+                if btn_enviar_senha:
+                    if senha_fiscal_input in ["admin", "visa"]:
+                        st.session_state.qr_liberado = True
+                        st.session_state.senha_salva = senha_fiscal_input
+                        st.success("✅ Acesso liberado com sucesso! Atualizando...")
+                        st.rerun()
+                    else:
+                        st.error("❌ Senha incorreta. Tente novamente.")
+
+        if pode_ver_historico:
+            st.subheader("📋 Histórico Acumulado e Gerenciamento de Registros")
+
+            if hists:
+                for idx, h in enumerate(reversed(h

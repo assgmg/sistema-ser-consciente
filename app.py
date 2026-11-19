@@ -398,4 +398,53 @@ eh_admin = senha_input_ativo == "admin"
 eh_fiscal = senha_input_ativo == "visa"
 
 if eh_admin:
-    opcoes_menu
+    opcoes_menu = [
+        "📋 Informações do Equipamento",
+        "🛠️ Registrar Manutenção",
+        "✏️ Editar Previstos",
+        "🖨️ Etiquetas 5x5 cm (Individual)",
+        "📑 Lote A4 para Gráfica (Guilhotina)",
+        "📊 Dashboard Geral",
+        "📄 Relatório Fiscal A4",
+    ]
+else:
+    opcoes_menu = [
+        "📋 Informações do Equipamento",
+        "📊 Dashboard Geral",
+    ]
+
+opcao = st.sidebar.radio("Navegação", opcoes_menu)
+
+if opcao == "📋 Informações do Equipamento":
+    st.header("📋 Informações do Equipamento - PMOC Oficial")
+    st.info("ℹ️ Projeto validado pela Vineyard Engenharia | ART CREA-MG nº MG20265436050")
+
+    equip = None
+    tag_codigo = ""
+
+    if tag_qr_lido:
+        tag_codigo = tag_qr_lido
+        st.info("📱 QR Code lido — Equipamento: **" + tag_codigo + "**")
+        equip = next((e for e in st.session_state.equipamentos if e.get("tag") == tag_codigo), None)
+        if not equip:
+            st.error("❌ Equipamento não encontrado para a TAG informada.")
+    else:
+        tags_lista = [e["tag"] + " - " + e["ambiente"] for e in st.session_state.equipamentos]
+        tag_selecionada = st.selectbox("Selecione a TAG do Equipamento:", tags_lista)
+        tag_codigo = tag_selecionada.split(" - ")[0]
+        equip = next((e for e in st.session_state.equipamentos if e.get("tag") == tag_codigo), None)
+        if not equip:
+            st.error("❌ Equipamento não encontrado para a TAG informada.")
+
+    if equip:
+        hists = [h for h in st.session_state.historico if h.get("tag") == tag_codigo]
+
+        data_ult_str = "-"
+        d_prox_str = "-"
+        tipo_freq = ""
+
+        if equip["status"] == "Previsto":
+            status_exibicao = "🟡 Previsto (Aguardando Instalação)"
+        elif hists:
+            ultima_manut = hists[-1]
+            data_ult_str = ultima_man

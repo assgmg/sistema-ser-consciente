@@ -355,4 +355,4 @@ def montar_etiqueta_pdf(eq_obj, estilo_header, estilo_texto, estilo_footer, styl
     if qr_img_obj:
         conteudo.append(qr_img_obj)
     conteudo.append(Spacer(1, 0.5))
-    conteudo.append
+   

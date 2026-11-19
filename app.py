@@ -355,4 +355,74 @@ def montar_etiqueta_pdf(eq_obj, estilo_header, estilo_texto, estilo_footer, styl
     if qr_img_obj:
         conteudo.append(qr_img_obj)
     conteudo.append(Spacer(1, 0.5))
-   
+    conteudo.append(txt_rodape)
+
+    t_etiqueta = Table([[conteudo]], colWidths=[5.0 * cm], rowHeights=[5.0 * cm])
+    t_etiqueta.setStyle(style_etq)
+    return t_etiqueta
+
+
+if logo_img is not None:
+    try:
+        st.sidebar.image(logo_img, use_container_width=True)
+    except Exception:
+        pass
+
+st.sidebar.title("❄️ PMOC Digital")
+st.sidebar.subheader("Instituto Ser Consciente Ltda")
+st.sidebar.caption("Resp. Técnico: Eng. Alessandro Coelho (CREA-MG 238968-D)")
+st.sidebar.caption("ART: MG20265436050")
+st.sidebar.markdown("---")
+
+if "senha_salva" not in st.session_state:
+    st.session_state.senha_salva = ""
+
+if st.session_state.senha_salva not in ["admin", "visa"]:
+    st.sidebar.markdown("### 🔐 Acesso Restrito")
+    senha_input = st.sidebar.text_input("Credencial de acesso:", type="password")
+    if senha_input in ["admin", "visa"]:
+        st.session_state.senha_salva = senha_input
+        st.rerun()
+    senha_input_ativo = senha_input
+else:
+    senha_input_ativo = st.session_state.senha_salva
+    st.sidebar.success("✅ Modo Administrador" if senha_input_ativo == "admin" else "👁️ Modo Fiscalização (Apenas Consulta)")
+    if st.sidebar.button("🚪 Sair / Desconectar"):
+        st.session_state.senha_salva = ""
+        st.session_state.qr_liberado_tags = []
+        st.rerun()
+
+st.sidebar.markdown("---")
+
+eh_admin = senha_input_ativo == "admin"
+eh_fiscal = senha_input_ativo == "visa"
+
+if eh_admin:
+    opcoes_menu = [
+        "📋 Informações do Equipamento",
+        "🛠️ Registrar Manutenção",
+        "✏️ Editar Previstos",
+        "🖨️ Etiquetas 5x5 cm (Individual)",
+        "📑 Lote A4 para Gráfica (Guilhotina)",
+        "📊 Dashboard Geral",
+        "📄 Relatório Fiscal A4",
+    ]
+else:
+    opcoes_menu = [
+        "📋 Informações do Equipamento",
+        "📊 Dashboard Geral",
+    ]
+
+opcao = st.sidebar.radio("Navegação", opcoes_menu)
+
+if opcao == "📋 Informações do Equipamento":
+    st.header("📋 Informações do Equipamento - PMOC Oficial")
+    st.info("ℹ️ Projeto validado pela Vineyard Engenharia | ART CREA-MG nº MG20265436050")
+
+    equip = None
+    tag_codigo = ""
+
+    if tag_qr_lido:
+        tag_codigo = tag_qr_lido
+        st.info("📱 QR Code lido — Equipamento: **" + tag_codigo + "**")
+        equip = next((e for e in st.session_state.equipamentos if e["tag

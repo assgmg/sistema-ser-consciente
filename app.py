@@ -820,7 +820,7 @@ elif opcao == "📄 Relatório Fiscal A4":
                     story.append(Paragraph("<b>Data de Emissão:</b> " + hoje_data.strftime("%d/%m/%Y"), estilo_info))
                     story.append(Paragraph("<b>Período do Relatório:</b> " + texto_periodo, estilo_info))
                     story.append(Paragraph("<b>Responsável Técnico:</b> Eng. Alessandro Coelho (CREA-MG 238968-D)", estilo_info))
-                    story.append(Paragraph("<b>Administrador / Gestor:</b> Antônio Sérgio Silva Gomes", estilo_info))
+                    story.append(Paragraph("<b>Administrador / Gestor:</b> António Sérgio Silva Gomes", estilo_info))
                     story.append(Spacer(1, 10))
 
                     story.append(Paragraph("📑 Relação Resumida dos Equipamentos Instalados", estilo_secao))
@@ -840,4 +840,54 @@ elif opcao == "📄 Relatório Fiscal A4":
                             except Exception:
                                 prox_data_str = "A calcular"
                         else:
-                            ultima_data, freq_ult, prox_data_str = "Sem registro", "-",
+                            ultima_data, freq_ult, prox_data_str = "Sem registro", "-", "-"
+
+                        dados_tabela.append([eq["tag"], eq["ambiente"], limpar_numero_serie(eq["equipamento"]), str(eq["btus"]), ultima_data, prox_data_str, freq_ult[:10]])
+
+                    t_resumo = Table(dados_tabela, colWidths=[2.0 * cm, 3.2 * cm, 3.2 * cm, 1.6 * cm, 2.5 * cm, 2.2 * cm, 2.3 * cm])
+                    t_resumo.setStyle(style_resumo)
+                    story.append(t_resumo)
+                    story.append(Spacer(1, 15))
+
+                    story.append(Paragraph("📖 Detalhamento Completo, Checklists e Registros Fotográficos", estilo_secao))
+                    for eq in instalados_df:
+                        equip_sem_serie = limpar_numero_serie(eq["equipamento"])
+                        story.append(Paragraph("<b>📍 Equipamento: " + eq["ambiente"] + " (TAG: " + eq["tag"] + ")</b> — " + equip_sem_serie + " (" + str(eq["btus"]) + " BTUs)", estilo_texto))
+                        hists_eq = [h for h in st.session_state.historico if h.get("tag") == eq["tag"] and dentro_do_periodo(h)]
+
+                        if hists_eq:
+                            for h in hists_eq:
+                                freq_reg = h.get("periodicidade", "Semestral")
+                                story.append(Paragraph("• <b>Data:</b> " + str(h.get("data", "")) + " (" + freq_reg + ") | <b>Técnico:</b> " + str(h.get("tecnico", "")), estilo_texto))
+
+                                if h.get("checklist"):
+                                    story.append(Paragraph("  <b>Itens Verificados (PMOC):</b>", estilo_check))
+                                    for item_nome, status_val in h["checklist"].items():
+                                        simbolo = "✓" if status_val else "X"
+                                        story.append(Paragraph("    [" + simbolo + "] " + str(item_nome), estilo_check))
+
+                                if h.get("obs"):
+                                    story.append(Paragraph("  <b>Observações:</b> " + str(h["obs"]), estilo_check))
+
+                                f_antes = h.get("fotos_antes_bytes") or normalizar_lista_fotos(h, "fotos_antes_bytes", "foto_antes")
+                                f_depois = h.get("fotos_depois_bytes") or normalizar_lista_fotos(h, "fotos_depois_bytes", "foto_depois")
+
+                                adicionar_bloco_fotos_pdf(story, "  <b>Fotos - ANTES:</b>", f_antes, estilo_check, style_imgs)
+                                adicionar_bloco_fotos_pdf(story, "  <b>Fotos - DEPOIS:</b>", f_depois, estilo_check, style_imgs)
+                                story.append(Spacer(1, 6))
+                        else:
+                            msg_sem = "  <i>(Nenhuma manutenção registrada no período selecionado)</i>" if filtrar_periodo else "  <i>(Nenhuma manutenção registrada)</i>"
+                            story.append(Paragraph(msg_sem, estilo_texto))
+                        story.append(Spacer(1, 8))
+
+                    doc.build(story)
+                    pdf_buffer.seek(0)
+                    nome_arq = (
+                        "relatorio_fiscal_pmoc_" + data_inicio.strftime("%Y%m%d") + "_" + data_fim.strftime("%Y%m%d") + ".pdf"
+                        if filtrar_periodo
+                        else "relatorio_fiscal_pmoc_completo.pdf"
+                    )
+                    st.success("✅ Relatório Fiscal Completo em PDF gerado com sucesso!")
+                    st.download_button("📥 Baixar Relatório Fiscal Oficial Completo (PDF)", data=pdf_buffer, file_name=nome_arq, mime="application/pdf")
+                except Exception as e:
+                    st.error("Erro ao compilar PDF fiscal completo: " + str(e))

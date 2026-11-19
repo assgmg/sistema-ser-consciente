@@ -370,4 +370,136 @@ if logo_img is not None:
 
 st.sidebar.title("❄️ PMOC Digital")
 st.sidebar.subheader("Instituto Ser Consciente Ltda")
-st.sidebar.caption("Resp. Técnico: Eng. Alessandro Coelho (CREA-MG 238968
+st.sidebar.caption("Resp. Técnico: Eng. Alessandro Coelho (CREA-MG 238968-D)")
+st.sidebar.caption("ART: MG20265436050")
+st.sidebar.markdown("---")
+
+if "senha_salva" not in st.session_state:
+    st.session_state.senha_salva = ""
+
+if st.session_state.senha_salva not in ["admin", "visa"]:
+    st.sidebar.markdown("### 🔐 Acesso Restrito")
+    senha_input = st.sidebar.text_input("Credencial de acesso:", type="password")
+    if senha_input in ["admin", "visa"]:
+        st.session_state.senha_salva = senha_input
+        st.rerun()
+    senha_input_ativo = senha_input
+else:
+    senha_input_ativo = st.session_state.senha_salva
+    st.sidebar.success("✅ Modo Administrador" if senha_input_ativo == "admin" else "👁️ Modo Fiscalização (Apenas Consulta)")
+    if st.sidebar.button("🚪 Sair / Desconectar"):
+        st.session_state.senha_salva = ""
+        st.session_state.qr_liberado_tags = []
+        st.rerun()
+
+st.sidebar.markdown("---")
+
+eh_admin = senha_input_ativo == "admin"
+eh_fiscal = senha_input_ativo == "visa"
+
+if eh_admin:
+    opcoes_menu = [
+        "📋 Informações do Equipamento",
+        "🛠️ Registrar Manutenção",
+        "✏️ Editar Previstos",
+        "🖨️ Etiquetas 5x5 cm (Individual)",
+        "📑 Lote A4 para Gráfica (Guilhotina)",
+        "📊 Dashboard Geral",
+        "📄 Relatório Fiscal A4",
+    ]
+else:
+    opcoes_menu = [
+        "📋 Informações do Equipamento",
+        "📊 Dashboard Geral",
+    ]
+
+opcao = st.sidebar.radio("Navegação", opcoes_menu)
+
+if opcao == "📋 Informações do Equipamento":
+    st.header("📋 Informações do Equipamento - PMOC Oficial")
+    st.info("ℹ️ Projeto validado pela Vineyard Engenharia | ART CREA-MG nº MG20265436050")
+
+    equip = None
+    tag_codigo = ""
+
+    if tag_qr_lido:
+        tag_codigo = tag_qr_lido
+        st.info("📱 QR Code lido — Equipamento: **" + tag_codigo + "**")
+        equip = next((e for e in st.session_state.equipamentos if e["tag"] == tag_codigo), None)
+        if not equip:
+            st.error("❌ Equipamento não encontrado para a TAG informada.")
+    elif eh_fiscal:
+        st.warning("🔒 **Acesso via QR Code necessário:** Como Fiscal, você só pode consultar um equipamento específico lendo o QR Code dele.")
+    else:
+        tags_lista = [e["tag"] + " - " + e["ambiente"] for e in st.session_state.equipamentos]
+        tag_selecionada = st.selectbox("Selecione a TAG do Equipamento:", tags_lista)
+        tag_codigo = tag_selecionada.split(" - ")[0]
+        equip = next((e for e in st.session_state.equipamentos if e["tag"] == tag_codigo), None)
+        if not equip:
+            st.error("❌ Equipamento não encontrado para a TAG informada.")
+
+    if equip:
+        hists = [h for h in st.session_state.historico if h.get("tag") == tag_codigo]
+
+        data_ult_str = "-"
+        d_prox_str = "-"
+        tipo_freq = ""
+
+        if equip["status"] == "Previsto":
+            status_exibicao = "🟡 Previsto (Aguardando Instalação)"
+        elif hists:
+            ultima_manut = hists[-1]
+            data_ult_str = ultima_manut.get("data", "-")
+            tipo_freq = ultima_manut.get("periodicidade", "Semestral (180 dias)")
+            dias_vencimento = 90 if "Trimestral" in tipo_freq else 180
+
+            try:
+                d_obj = datetime.datetime.strptime(data_ult_str, "%d/%m/%Y").date()
+                d_prox = d_obj + datetime.timedelta(days=dias_vencimento)
+                d_prox_str = d_prox.strftime("%d/%m/%Y")
+                if datetime.date.today() <= d_prox:
+                    status_exibicao = "🟢 Em dia"
+                else:
+                    status_exibicao = "🔴 Em atraso"
+            except Exception:
+                d_prox_str = "A calcular"
+                status_exibicao = "🟢 Em dia"
+        else:
+            status_exibicao = "⚪ Sem registro"
+
+        tag_ja_liberada = tag_codigo in st.session_state.qr_liberado_tags
+        senha_digitada_ok = eh_admin or eh_fiscal or tag_ja_liberada
+
+        if tag_qr_lido and not senha_digitada_ok:
+            st.subheader("📍 " + equip["ambiente"] + " (" + equip["tag"] + ")")
+            st.write("**Data da última manutenção:** " + data_ult_str)
+            st.write("**Data da próxima manutenção:** " + d_prox_str)
+            if "Em dia" in status_exibicao:
+                st.success("**Status:** " + status_exibicao)
+            elif "Em atraso" in status_exibicao:
+                st.error("**Status:** " + status_exibicao)
+            else:
+                st.info("**Status:** " + status_exibicao)
+
+            st.markdown("---")
+            st.write("🔐 Digite a senha para ver a informação completa do equipamento:")
+            with st.form("form_senha_qr_" + tag_codigo):
+                senha_qr_input = st.text_input("Senha:", type="password")
+                if st.form_submit_button("🔓 Ver Informação Completa"):
+                    if senha_qr_input in ["admin", "visa"]:
+                        st.session_state.senha_salva = senha_qr_input
+                        if tag_codigo not in st.session_state.qr_liberado_tags:
+                            st.session_state.qr_liberado_tags.append(tag_codigo)
+                        st.rerun()
+                    else:
+                        st.error("❌ Senha incorreta.")
+        else:
+            st.subheader("📍 " + equip["ambiente"] + " (" + equip["tag"] + ")")
+            st.write("**Equipamento:** " + formatar_equipamento_com_serie(equip) + " | **Carga Térmica:** " + str(equip["btus"]) + " BTUs")
+            st.write("**Status de Instalação:** `" + equip["status"] + "`")
+            st.write("**Data da última manutenção:** " + data_ult_str + (" — *" + tipo_freq + "*" if tipo_freq else ""))
+            st.write("**Data da próxima manutenção:** " + d_prox_str)
+
+            if "Em dia" in status_exibicao:
+                st.success("**Status:** " + status_exibicao)
+            elif "Em atraso" in status_exibicao:

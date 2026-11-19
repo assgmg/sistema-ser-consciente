@@ -425,4 +425,4 @@ if opcao == "📋 Informações do Equipamento":
     if tag_qr_lido:
         tag_codigo = tag_qr_lido
         st.info("📱 QR Code lido — Equipamento: **" + tag_codigo + "**")
-       equip = next((e for e in st.session_state.equipamentos if e["tag"] == tag_codigo), None)
+equip = next((e for e in st.session_state.equipamentos if e["tag"] == tag_codigo), None)

@@ -279,4 +279,4 @@ try:
 except Exception:
     tag_url = None
 
-tag_qr_lido = tag_url.
+tag_qr_lido = tag_url.strip().upper() if tag_url else None

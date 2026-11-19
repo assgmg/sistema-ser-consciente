@@ -331,4 +331,71 @@ def adicionar_bloco_fotos_pdf(story, titulo_bloco, lista_bytes, estilo_check, st
 
 def montar_etiqueta_pdf(eq_obj, estilo_header, estilo_texto, estilo_footer, style_hdr, style_etq):
     link_eq = BASE_URL + "/?tag=" + eq_obj["tag"]
-    qr_url = "
+    qr_url = "https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=" + link_eq
+    qr_img_obj = None
+    try:
+        qr_bytes = urllib.request.urlopen(qr_url, timeout=3).read()
+        qr_img_obj = RLImage(io.BytesIO(qr_bytes), width=1.6 * cm, height=1.6 * cm)
+    except Exception:
+        pass
+
+    t_header = Table([[Paragraph("<b>PMOC - SER CONSCIENTE</b>", estilo_header)]], colWidths=[4.6 * cm])
+    t_header.setStyle(style_hdr)
+
+    txt_dados = Paragraph(
+        "<b>TAG:</b> " + str(eq_obj["tag"]) + "<br/>"
+        + "<b>Amb:</b> " + str(eq_obj["ambiente"]) + "<br/>"
+        + "<b>Equip:</b> " + formatar_equipamento_com_serie(eq_obj) + "<br/>"
+        + "<b>Carga:</b> " + str(eq_obj["btus"]) + " BTUs",
+        estilo_texto,
+    )
+    txt_rodape = Paragraph("Eng. Alessandro Coelho (CREA-MG 238968-D)<br/><b>ART:</b> MG20265436050", estilo_footer)
+
+    conteudo = [t_header, Spacer(1, 1), txt_dados, Spacer(1, 0.5)]
+    if qr_img_obj:
+        conteudo.append(qr_img_obj)
+    conteudo.append(Spacer(1, 0.5))
+    conteudo.append(txt_rodape)
+
+    t_etiqueta = Table([[conteudo]], colWidths=[5.0 * cm], rowHeights=[5.0 * cm])
+    t_etiqueta.setStyle(style_etq)
+    return t_etiqueta
+
+
+if logo_img is not None:
+    try:
+        st.sidebar.image(logo_img, use_container_width=True)
+    except Exception:
+        pass
+
+st.sidebar.title("❄️ PMOC Digital")
+st.sidebar.subheader("Instituto Ser Consciente Ltda")
+st.sidebar.caption("Resp. Técnico: Eng. Alessandro Coelho (CREA-MG 238968-D)")
+st.sidebar.caption("ART: MG20265436050")
+st.sidebar.markdown("---")
+
+if "senha_salva" not in st.session_state:
+    st.session_state.senha_salva = ""
+
+if st.session_state.senha_salva not in ["admin", "visa"]:
+    st.sidebar.markdown("### 🔐 Acesso Restrito")
+    senha_input = st.sidebar.text_input("Credencial de acesso:", type="password")
+    if senha_input in ["admin", "visa"]:
+        st.session_state.senha_salva = senha_input
+        st.rerun()
+    senha_input_ativo = senha_input
+else:
+    senha_input_ativo = st.session_state.senha_salva
+    st.sidebar.success("✅ Modo Administrador" if senha_input_ativo == "admin" else "👁️ Modo Fiscalização")
+    if st.sidebar.button("🚪 Sair / Desconectar"):
+        st.session_state.senha_salva = ""
+        st.session_state.qr_liberado_tags = []
+        st.rerun()
+
+st.sidebar.markdown("---")
+
+eh_admin = senha_input_ativo == "admin"
+eh_fiscal = senha_input_ativo == "visa"
+
+if eh_admin:
+    opcoes_menu

@@ -68,7 +68,9 @@ def salvar_dados_disco(historico):
             ]
         elif h_copy.get("foto_antes_bytes"):
             b = h_copy["foto_antes_bytes"]
-            h_copy["fotos_antes_bytes"] = [base64.b64encode(b).decode("utf-8") if isinstance(b, bytes) else b]
+            h_copy["fotos_antes_bytes"] = [
+                base64.b64encode(b).decode("utf-8") if isinstance(b, bytes) else b
+            ]
             h_copy.pop("foto_antes_bytes", None)
 
         if "fotos_depois_bytes" in h_copy and h_copy["fotos_depois_bytes"]:
@@ -78,7 +80,9 @@ def salvar_dados_disco(historico):
             ]
         elif h_copy.get("foto_depois_bytes"):
             b = h_copy["foto_depois_bytes"]
-            h_copy["fotos_depois_bytes"] = [base64.b64encode(b).decode("utf-8") if isinstance(b, bytes) else b]
+            h_copy["fotos_depois_bytes"] = [
+                base64.b64encode(b).decode("utf-8") if isinstance(b, bytes) else b
+            ]
             h_copy.pop("foto_depois_bytes", None)
 
         dados_para_salvar.append(h_copy)
@@ -223,18 +227,28 @@ if "historico" not in st.session_state:
     for h in raw_hist:
         h_conv = h.copy()
         if "fotos_antes_bytes" in h_conv and h_conv["fotos_antes_bytes"]:
-            h_conv["fotos_antes_bytes"] = [base64.b64decode(b) if isinstance(b, str) else b for b in h_conv["fotos_antes_bytes"]]
+            h_conv["fotos_antes_bytes"] = [
+                base64.b64decode(b) if isinstance(b, str) else b
+                for b in h_conv["fotos_antes_bytes"]
+            ]
         elif h_conv.get("foto_antes_bytes"):
             b = h_conv.pop("foto_antes_bytes")
-            h_conv["fotos_antes_bytes"] = [base64.b64decode(b) if isinstance(b, str) else b]
+            h_conv["fotos_antes_bytes"] = [
+                base64.b64decode(b) if isinstance(b, str) else b
+            ]
         else:
             h_conv["fotos_antes_bytes"] = []
 
         if "fotos_depois_bytes" in h_conv and h_conv["fotos_depois_bytes"]:
-            h_conv["fotos_depois_bytes"] = [base64.b64decode(b) if isinstance(b, str) else b for b in h_conv["fotos_depois_bytes"]]
+            h_conv["fotos_depois_bytes"] = [
+                base64.b64decode(b) if isinstance(b, str) else b
+                for b in h_conv["fotos_depois_bytes"]
+            ]
         elif h_conv.get("foto_depois_bytes"):
             b = h_conv.pop("foto_depois_bytes")
-            h_conv["fotos_depois_bytes"] = [base64.b64decode(b) if isinstance(b, str) else b]
+            h_conv["fotos_depois_bytes"] = [
+                base64.b64decode(b) if isinstance(b, str) else b
+            ]
         else:
             h_conv["fotos_depois_bytes"] = []
 
@@ -423,13 +437,13 @@ if opcao == "📋 Informações do Equipamento":
                                 "Selecionar fotos adicionais do ANTES",
                                 type=["png", "jpg", "jpeg"],
                                 accept_multiple_files=True,
-                                key=f"add_antes_{tag_codigo}_{idx}"
+                                key=f"add_antes_{tag_codigo}_{idx}",
                             )
                             novas_depois = st.file_uploader(
                                 "Selecionar fotos adicionais do DEPOIS",
                                 type=["png", "jpg", "jpeg"],
                                 accept_multiple_files=True,
-                                key=f"add_depois_{tag_codigo}_{idx}"
+                                key=f"add_depois_{tag_codigo}_{idx}",
                             )
                             if st.button("💾 Anexar Novas Fotos ao Registro", key=f"btn_add_fotos_{tag_codigo}_{idx}"):
                                 if novas_antes or novas_depois:
@@ -475,7 +489,7 @@ elif opcao == "🛠️ Registrar Manutenção":
 
             periodicidade = st.selectbox(
                 "Tipo de Manutenção / Periodicidade (Conforme PMOC):",
-                ["Semestral (180 dias) — Completa (Engloba Trimestral)", "Trimestral (90 dias)"]
+                ["Semestral (180 dias) — Completa (Engloba Trimestral)", "Trimestral (90 dias)"],
             )
 
             with st.form("form_manutencao", clear_on_submit=True):
@@ -615,7 +629,19 @@ elif opcao == "🖨️ Etiquetas 5x5 cm (Individual)":
             link_equip = base_url + "/?tag=" + equip_sel["tag"]
             api_qr_url = "https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=" + link_equip
 
-            html_etiqueta = f'<div class="etiqueta-box"><div class="etiqueta-header">PMOC - SER CONSCIENTE</div><div style="font-size: 8px; line-height: 1.1;"><b>TAG:</b> {equip_sel["tag"]}<br><b>Amb:</b> {equip_sel["ambiente"]}<br><b>Equip:</b> {formatar_equipamento_com_serie(equip_sel)}<br><b>Carga:</b> {equip_sel["btus"]} BTUs</div><div style="text-align: center; margin: 1px 0;"><img src="{api_qr_url}" width="65" height="65" style="border: 1px solid #ddd; padding: 1px; background: #fff;"></div><div style="text-align: center; font-size: 6px; color: #000; font-weight: bold; line-height: 1;">Eng. Alessandro Coelho (CREA-MG 238968-D)<br>ART: MG20265436050</div></div>'
+            html_etiqueta = (
+                f'<div class="etiqueta-box">'
+                f'<div class="etiqueta-header">PMOC - SER CONSCIENTE</div>'
+                f'<div style="font-size: 8px; line-height: 1.1;">'
+                f'<b>TAG:</b> {equip_sel["tag"]}<br>'
+                f'<b>Amb:</b> {equip_sel["ambiente"]}<br>'
+                f'<b>Equip:</b> {formatar_equipamento_com_serie(equip_sel)}<br>'
+                f'<b>Carga:</b> {equip_sel["btus"]} BTUs</div>'
+                f'<div style="text-align: center; margin: 1px 0;">'
+                f'<img src="{api_qr_url}" width="65" height="65" style="border: 1px solid #ddd; padding: 1px; background: #fff;"></div>'
+                f'<div style="text-align: center; font-size: 6px; color: #000; font-weight: bold; line-height: 1;">'
+                f'Eng. Alessandro Coelho (CREA-MG 238968-D)<br>ART: MG20265436050</div></div>'
+            )
 
             st.markdown(html_etiqueta, unsafe_allow_html=True)
 
@@ -636,10 +662,46 @@ elif opcao == "📑 Lote A4 para Gráfica (Guilhotina)":
             with st.spinner("Gerando arquivo PDF..."):
                 try:
                     pdf_buffer = io.BytesIO()
-                    doc = SimpleDocTemplate(pdf_buffer, pagesize=A4, leftMargin=1.5*cm, rightMargin=1.5*cm, topMargin=1.0*cm, bottomMargin=1.0*cm)
+                    doc = SimpleDocTemplate(
+                        pdf_buffer,
+                        pagesize=A4,
+                        leftMargin=1.5*cm,
+                        rightMargin=1.5*cm,
+                        topMargin=1.0*cm,
+                        bottomMargin=1.0*cm,
+                    )
                     story = []
                     base_url = "https://sistema-ser-consciente-fexfnfuwjkntnzwdwhknso.streamlit.app"
                     celulas_pagina = []
+
+                    estilo_header = ParagraphStyle("EtqHeader", fontName="Helvetica-Bold", fontSize=7.5, leading=9, textColor=colors.whitesmoke, alignment=1)
+                    estilo_texto = ParagraphStyle("EtqText", fontName="Helvetica", fontSize=6.0, leading=7.5, textColor=colors.black, alignment=0)
+                    estilo_footer = ParagraphStyle("EtqFooter", fontName="Helvetica-Bold", fontSize=5.5, leading=7, textColor=colors.black, alignment=1)
+
+                    style_hdr = TableStyle([
+                        ("BACKGROUND", (0, 0), (-1, -1), colors.black),
+                        ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+                        ("TOPPADDING", (0, 0), (-1, -1), 1),
+                        ("BOTTOMPADDING", (0, 0), (-1, -1), 1),
+                    ])
+                    style_etq = TableStyle([
+                        ("BACKGROUND", (0, 0), (-1, -1), colors.white),
+                        ("BOX", (0, 0), (-1, -1), 1, colors.black),
+                        ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                        ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+                        ("TOPPADDING", (0, 0), (-1, -1), 2),
+                        ("BOTTOMPADDING", (0, 0), (-1, -1), 2),
+                        ("LEFTPADDING", (0, 0), (-1, -1), 2),
+                        ("RIGHTPADDING", (0, 0), (-1, -1), 2),
+                    ])
+                    style_pag = TableStyle([
+                        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+                        ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+                        ("LEFTPADDING", (0, 0), (-1, -1), 0),
+                        ("RIGHTPADDING", (0, 0), (-1, -1), 0),
+                        ("TOPPADDING", (0, 0), (-1, -1), 0),
+                        ("BOTTOMPADDING", (0, 0), (-1, -1), 0),
+                    ])
 
                     for idx, item_sel in enumerate(equipamentos_selecionados):
                         tag_cod = item_sel.split(" - ")[0]
@@ -656,9 +718,150 @@ elif opcao == "📑 Lote A4 para Gráfica (Guilhotina)":
                             except Exception:
                                 pass
 
-                            estilo_header = ParagraphStyle("EtqHeader", fontName="Helvetica-Bold", fontSize=7.5, leading=9, textColor=colors.whitesmoke, alignment=1)
-                            estilo_texto = ParagraphStyle("EtqText", fontName="Helvetica", fontSize=6.0, leading=7.5, textColor=colors.black, alignment=0)
-                            estilo_footer = ParagraphStyle("EtqFooter", fontName="Helvetica-Bold", fontSize=5.5, leading=7, textColor=colors.black, alignment=1)
-
                             t_header = Table([[Paragraph("<b>PMOC - SER CONSCIENTE</b>", estilo_header)]], colWidths=[4.6*cm])
-                            t_header.setStyle(TableStyle([("BACKGROUND", (0, 0), (-1,
+                            t_header.setStyle(style_hdr)
+
+                            txt_dados = Paragraph(
+                                f"<b>TAG:</b> {eq_obj['tag']}<br/>"
+                                f"<b>Amb:</b> {eq_obj['ambiente']}<br/>"
+                                f"<b>Equip:</b> {formatar_equipamento_com_serie(eq_obj)}<br/>"
+                                f"<b>Carga:</b> {eq_obj['btus']} BTUs",
+                                estilo_texto,
+                            )
+                            txt_rodape = Paragraph("Eng. Alessandro Coelho (CREA-MG 238968-D)<br/><b>ART:</b> MG20265436050", estilo_footer)
+
+                            conteudo_etiqueta = [t_header, Spacer(1, 1), txt_dados, Spacer(1, 0.5)]
+                            if qr_img_obj:
+                                conteudo_etiqueta.append(qr_img_obj)
+                            conteudo_etiqueta.append(Spacer(1, 0.5))
+                            conteudo_etiqueta.append(txt_rodape)
+
+                            t_etiqueta = Table([[conteudo_etiqueta]], colWidths=[5.0*cm], rowHeights=[5.0*cm])
+                            t_etiqueta.setStyle(style_etq)
+
+                            celulas_pagina.append(t_etiqueta)
+
+                            if len(celulas_pagina) == 15 or (idx == len(equipamentos_selecionados) - 1):
+                                linhas_tabela = []
+                                linha_atual = []
+                                for cell in celulas_pagina:
+                                    linha_atual.append(cell)
+                                    if len(linha_atual) == 3:
+                                        linhas_tabela.append(linha_atual)
+                                        linha_atual = []
+                                if linha_atual:
+                                    while len(linha_atual) < 3:
+                                        linha_atual.append("")
+                                    linhas_tabela.append(linha_atual)
+
+                                t_pagina = Table(linhas_tabela, colWidths=[5.0*cm, 5.0*cm, 5.0*cm], rowHeights=[5.0*cm] * len(linhas_tabela))
+                                t_pagina.setStyle(style_pag)
+                                story.append(t_pagina)
+                                if idx < len(equipamentos_selecionados) - 1:
+                                    story.append(PageBreak())
+                                celulas_pagina = []
+
+                    doc.build(story)
+                    pdf_buffer.seek(0)
+                    st.success("✅ Arquivo PDF gerado com sucesso!")
+                    st.download_button(
+                        label="📥 Baixar PDF Pronto para a Gráfica",
+                        data=pdf_buffer,
+                        file_name="etiquetas_pmoc_5x5cm_grafica.pdf",
+                        mime="application/pdf",
+                    )
+                except Exception as e:
+                    st.error(f"Erro ao gerar PDF: {e}")
+
+elif opcao == "📊 Dashboard Geral":
+    st.header("📊 Painel Geral de Climatização")
+    total = len(st.session_state.equipamentos)
+    instalados = len([e for e in st.session_state.equipamentos if e["status"] == "Instalado"])
+    previstos = len([e for e in st.session_state.equipamentos if e["status"] == "Previsto"])
+
+    col1, col2, col3 = st.columns(3)
+    col1.metric("Total de Aparelhos", total)
+    col2.metric("Instalados e Ativos", instalados)
+    col3.metric("Previstos / Futuros", previstos)
+    st.markdown("---")
+    df = pd.DataFrame(st.session_state.equipamentos)
+    st.dataframe(df, use_container_width=True)
+
+elif opcao == "📄 Relatório Fiscal A4":
+    st.header("📄 Relatório Fiscal Oficial A4 (Completo com Checklists e Todas as Fotos)")
+    st.info("ℹ️ Este relatório consolida a relação de equipamentos, o histórico completo de manutenções com os itens verificados no checklist e **todas** as fotografias (Antes e Depois) anexadas em cada manutenção.")
+
+    filtrar_periodo = st.checkbox("📅 Filtrar manutenções por período (Data Inicial e Data Final)", value=False)
+
+    hoje_data = datetime.date.today()
+    inicio_padrao = hoje_data - datetime.timedelta(days=180)
+
+    data_inicio = inicio_padrao
+    data_fim = hoje_data
+
+    if filtrar_periodo:
+        col_d1, col_d2 = st.columns(2)
+        with col_d1:
+            data_inicio = st.date_input("Data Inicial", value=inicio_padrao, format="DD/MM/YYYY")
+        with col_d2:
+            data_fim = st.date_input("Data Final", value=hoje_data, format="DD/MM/YYYY")
+
+        if data_inicio > data_fim:
+            st.warning("⚠️ A Data Inicial não pode ser maior que a Data Final.")
+
+    def dentro_do_periodo(h_item):
+        if not filtrar_periodo:
+            return True
+        try:
+            d_reg = datetime.datetime.strptime(h_item.get("data", ""), "%d/%m/%Y").date()
+            return data_inicio <= d_reg <= data_fim
+        except Exception:
+            return False
+
+    periodo_valido = (not filtrar_periodo) or (data_inicio <= data_fim)
+
+    if periodo_valido and st.button("🚀 Gerar PDF Oficial Completo do Relatório Fiscal"):
+        with st.spinner("Compilando relatório fiscal completo com todas as fotos e checklists..."):
+            try:
+                pdf_buffer = io.BytesIO()
+                doc = SimpleDocTemplate(
+                    pdf_buffer,
+                    pagesize=A4,
+                    leftMargin=1.5*cm,
+                    rightMargin=1.5*cm,
+                    topMargin=1.5*cm,
+                    bottomMargin=1.5*cm,
+                )
+                story = []
+
+                estilo_titulo = ParagraphStyle("RelTitulo", fontName="Helvetica-Bold", fontSize=14, leading=18, textColor=colors.HexColor("#111111"), alignment=1)
+                estilo_sub = ParagraphStyle("RelSub", fontName="Helvetica-Bold", fontSize=10, leading=14, textColor=colors.HexColor("#333333"), alignment=1)
+                estilo_info = ParagraphStyle("RelInfo", fontName="Helvetica", fontSize=9, leading=13, textColor=colors.HexColor("#444444"))
+                estilo_secao = ParagraphStyle("RelSecao", fontName="Helvetica-Bold", fontSize=12, leading=16, textColor=colors.HexColor("#000000"), spaceBefore=12, spaceAfter=6)
+                estilo_texto = ParagraphStyle("RelTexto", fontName="Helvetica", fontSize=8.5, leading=12, textColor=colors.HexColor("#222222"))
+                estilo_check = ParagraphStyle("RelCheck", fontName="Helvetica", fontSize=7.5, leading=10, textColor=colors.HexColor("#333333"), leftIndent=10)
+
+                style_resumo = TableStyle([
+                    ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#000000")),
+                    ("TEXTCOLOR", (0, 0), (-1, 0), colors.whitesmoke),
+                    ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+                    ("FONTSIZE", (0, 0), (-1, -1), 7.5),
+                    ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+                    ("GRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#cccccc")),
+                    ("TOPPADDING", (0, 0), (-1, -1), 3),
+                    ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
+                ])
+                style_imgs = TableStyle([
+                    ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+                    ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+                ])
+
+                # Cabeçalho
+                story.append(Paragraph("<b>INSTITUTO SER CONSCIENTE LTDA</b>", estilo_titulo))
+                story.append(Paragraph("PLANO DE MANUTENÇÃO, OPERAÇÃO E CONTROLE - PMOC", estilo_sub))
+                story.append(Paragraph("Lei Federal nº 13.589/2018 | ART CREA-MG: MG20265436050", estilo_sub))
+                story.append(Spacer(1, 10))
+
+                data_hoje_str = hoje_data.strftime("%d/%m/%Y")
+                texto_periodo = (
+                    f"{data_inicio.strftime('%d/%m/%Y')} a {data_fim

@@ -97,32 +97,53 @@ def rotulo_ciclo_curto(periodicidade_str):
 
 
 def proximo_ciclo_esperado(hists_eq):
+    """
+    - Sem histórico: começa pela Semestral (180 dias).
+    - Após Semestral: próxima é Trimestral (90 dias).
+    - Após Trimestral: a próxima etapa após +90 dias já prepara o fechamento/ciclo Semestral (180 dias).
+    """
     if not hists_eq:
         return "Semestral"
-    # Varre do mais recente para o mais antigo para identificar o ciclo vigente
-    for h in reversed(hists_eq):
-        per = str(h.get("periodicidade", ""))
-        if "Trimestral" in per:
-            return "Semestral"
-        if "Semestral" in per or "Completa" in per:
-            return "Trimestral"
+    ultima_per = str(hists_eq[-1].get("periodicidade", ""))
+    if "Trimestral" in ultima_per:
+        return "Semestral"
+    if "Semestral" in ultima_per or "Completa" in ultima_per:
+        return "Trimestral"
     return "Semestral"
 
 
 def calcular_proxima_manutencao(hists_eq):
     if not hists_eq:
-        return "-", "-", "-"
+        return "-", "-", None, "", ""
     ultima = hists_eq[-1]
     data_ult_str = str(ultima.get("data", "-"))
     tipo_freq = str(ultima.get("periodicidade", "Semestral"))
     prox_tipo = proximo_ciclo_esperado(hists_eq)
+
+    # Conta quantas trimestrais ocorreram desde a última semestral
+    trimestrais_apos_semestral = 0
+    for h in reversed(hists_eq):
+        p = str(h.get("periodicidade", ""))
+        if "Trimestral" in p:
+            trimestrais_apos_semestral += 1
+        elif "Semestral" in p or "Completa" in p:
+            break
+
     try:
         d_obj = datetime.datetime.strptime(data_ult_str.strip(), "%d/%m/%Y").date()
-        d_prox = d_obj + datetime.timedelta(days=90)
+        # Cada salto agendado avança em blocos de 90 dias;
+        # quando já houve uma trimestral após a semestral, a próxima já reflete o ciclo completo de 180 dias
+        if "Semestral" in tipo_freq or "Completa" in tipo_freq:
+            d_prox = d_obj + datetime.timedelta(days=90)
+        elif "Trimestral" in tipo_freq and trimestrais_apos_semestral >= 2:
+            d_prox = d_obj + datetime.timedelta(days=180)
+        else:
+            d_prox = d_obj + datetime.timedelta(days=90)
         d_prox_str = d_prox.strftime("%d/%m/%Y")
     except Exception:
         d_prox = None
         d_prox_str = "A calcular"
+
     return data_ult_str, d_prox_str, d_prox, tipo_freq, prox_tipo
 
 
@@ -662,7 +683,7 @@ elif opcao == "🛠️ Registrar Manutenção":
             hists_eq_atual = [h for h in st.session_state.historico if h.get("tag") == tag_codigo]
             prox_sugerido = proximo_ciclo_esperado(hists_eq_atual)
             opcoes_ciclo = [
-                "Semestral (90 dias) — Ciclo Completo (Itens 4.1 a 4.18)",
+                "Semestral (180 dias) — Ciclo Completo (Itens 4.1 a 4.18)",
                 "Trimestral (90 dias) — Rotina Trimestral (Itens 4.1 a 4.11)",
                 "Corretiva / Ocorrência Extraordinária",
             ]
@@ -915,133 +936,4 @@ elif opcao == "📄 Relatório Fiscal A4":
 
                     style_resumo = TableStyle([
                         ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#000000")),
-                        ("TEXTCOLOR", (0, 0), (-1, 0), colors.whitesmoke),
-                        ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
-                        ("FONTSIZE", (0, 0), (-1, -1), 7.5),
-                        ("ALIGN", (0, 0), (-1, -1), "CENTER"),
-                        ("GRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#cccccc")),
-                        ("TOPPADDING", (0, 0), (-1, -1), 3),
-                        ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
-                    ])
-                    style_imgs = TableStyle([("ALIGN", (0, 0), (-1, -1), "CENTER"), ("VALIGN", (0, 0), (-1, -1), "MIDDLE")])
-
-                    story.append(Paragraph("<b>INSTITUTO SER CONSCIENTE LTDA</b>", estilo_titulo))
-                    story.append(Paragraph("PLANO DE MANUTENÇÃO, OPERAÇÃO E CONTROLE - PMOC", estilo_sub))
-                    story.append(Paragraph("Lei Federal nº 13.589/2018 | ART CREA-MG: MG20265436050", estilo_sub))
-                    story.append(Spacer(1, 10))
-
-                    texto_periodo = (
-                        data_inicio.strftime("%d/%m/%Y") + " a " + data_fim.strftime("%d/%m/%Y")
-                        if filtrar_periodo
-                        else "Todo o histórico registrado"
-                    )
-
-                    story.append(Paragraph("<b>Data de Emissão:</b> " + hoje_data.strftime("%d/%m/%Y"), estilo_info))
-                    story.append(Paragraph("<b>Período do Relatório:</b> " + texto_periodo, estilo_info))
-                    story.append(Paragraph("<b>Responsável Técnico:</b> Eng. Alessandro Coelho (CREA-MG 238468-D)", estilo_info))
-                    story.append(Paragraph("<b>Administrador / Gestor:</b> Antônio Sérgio Silva Gomes", estilo_info))
-                    story.append(Spacer(1, 10))
-
-                    story.append(Paragraph("📑 Relação Resumida dos Equipamentos Instalados", estilo_secao))
-                    instalados_df = [e for e in st.session_state.equipamentos if e["status"] == "Instalado"]
-                    dados_tabela = [["TAG", "Ambiente", "Equipamento", "BTUs", "Última Manutenção", "Próxima", "Frequência"]]
-
-                    for eq in instalados_df:
-                        hists_eq = [h for h in st.session_state.historico if h.get("tag") == eq["tag"] and dentro_do_periodo(h)]
-                        if hists_eq:
-                            ultima_data, prox_data_str, _, freq_ult, prox_tipo = calcular_proxima_manutencao(hists_eq)
-                            freq_resumo = rotulo_ciclo_curto(freq_ult) + " -> " + prox_tipo
-                        else:
-                            ultima_data, prox_data_str, freq_resumo = "Sem registro", "-", "-"
-
-                        dados_tabela.append([eq["tag"], eq["ambiente"], formatar_equipamento_com_serie(eq), str(eq["btus"]), ultima_data, prox_data_str, freq_resumo])
-
-                    t_resumo = Table(dados_tabela, colWidths=[1.9 * cm, 3.0 * cm, 3.0 * cm, 1.5 * cm, 2.5 * cm, 2.3 * cm, 2.8 * cm])
-                    t_resumo.setStyle(style_resumo)
-                    story.append(t_resumo)
-                    story.append(Spacer(1, 15))
-
-                    story.append(Paragraph("📖 Detalhamento Completo, Checklists e Registros Fotográficos", estilo_secao))
-                    for eq in instalados_df:
-                        equip_sem_serie = formatar_equipamento_com_serie(eq)
-                        story.append(Paragraph("<b>📍 Equipamento: " + eq["ambiente"] + " (TAG: " + eq["tag"] + ")</b> — " + equip_sem_serie + " (" + str(eq["btus"]) + " BTUs)", estilo_texto))
-                        hists_eq = [h for h in st.session_state.historico if h.get("tag") == eq["tag"] and dentro_do_periodo(h)]
-
-                        if hists_eq:
-                            for h in hists_eq:
-                                freq_reg = h.get("periodicidade", "Semestral")
-                                story.append(Paragraph("• <b>Data:</b> " + str(h.get("data", "")) + " (" + freq_reg + ") | <b>Técnico:</b> " + str(h.get("tecnico", "")), estilo_texto))
-
-                                if h.get("checklist"):
-                                    story.append(Paragraph("  <b>Itens Verificados (PMOC):</b>", estilo_check))
-                                    for item_nome, status_val in h["checklist"].items():
-                                        simbolo = "✓" if status_val else "X"
-                                        story.append(Paragraph("    [" + simbolo + "] " + str(item_nome), estilo_check))
-
-                                if h.get("obs"):
-                                    story.append(Paragraph("  <b>Observações:</b> " + str(h["obs"]), estilo_check))
-
-                                f_antes = h.get("fotos_antes_bytes") or normalizar_lista_fotos(h, "fotos_antes_bytes", "foto_antes")
-                                f_depois = h.get("fotos_depois_bytes") or normalizar_lista_fotos(h, "fotos_depois_bytes", "foto_depois")
-
-                                adicionar_bloco_fotos_pdf(story, "  <b>Fotos - ANTES:</b>", f_antes, estilo_check, style_imgs)
-                                adicionar_bloco_fotos_pdf(story, "  <b>Fotos - DEPOIS:</b>", f_depois, estilo_check, style_imgs)
-                                story.append(Spacer(1, 6))
-                        else:
-                            msg_sem = "  <i>(Nenhuma manutenção registrada no período selecionado)</i>" if filtrar_periodo else "  <i>(Nenhuma manutenção registrada)</i>"
-                            story.append(Paragraph(msg_sem, estilo_texto))
-                        story.append(Spacer(1, 8))
-
-                    doc.build(story)
-                    pdf_buffer.seek(0)
-                    nome_arq = (
-                        "relatorio_fiscal_pmoc_" + data_inicio.strftime("%Y%m%d") + "_" + data_fim.strftime("%Y%m%d") + ".pdf"
-                        if filtrar_periodo
-                        else "relatorio_fiscal_pmoc_completo.pdf"
-                    )
-                    st.success("✅ Relatório Fiscal Completo em PDF gerado com sucesso!")
-                    st.download_button("📥 Baixar Relatório Fiscal Oficial Completo (PDF)", data=pdf_buffer, file_name=nome_arq, mime="application/pdf")
-                except Exception as e:
-                    st.error("Erro ao compilar PDF fiscal completo: " + str(e))
-
-if eh_admin:
-    st.markdown("---")
-    st.subheader("💾 Backup dos Arquivos JSON")
-    st.caption("Baixe os dois arquivos e envie para o GitHub para manter seus registros salvos após reinicializações.")
-
-    historico_export = []
-    for h in st.session_state.historico:
-        h_copy = h.copy()
-        antes_raw = h_copy.pop("foto_antes_bytes", None)
-        depois_raw = h_copy.pop("foto_depois_bytes", None)
-        antes_lista = h_copy.get("fotos_antes_bytes") or ([antes_raw] if antes_raw else [])
-        depois_lista = h_copy.get("fotos_depois_bytes") or ([depois_raw] if depois_raw else [])
-        h_copy["fotos_antes_bytes"] = serializar_lista_fotos(antes_lista)
-        h_copy["fotos_depois_bytes"] = serializar_lista_fotos(depois_lista)
-        historico_export.append(h_copy)
-
-    equipamentos_export = []
-    for eq_item in st.session_state.equipamentos:
-        eq_clean = eq_item.copy()
-        eq_clean["equipamento"] = limpar_numero_serie(eq_clean.get("equipamento", ""))
-        eq_clean["numero_serie"] = ""
-        equipamentos_export.append(eq_clean)
-
-    json_dados = json.dumps(historico_export, ensure_ascii=False, indent=4).encode("utf-8")
-    json_equip = json.dumps(equipamentos_export, ensure_ascii=False, indent=4).encode("utf-8")
-
-    col_b1, col_b2 = st.columns(2)
-    with col_b1:
-        st.download_button(
-            label="⬇️ Baixar pmoc_dados.json",
-            data=json_dados,
-            file_name="pmoc_dados.json",
-            mime="application/json",
-        )
-    with col_b2:
-        st.download_button(
-            label="⬇️ Baixar pmoc_equipamentos.json",
-            data=json_equip,
-            file_name="pmoc_equipamentos.json",
-            mime="application/json",
-        )
+                        ("TEXTCOLOR",

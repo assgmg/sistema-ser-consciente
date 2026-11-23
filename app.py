@@ -649,6 +649,9 @@ if opcao == "📋 Informações do Equipamento":
 
                     if eh_admin:
                         with st.expander("✏️ Editar este Registro de Manutenção (#" + num_manut + " — " + str(h.get("data", "")) + ")"):
+                            fotos_antes_atuais = h.get("fotos_antes_bytes") or normalizar_lista_fotos(h, "fotos_antes_bytes", "foto_antes")
+                            fotos_depois_atuais = h.get("fotos_depois_bytes") or normalizar_lista_fotos(h, "fotos_depois_bytes", "foto_depois")
+
                             with st.form("form_edit_manut_" + tag_codigo + "_" + str(indice_real)):
                                 ec1, ec2, ec3 = st.columns(3)
                                 with ec1:
@@ -677,6 +680,44 @@ if opcao == "📋 Informações do Equipamento":
 
                                 ed_obs = st.text_area("Observações Técnicas / Ocorrências", value=str(h.get("obs", "")))
 
+                                st.markdown("---")
+                                st.markdown("**📸 Editar / Trocar Fotos do Registro:**")
+                                st.caption("Envie novas fotos para substituir todas as fotos do lado escolhido, ou marque fotos específicas para remover.")
+
+                                ef1, ef2 = st.columns(2)
+                                remover_antes_idx = []
+                                remover_depois_idx = []
+
+                                with ef1:
+                                    troca_antes_files = st.file_uploader(
+                                        "🔄 Substituir fotos do ANTES (opcional)",
+                                        type=["png", "jpg", "jpeg"],
+                                        accept_multiple_files=True,
+                                        key="troca_antes_" + tag_codigo + "_" + str(indice_real),
+                                    )
+                                    for i_a in range(len(fotos_antes_atuais)):
+                                        if st.checkbox(
+                                            "Remover Antes #" + str(i_a + 1),
+                                            value=False,
+                                            key="rm_antes_" + tag_codigo + "_" + str(indice_real) + "_" + str(i_a),
+                                        ):
+                                            remover_antes_idx.append(i_a)
+
+                                with ef2:
+                                    troca_depois_files = st.file_uploader(
+                                        "🔄 Substituir fotos do DEPOIS (opcional)",
+                                        type=["png", "jpg", "jpeg"],
+                                        accept_multiple_files=True,
+                                        key="troca_depois_" + tag_codigo + "_" + str(indice_real),
+                                    )
+                                    for i_d in range(len(fotos_depois_atuais)):
+                                        if st.checkbox(
+                                            "Remover Depois #" + str(i_d + 1),
+                                            value=False,
+                                            key="rm_depois_" + tag_codigo + "_" + str(indice_real) + "_" + str(i_d),
+                                        ):
+                                            remover_depois_idx.append(i_d)
+
                                 if st.form_submit_button("💾 Gravar Alterações da Manutenção"):
                                     reg_edit = st.session_state.historico[indice_real]
                                     reg_edit["data"] = ed_data.strip()
@@ -685,9 +726,24 @@ if opcao == "📋 Informações do Equipamento":
                                     reg_edit["periodicidade"] = ed_period
                                     reg_edit["checklist"] = ed_checklist
                                     reg_edit["obs"] = ed_obs.strip()
+
+                                    if troca_antes_files:
+                                        reg_edit["fotos_antes_bytes"] = [f.getvalue() for f in troca_antes_files]
+                                    else:
+                                        reg_edit["fotos_antes_bytes"] = [
+                                            b for i_b, b in enumerate(fotos_antes_atuais) if i_b not in remover_antes_idx
+                                        ]
+
+                                    if troca_depois_files:
+                                        reg_edit["fotos_depois_bytes"] = [f.getvalue() for f in troca_depois_files]
+                                    else:
+                                        reg_edit["fotos_depois_bytes"] = [
+                                            b for i_b, b in enumerate(fotos_depois_atuais) if i_b not in remover_depois_idx
+                                        ]
+
                                     salvar_dados_disco(st.session_state.historico)
                                     st.cache_data.clear()
-                                    st.success("✅ Alterações gravadas na manutenção com sucesso!")
+                                    st.success("✅ Alterações e fotos gravadas com sucesso!")
                                     st.rerun()
 
                         with st.expander("➕ Adicionar mais fotos a esta manutenção (" + str(h.get("data", "")) + ")"):
@@ -716,396 +772,3 @@ if opcao == "📋 Informações do Equipamento":
                     st.markdown("---")
             else:
                 st.info("Nenhum histórico cadastrado para este aparelho.")
-
-elif opcao == "🛠️ Registrar Manutenção":
-    if not eh_admin:
-        st.warning("🔒 Área restrita ao Administrador.")
-    else:
-        st.header("🛠️ Registro de Manutenção Preventiva e Ocorrências (PMOC)")
-        instalados = [e for e in st.session_state.equipamentos if e["status"] == "Instalado"]
-        tags = [e["tag"] + " - " + e["ambiente"] for e in instalados]
-
-        if tags:
-            tag_sel = st.selectbox("Selecione o Equipamento:", tags)
-            tag_codigo = tag_sel.split(" - ")[0]
-            hists_eq_atual = [h for h in st.session_state.historico if h.get("tag") == tag_codigo]
-            prox_sugerido = proximo_ciclo_esperado(hists_eq_atual)
-            idx_ciclo = 1 if prox_sugerido == "Trimestral" else 0
-            hoje_formatado = datetime.date.today().strftime("%d/%m/%Y")
-
-            periodicidade = st.selectbox(
-                "Tipo de Manutenção / Periodicidade (Conforme PMOC):",
-                OPCOES_CICLO_MANUTENCAO,
-                index=idx_ciclo,
-            )
-
-            itens_padrao = (
-                ITENS_PADRAO_TRIMESTRAL
-                if "Trimestral" in periodicidade
-                else (set() if "Corretiva" in periodicidade else ITENS_PADRAO_SEMESTRAL)
-            )
-
-            with st.form("form_manutencao", clear_on_submit=True):
-                col_d1, col_d2, col_d3 = st.columns(3)
-                with col_d1:
-                    data_manut = st.text_input("Data da Manutenção (DD/MM/AAAA)", value=hoje_formatado)
-                with col_d2:
-                    tecnico = st.text_input("Técnico Responsável", value="Antônio Sérgio Silva Gomes")
-                with col_d3:
-                    visto = st.text_input("Visto / Responsável Conferência", value="")
-
-                st.markdown("---")
-                st.subheader("📋 Checklist Oficial do PMOC (Itens 4.1 a 4.18)")
-                st.caption("M = Mensal | T = Trimestral | S = Semestral. Os itens padrão do ciclo selecionado já vêm marcados, e você pode alterar qualquer um.")
-
-                checklist_inputs = {}
-                for item in CHECKLIST_PMOC_OFICIAL:
-                    checklist_inputs[item] = st.checkbox(item, value=(item in itens_padrao), key="chk_" + item[:4])
-
-                st.markdown("---")
-                st.subheader("📸 Registros Fotográficos (Múltiplas Fotos) e Ocorrências (Seção 6)")
-                st.caption("Selecione várias fotos de uma só vez nos campos abaixo.")
-                obs = st.text_area("Observações Técnicas / Registro de Ocorrências")
-
-                col_f1, col_f2 = st.columns(2)
-                with col_f1:
-                    fotos_antes = st.file_uploader("📷 Fotos do ANTES", type=["png", "jpg", "jpeg"], accept_multiple_files=True)
-                with col_f2:
-                    fotos_depois = st.file_uploader("📷 Fotos do DEPOIS", type=["png", "jpg", "jpeg"], accept_multiple_files=True)
-
-                if st.form_submit_button("💾 Salvar Registro de Manutenção"):
-                    st.session_state.historico.append({
-                        "tag": tag_codigo,
-                        "data": data_manut,
-                        "periodicidade": periodicidade,
-                        "tecnico": tecnico,
-                        "visto": visto,
-                        "checklist": checklist_inputs,
-                        "obs": obs,
-                        "fotos_antes_bytes": [f.getvalue() for f in fotos_antes] if fotos_antes else [],
-                        "fotos_depois_bytes": [f.getvalue() for f in fotos_depois] if fotos_depois else [],
-                    })
-                    salvar_dados_disco(st.session_state.historico)
-                    st.cache_data.clear()
-                    st.success("✅ Manutenção registrada com sucesso!")
-        else:
-            st.info("Não há equipamentos instalados no momento.")
-
-elif opcao == "✏️ Editar Previstos":
-    if not eh_admin:
-        st.warning("🔒 Área restrita ao Administrador.")
-    else:
-        st.header("✏️ Gerenciar, Cadastrar Novos e Substituir Equipamentos")
-        st.caption("Use esta tela para registrar dados de um equipamento novo ou atualizar dados do ambiente.")
-
-        lista_todos = [e["tag"] + " - " + e["ambiente"] + " (" + e["status"] + ")" for e in st.session_state.equipamentos]
-        tag_sel_ed = st.selectbox("Selecione o Equipamento para Editar ou Substituir:", lista_todos)
-        tag_codigo_ed = tag_sel_ed.split(" - ")[0]
-        equip_ed = next((e for e in st.session_state.equipamentos if e["tag"] == tag_codigo_ed), None)
-
-        if equip_ed:
-            with st.form("form_edicao_geral"):
-                st.write("**Ambiente:** " + equip_ed["ambiente"] + " | **TAG:** " + equip_ed["tag"])
-                novo_nome = st.text_input("Marca / Modelo do Equipamento", value=limpar_numero_serie(equip_ed["equipamento"]))
-                novos_btus = st.text_input("Potência / Carga Térmica (BTUs)", value=equip_ed["btus"])
-                col_a1, col_a2 = st.columns(2)
-                with col_a1:
-                    nova_area = st.text_input("Área Climatizada (m²)", value=str(equip_ed.get("area_m2") or ""), placeholder="Ex.: 12,50")
-                with col_a2:
-                    novo_ocup = st.text_input("Ocupantes Máximos", value=str(equip_ed.get("ocupantes_max") or ""), placeholder="Ex.: 2")
-                novo_status = st.selectbox("Status de Instalação", ["Instalado", "Previsto"], index=0 if equip_ed["status"] == "Instalado" else 1)
-
-                if st.form_submit_button("✅ Salvar Alterações"):
-                    equip_ed["equipamento"] = limpar_numero_serie(novo_nome)
-                    equip_ed["btus"] = novos_btus.strip()
-                    equip_ed["numero_serie"] = ""
-                    equip_ed["area_m2"] = nova_area.strip()
-                    equip_ed["ocupantes_max"] = novo_ocup.strip()
-                    equip_ed["status"] = novo_status
-                    salvar_equipamentos_disco(st.session_state.equipamentos)
-                    st.cache_data.clear()
-                    st.success("Equipamento " + tag_codigo_ed + " atualizado e salvo com sucesso!")
-                    st.rerun()
-
-elif opcao == "🖨️ Etiquetas 5x5 cm (Individual)":
-    if not eh_admin:
-        st.warning("🔒 Área restrita ao Administrador.")
-    else:
-        st.header("🖨️ Pré-visualização de Etiqueta Individual 5x5 cm")
-        lista_eq_qr = [e["tag"] + " - " + e["ambiente"] for e in st.session_state.equipamentos]
-        tag_sel_qr = st.selectbox("Selecione o Equipamento:", lista_eq_qr)
-        equip_sel = next((e for e in st.session_state.equipamentos if e["tag"] == tag_sel_qr.split(" - ")[0]), None)
-        if equip_sel:
-            st.markdown(renderizar_etiqueta_html(equip_sel), unsafe_allow_html=True)
-
-elif opcao == "📑 Lote A4 para Gráfica (Guilhotina)":
-    if not eh_admin:
-        st.warning("🔒 Área restrita ao Administrador.")
-    else:
-        st.header("📑 Gerador de Arquivo PDF Pronto para Gráfica (5x5 cm)")
-        todas_tags = [e["tag"] + " - " + e["ambiente"] for e in st.session_state.equipamentos]
-        selecionar_todos = st.checkbox("Selecionar todos os equipamentos cadastrados", value=True)
-        equipamentos_selecionados = todas_tags if selecionar_todos else st.multiselect("Selecione os equipamentos:", todas_tags, default=todas_tags[:6])
-
-        if st.button("🚀 Gerar PDF Oficial para Download"):
-            if not equipamentos_selecionados:
-                st.warning("Selecione pelo menos um equipamento.")
-            else:
-                with st.spinner("Gerando arquivo PDF..."):
-                    try:
-                        pdf_buffer = io.BytesIO()
-                        doc = SimpleDocTemplate(pdf_buffer, pagesize=A4, leftMargin=1.5 * cm, rightMargin=1.5 * cm, topMargin=1.0 * cm, bottomMargin=1.0 * cm)
-                        story = []
-                        celulas_pagina = []
-
-                        estilo_header = ParagraphStyle("EtqHeader", fontName="Helvetica-Bold", fontSize=7.5, leading=9, textColor=colors.whitesmoke, alignment=1)
-                        estilo_texto = ParagraphStyle("EtqText", fontName="Helvetica", fontSize=6.0, leading=7.5, textColor=colors.black, alignment=0)
-                        estilo_footer = ParagraphStyle("EtqFooter", fontName="Helvetica-Bold", fontSize=5.5, leading=7, textColor=colors.black, alignment=1)
-
-                        style_hdr = TableStyle([("BACKGROUND", (0, 0), (-1, -1), colors.black), ("ALIGN", (0, 0), (-1, -1), "CENTER"), ("TOPPADDING", (0, 0), (-1, -1), 1), ("BOTTOMPADDING", (0, 0), (-1, -1), 1)])
-                        style_etq = TableStyle([("BACKGROUND", (0, 0), (-1, -1), colors.white), ("BOX", (0, 0), (-1, -1), 1, colors.black), ("VALIGN", (0, 0), (-1, -1), "TOP"), ("ALIGN", (0, 0), (-1, -1), "CENTER"), ("TOPPADDING", (0, 0), (-1, -1), 2), ("BOTTOMPADDING", (0, 0), (-1, -1), 2), ("LEFTPADDING", (0, 0), (-1, -1), 2), ("RIGHTPADDING", (0, 0), (-1, -1), 2)])
-                        style_pag = TableStyle([("VALIGN", (0, 0), (-1, -1), "MIDDLE"), ("ALIGN", (0, 0), (-1, -1), "CENTER"), ("LEFTPADDING", (0, 0), (-1, -1), 0), ("RIGHTPADDING", (0, 0), (-1, -1), 0), ("TOPPADDING", (0, 0), (-1, -1), 0), ("BOTTOMPADDING", (0, 0), (-1, -1), 0)])
-
-                        for idx, item_sel in enumerate(equipamentos_selecionados):
-                            eq_obj = next((e for e in st.session_state.equipamentos if e["tag"] == item_sel.split(" - ")[0]), None)
-                            if eq_obj:
-                                celulas_pagina.append(montar_etiqueta_pdf(eq_obj, estilo_header, estilo_texto, estilo_footer, style_hdr, style_etq))
-
-                            if len(celulas_pagina) == 15 or idx == len(equipamentos_selecionados) - 1:
-                                linhas_tabela = []
-                                linha_atual = []
-                                for cell in celulas_pagina:
-                                    linha_atual.append(cell)
-                                    if len(linha_atual) == 3:
-                                        linhas_tabela.append(linha_atual)
-                                        linha_atual = []
-                                if linha_atual:
-                                    linha_atual.extend([""] * (3 - len(linha_atual)))
-                                    linhas_tabela.append(linha_atual)
-
-                                t_pagina = Table(linhas_tabela, colWidths=[5.0 * cm, 5.0 * cm, 5.0 * cm], rowHeights=[5.0 * cm] * len(linhas_tabela))
-                                t_pagina.setStyle(style_pag)
-                                story.append(t_pagina)
-                                if idx < len(equipamentos_selecionados) - 1:
-                                    story.append(PageBreak())
-                                celulas_pagina = []
-
-                        doc.build(story)
-                        pdf_buffer.seek(0)
-                        st.success("✅ Arquivo PDF gerado com sucesso!")
-                        st.download_button("📥 Baixar PDF Pronto para a Gráfica", data=pdf_buffer, file_name="etiquetas_pmoc_5x5cm_grafica.pdf", mime="application/pdf")
-                    except Exception as e:
-                        st.error("Erro ao gerar PDF: " + str(e))
-
-elif opcao == "📊 Dashboard Geral":
-    st.header("📊 Painel Geral de Climatização")
-    total = len(st.session_state.equipamentos)
-    instalados = len([e for e in st.session_state.equipamentos if e["status"] == "Instalado"])
-    previstos = len([e for e in st.session_state.equipamentos if e["status"] == "Previsto"])
-
-    col1, col2, col3 = st.columns(3)
-    col1.metric("Total de Aparelhos", total)
-    col2.metric("Instalados e Ativos", instalados)
-    col3.metric("Previstos / Futuros", previstos)
-    st.markdown("---")
-    linhas_dash = []
-    for e in st.session_state.equipamentos:
-        hists_e = [h for h in st.session_state.historico if h.get("tag") == e["tag"]]
-        if hists_e and e["status"] == "Instalado":
-            ult_d, prox_d, _, tipo_u, prox_t = calcular_proxima_manutencao(hists_e)
-            ciclo_txt = rotulo_ciclo_curto(tipo_u) + " -> " + prox_t
-        else:
-            ult_d, prox_d, ciclo_txt = "-", "-", "-"
-        linhas_dash.append({
-            "tag": e["tag"],
-            "ambiente": e["ambiente"],
-            "equipamento": formatar_equipamento_com_serie(e),
-            "btus": e["btus"],
-            "area_m2": e.get("area_m2") or "-",
-            "ocupantes_max": e.get("ocupantes_max") or "-",
-            "status": e["status"],
-            "ultima_manutencao": ult_d,
-            "proxima_manutencao": prox_d,
-            "ciclo": ciclo_txt,
-        })
-    st.dataframe(pd.DataFrame(linhas_dash), use_container_width=True)
-
-elif opcao == "📄 Relatório Fiscal A4":
-    if not eh_admin:
-        st.warning("🔒 O Relatório Fiscal A4 é exclusivo do Administrador.")
-    else:
-        st.header("📄 Relatório Fiscal Oficial A4 (Completo com Checklists e Todas as Fotos)")
-        st.info("ℹ️ Este relatório consolida a relação de equipamentos, o histórico completo de manutenções com os itens verificados no checklist e **todas** as fotografias (Antes e Depois) anexadas em cada manutenção.")
-
-        filtrar_periodo = st.checkbox("📅 Filtrar manutenções por período (Data Inicial e Data Final)", value=False)
-        hoje_data = datetime.date.today()
-        inicio_padrao = hoje_data - datetime.timedelta(days=180)
-        data_inicio = inicio_padrao
-        data_fim = hoje_data
-
-        if filtrar_periodo:
-            col_d1, col_d2 = st.columns(2)
-            with col_d1:
-                data_inicio = st.date_input("Data Inicial", value=inicio_padrao, format="DD/MM/YYYY")
-            with col_d2:
-                data_fim = st.date_input("Data Final", value=hoje_data, format="DD/MM/YYYY")
-            if data_inicio > data_fim:
-                st.warning("⚠️ A Data Inicial não pode ser maior que a Data Final.")
-
-        def dentro_do_periodo(h_item):
-            if not filtrar_periodo:
-                return True
-            try:
-                d_reg = datetime.datetime.strptime(h_item.get("data", ""), "%d/%m/%Y").date()
-                return data_inicio <= d_reg <= data_fim
-            except Exception:
-                return False
-
-        periodo_valido = (not filtrar_periodo) or (data_inicio <= data_fim)
-
-        if periodo_valido and st.button("🚀 Gerar PDF Oficial Completo do Relatório Fiscal"):
-            with st.spinner("Compilando relatório fiscal completo com todas as fotos e checklists..."):
-                try:
-                    pdf_buffer = io.BytesIO()
-                    doc = SimpleDocTemplate(pdf_buffer, pagesize=A4, leftMargin=1.5 * cm, rightMargin=1.5 * cm, topMargin=1.5 * cm, bottomMargin=1.5 * cm)
-                    story = []
-
-                    estilo_titulo = ParagraphStyle("RelTitulo", fontName="Helvetica-Bold", fontSize=14, leading=18, textColor=colors.HexColor("#111111"), alignment=1)
-                    estilo_sub = ParagraphStyle("RelSub", fontName="Helvetica-Bold", fontSize=10, leading=14, textColor=colors.HexColor("#333333"), alignment=1)
-                    estilo_info = ParagraphStyle("RelInfo", fontName="Helvetica", fontSize=9, leading=13, textColor=colors.HexColor("#444444"))
-                    estilo_secao = ParagraphStyle("RelSecao", fontName="Helvetica-Bold", fontSize=12, leading=16, textColor=colors.HexColor("#000000"), spaceBefore=12, spaceAfter=6)
-                    estilo_texto = ParagraphStyle("RelTexto", fontName="Helvetica", fontSize=8.5, leading=12, textColor=colors.HexColor("#222222"))
-                    estilo_check = ParagraphStyle("RelCheck", fontName="Helvetica", fontSize=7.5, leading=10, textColor=colors.HexColor("#333333"), leftIndent=10)
-
-                    style_resumo = TableStyle([
-                        ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#000000")),
-                        ("TEXTCOLOR", (0, 0), (-1, 0), colors.whitesmoke),
-                        ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
-                        ("FONTSIZE", (0, 0), (-1, -1), 7.5),
-                        ("ALIGN", (0, 0), (-1, -1), "CENTER"),
-                        ("GRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#cccccc")),
-                        ("TOPPADDING", (0, 0), (-1, -1), 3),
-                        ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
-                    ])
-                    style_imgs = TableStyle([("ALIGN", (0, 0), (-1, -1), "CENTER"), ("VALIGN", (0, 0), (-1, -1), "MIDDLE")])
-
-                    story.append(Paragraph("<b>INSTITUTO SER CONSCIENTE LTDA</b>", estilo_titulo))
-                    story.append(Paragraph("PLANO DE MANUTENÇÃO, OPERAÇÃO E CONTROLE - PMOC", estilo_sub))
-                    story.append(Paragraph("Lei Federal nº 13.589/2018 | ART CREA-MG: MG20265436050", estilo_sub))
-                    story.append(Spacer(1, 10))
-
-                    texto_periodo = (
-                        data_inicio.strftime("%d/%m/%Y") + " a " + data_fim.strftime("%d/%m/%Y")
-                        if filtrar_periodo
-                        else "Todo o histórico registrado"
-                    )
-
-                    story.append(Paragraph("<b>Data de Emissão:</b> " + hoje_data.strftime("%d/%m/%Y"), estilo_info))
-                    story.append(Paragraph("<b>Período do Relatório:</b> " + texto_periodo, estilo_info))
-                    story.append(Paragraph("<b>Responsável Técnico:</b> Eng. Alessandro Coelho (CREA-MG 238468-D)", estilo_info))
-                    story.append(Paragraph("<b>Administrador / Gestor:</b> Antônio Sérgio Silva Gomes", estilo_info))
-                    story.append(Spacer(1, 10))
-
-                    story.append(Paragraph("📑 Relação Resumida dos Equipamentos Instalados", estilo_secao))
-                    instalados_df = [e for e in st.session_state.equipamentos if e["status"] == "Instalado"]
-                    dados_tabela = [["TAG", "Ambiente", "Equipamento", "BTUs", "Última Manutenção", "Próxima", "Frequência"]]
-
-                    for eq in instalados_df:
-                        hists_eq = [h for h in st.session_state.historico if h.get("tag") == eq["tag"] and dentro_do_periodo(h)]
-                        if hists_eq:
-                            ultima_data, prox_data_str, _, freq_ult, prox_tipo = calcular_proxima_manutencao(hists_eq)
-                            freq_resumo = rotulo_ciclo_curto(freq_ult) + " -> " + prox_tipo
-                        else:
-                            ultima_data, prox_data_str, freq_resumo = "Sem registro", "-", "-"
-
-                        dados_tabela.append([eq["tag"], eq["ambiente"], formatar_equipamento_com_serie(eq), str(eq["btus"]), ultima_data, prox_data_str, freq_resumo])
-
-                    t_resumo = Table(dados_tabela, colWidths=[1.9 * cm, 3.0 * cm, 3.0 * cm, 1.5 * cm, 2.5 * cm, 2.3 * cm, 2.8 * cm])
-                    t_resumo.setStyle(style_resumo)
-                    story.append(t_resumo)
-                    story.append(Spacer(1, 15))
-
-                    story.append(Paragraph("📖 Detalhamento Completo, Checklists e Registros Fotográficos", estilo_secao))
-                    for eq in instalados_df:
-                        equip_sem_serie = formatar_equipamento_com_serie(eq)
-                        story.append(Paragraph("<b>📍 Equipamento: " + eq["ambiente"] + " (TAG: " + eq["tag"] + ")</b> — " + equip_sem_serie + " (" + str(eq["btus"]) + " BTUs)", estilo_texto))
-                        hists_eq = [h for h in st.session_state.historico if h.get("tag") == eq["tag"] and dentro_do_periodo(h)]
-
-                        if hists_eq:
-                            for h in hists_eq:
-                                freq_reg = h.get("periodicidade", "Semestral")
-                                story.append(Paragraph("• <b>Data:</b> " + str(h.get("data", "")) + " (" + freq_reg + ") | <b>Técnico:</b> " + str(h.get("tecnico", "")), estilo_texto))
-
-                                if h.get("checklist"):
-                                    story.append(Paragraph("  <b>Itens Verificados (PMOC):</b>", estilo_check))
-                                    for item_nome, status_val in h["checklist"].items():
-                                        simbolo = "✓" if status_val else "X"
-                                        story.append(Paragraph("    [" + simbolo + "] " + str(item_nome), estilo_check))
-
-                                if h.get("obs"):
-                                    story.append(Paragraph("  <b>Observações:</b> " + str(h["obs"]), estilo_check))
-
-                                f_antes = h.get("fotos_antes_bytes") or normalizar_lista_fotos(h, "fotos_antes_bytes", "foto_antes")
-                                f_depois = h.get("fotos_depois_bytes") or normalizar_lista_fotos(h, "fotos_depois_bytes", "foto_depois")
-
-                                adicionar_bloco_fotos_pdf(story, "  <b>Fotos - ANTES:</b>", f_antes, estilo_check, style_imgs)
-                                adicionar_bloco_fotos_pdf(story, "  <b>Fotos - DEPOIS:</b>", f_depois, estilo_check, style_imgs)
-                                story.append(Spacer(1, 6))
-                        else:
-                            msg_sem = "  <i>(Nenhuma manutenção registrada no período selecionado)</i>" if filtrar_periodo else "  <i>(Nenhuma manutenção registrada)</i>"
-                            story.append(Paragraph(msg_sem, estilo_texto))
-                        story.append(Spacer(1, 8))
-
-                    doc.build(story)
-                    pdf_buffer.seek(0)
-                    nome_arq = (
-                        "relatorio_fiscal_pmoc_" + data_inicio.strftime("%Y%m%d") + "_" + data_fim.strftime("%Y%m%d") + ".pdf"
-                        if filtrar_periodo
-                        else "relatorio_fiscal_pmoc_completo.pdf"
-                    )
-                    st.success("✅ Relatório Fiscal Completo em PDF gerado com sucesso!")
-                    st.download_button("📥 Baixar Relatório Fiscal Oficial Completo (PDF)", data=pdf_buffer, file_name=nome_arq, mime="application/pdf")
-                except Exception as e:
-                    st.error("Erro ao compilar PDF fiscal completo: " + str(e))
-
-if eh_admin:
-    st.markdown("---")
-    st.subheader("💾 Backup dos Arquivos JSON")
-    st.caption("Baixe os dois arquivos e envie para o GitHub para manter seus registros salvos após reinicializações.")
-
-    historico_export = []
-    for h in st.session_state.historico:
-        h_copy = h.copy()
-        antes_raw = h_copy.pop("foto_antes_bytes", None)
-        depois_raw = h_copy.pop("foto_depois_bytes", None)
-        antes_lista = h_copy.get("fotos_antes_bytes") or ([antes_raw] if antes_raw else [])
-        depois_lista = h_copy.get("fotos_depois_bytes") or ([depois_raw] if depois_raw else [])
-        h_copy["fotos_antes_bytes"] = serializar_lista_fotos(antes_lista)
-        h_copy["fotos_depois_bytes"] = serializar_lista_fotos(depois_lista)
-        historico_export.append(h_copy)
-
-    equipamentos_export = []
-    for eq_item in st.session_state.equipamentos:
-        eq_clean = eq_item.copy()
-        eq_clean["equipamento"] = limpar_numero_serie(eq_clean.get("equipamento", ""))
-        eq_clean["numero_serie"] = ""
-        equipamentos_export.append(eq_clean)
-
-    json_dados = json.dumps(historico_export, ensure_ascii=False, indent=4).encode("utf-8")
-    json_equip = json.dumps(equipamentos_export, ensure_ascii=False, indent=4).encode("utf-8")
-
-    col_b1, col_b2 = st.columns(2)
-    with col_b1:
-        st.download_button(
-            label="⬇️ Baixar pmoc_dados.json",
-            data=json_dados,
-            file_name="pmoc_dados.json",
-            mime="application/json",
-        )
-    with col_b2:
-        st.download_button(
-            label="⬇️ Baixar pmoc_equipamentos.json",
-            data=json_equip,
-            file_name="pmoc_equipamentos.json",
-            mime="application/json",
-        )

@@ -921,3 +921,38 @@ elif opcao == "📄 Relatório Fiscal A4":
                     st.download_button("📥 Baixar Relatório Fiscal Oficial Completo (PDF)", data=pdf_buffer, file_name=nome_arq, mime="application/pdf")
                 except Exception as e:
                     st.error("Erro ao compilar PDF fiscal completo: " + str(e))
+
+if eh_admin:
+    st.markdown("---")
+    st.subheader("💾 Backup dos Arquivos JSON")
+    st.caption("Baixe os dois arquivos e envie para o GitHub para manter seus registros salvos após reinicializações.")
+
+    historico_export = []
+    for h in st.session_state.historico:
+        h_copy = h.copy()
+        antes_raw = h_copy.pop("foto_antes_bytes", None)
+        depois_raw = h_copy.pop("foto_depois_bytes", None)
+        antes_lista = h_copy.get("fotos_antes_bytes") or ([antes_raw] if antes_raw else [])
+        depois_lista = h_copy.get("fotos_depois_bytes") or ([depois_raw] if depois_raw else [])
+        h_copy["fotos_antes_bytes"] = serializar_lista_fotos(antes_lista)
+        h_copy["fotos_depois_bytes"] = serializar_lista_fotos(depois_lista)
+        historico_export.append(h_copy)
+
+    json_dados = json.dumps(historico_export, ensure_ascii=False, indent=4).encode("utf-8")
+    json_equip = json.dumps(st.session_state.equipamentos, ensure_ascii=False, indent=4).encode("utf-8")
+
+    col_b1, col_b2 = st.columns(2)
+    with col_b1:
+        st.download_button(
+            label="⬇️ Baixar pmoc_dados.json",
+            data=json_dados,
+            file_name="pmoc_dados.json",
+            mime="application/json",
+        )
+    with col_b2:
+        st.download_button(
+            label="⬇️ Baixar pmoc_equipamentos.json",
+            data=json_equip,
+            file_name="pmoc_equipamentos.json",
+            mime="application/json",
+        )

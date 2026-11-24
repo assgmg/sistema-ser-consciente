@@ -375,7 +375,7 @@ def carregar_equipamentos_iniciais():
         ("CONS022", "Consultório 22", "Split Agratto", "9000", "Instalado", "", "17,01", "2"),
         ("CONS023", "Consultório 23", "Split Agratto", "9000", "Instalado", "", "10,70", "2"),
         ("CONS024", "Consultório 24", "Split Agratto", "9000", "Instalado", "", "12,74", "2"),
-("CONS025", "Consultório 25", "Split Agratto", "9000", "Instalado", "", "12,91", "2"),
+        ("CONS025", "Consultório 25", "Split Agratto", "9000", "Instalado", "", "12,91", "2"),
         ("CONS026", "Consultório 26", "Split Agratto", "9000", "Instalado", "", "14,93", "2"),
         ("RECP001", "Recepção 01", "Cassete Philco", "48000", "Instalado", "", "34,87", "10"),
         ("RECP002", "Recepção 02", "Split Electrolux", "22000", "Instalado", "", "21,76", "6"),

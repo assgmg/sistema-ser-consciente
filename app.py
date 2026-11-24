@@ -96,6 +96,8 @@ def limpar_numero_serie(texto):
 
 
 def formatar_equipamento_com_serie(equip):
+    if not isinstance(equip, dict):
+        return ""
     return limpar_numero_serie(equip.get("equipamento", ""))
 
 
@@ -179,6 +181,7 @@ def decodificar_foto_segura(item):
     return None
 
 
+@st.cache_data(show_spinner=False)
 def converter_bytes_para_jpeg_seguro(img_bytes):
     if not isinstance(img_bytes, (bytes, bytearray)) or len(img_bytes) == 0:
         return None
@@ -196,14 +199,17 @@ def converter_bytes_para_jpeg_seguro(img_bytes):
             else:
                 rgb_img = im.convert("RGB")
 
+            rgb_img.thumbnail((1000, 1000))
             out = io.BytesIO()
-            rgb_img.save(out, format="JPEG", quality=85)
+            rgb_img.save(out, format="JPEG", quality=82, optimize=True)
             return out.getvalue()
     except Exception:
         return None
 
 
 def normalizar_lista_fotos(h, chave_lista, chave_antiga):
+    if not isinstance(h, dict):
+        return []
     origem = []
     if chave_lista in h and isinstance(h[chave_lista], list) and h[chave_lista]:
         origem = h[chave_lista]
@@ -502,24 +508,31 @@ def renderizar_etiqueta_html(eq_sel):
 def adicionar_bloco_fotos_pdf(story, titulo_bloco, lista_bytes, estilo_check, style_imgs):
     if not lista_bytes:
         return
-    story.append(Paragraph(titulo_bloco, estilo_check))
-    linha_imgs = []
+    imagens_validas = []
     for item_img in lista_bytes:
         try:
             bytes_dec = decodificar_foto_segura(item_img)
             jpeg_limpo = converter_bytes_para_jpeg_seguro(bytes_dec)
             if jpeg_limpo:
-                linha_imgs.append(
+                imagens_validas.append(
                     RLImage(io.BytesIO(jpeg_limpo), width=4.0 * cm, height=3.0 * cm)
                 )
-                if len(linha_imgs) == 2:
-                    t_imgs = Table([linha_imgs], colWidths=[4.5 * cm, 4.5 * cm])
-                    t_imgs.setStyle(style_imgs)
-                    story.append(Spacer(1, 3))
-                    story.append(t_imgs)
-                    linha_imgs = []
         except Exception:
             pass
+
+    if not imagens_validas:
+        return
+
+    story.append(Paragraph(escapar_xml(titulo_bloco), estilo_check))
+    linha_imgs = []
+    for img_obj in imagens_validas:
+        linha_imgs.append(img_obj)
+        if len(linha_imgs) == 2:
+            t_imgs = Table([linha_imgs], colWidths=[4.5 * cm, 4.5 * cm])
+            t_imgs.setStyle(style_imgs)
+            story.append(Spacer(1, 3))
+            story.append(t_imgs)
+            linha_imgs = []
     if linha_imgs:
         while len(linha_imgs) < 2:
             linha_imgs.append("")
@@ -629,13 +642,7 @@ else:
         "📊 Dashboard Geral",
     ]
 
-if (
-    "menu_navegacao" not in st.session_state
-    or st.session_state.menu_navegacao not in opcoes_menu
-):
-    st.session_state.menu_navegacao = opcoes_menu[0]
-
-opcao = st.sidebar.radio("Navegação", opcoes_menu, key="menu_navegacao")
+opcao = st.sidebar.radio("Navegação", opcoes_menu)
 
 if opcao == "📋 Informações do Equipamento":
     st.header("📋 Informações do Equipamento - PMOC Oficial")
@@ -815,3 +822,127 @@ if opcao == "📋 Informações do Equipamento":
                                     reg_atual, "fotos_antes_bytes", "foto_antes"
                                 )
                             )
+                            fotos_depois_atuais = (
+                                reg_atual.get("fotos_depois_bytes")
+                                or normalizar_lista_fotos(
+                                    reg_atual, "fotos_depois_bytes", "foto_depois"
+                                )
+                            )
+
+                            with st.form(
+                                "form_edit_manut_"
+                                + tag_codigo
+                                + "_"
+                                + str(indice_real)
+                            ):
+                                ec1, ec2, ec3 = st.columns(3)
+                                with ec1:
+                                    ed_data = st.text_input(
+                                        "Data (DD/MM/AAAA)",
+                                        value=str(reg_atual.get("data", "")),
+                                    )
+                                with ec2:
+                                    ed_tecnico = st.text_input(
+                                        "Técnico Responsável",
+                                        value=str(reg_atual.get("tecnico", "")),
+                                    )
+                                with ec3:
+                                    ed_visto = st.text_input(
+                                        "Visto / Conferência",
+                                        value=str(reg_atual.get("visto", "")),
+                                    )
+
+                                ed_period = st.selectbox(
+                                    "Tipo de Manutenção / Periodicidade",
+                                    OPCOES_CICLO_MANUTENCAO,
+                                    index=indice_ciclo_existente(
+                                        reg_atual.get("periodicidade", freq_reg)
+                                    ),
+                                )
+
+                                chk_atual = (
+                                    reg_atual.get("checklist")
+                                    if isinstance(reg_atual.get("checklist"), dict)
+                                    else {}
+                                )
+                                ed_checklist = {}
+                                st.markdown("**Checklist Oficial (Itens 4.1 a 4.18):**")
+                                for item_chk in CHECKLIST_PMOC_OFICIAL:
+                                    valor_chk = bool(chk_atual.get(item_chk, False))
+                                    ed_checklist[item_chk] = st.checkbox(
+                                        item_chk,
+                                        value=valor_chk,
+                                        key="ed_chk_"
+                                        + tag_codigo
+                                        + "_"
+                                        + str(indice_real)
+                                        + "_"
+                                        + item_chk[:4],
+                                    )
+
+                                ed_obs = st.text_area(
+                                    "Observações Técnicas / Ocorrências",
+                                    value=str(reg_atual.get("obs", "")),
+                                )
+
+                                if st.form_submit_button(
+                                    "💾 Gravar Alterações de Texto e Checklist"
+                                ):
+                                    reg_atual["data"] = ed_data.strip()
+                                    reg_atual["tecnico"] = ed_tecnico.strip()
+                                    reg_atual["visto"] = ed_visto.strip()
+                                    reg_atual["periodicidade"] = ed_period
+                                    reg_atual["checklist"] = ed_checklist
+                                    reg_atual["obs"] = ed_obs.strip()
+                                    salvar_dados_disco(st.session_state.historico)
+                                    st.cache_data.clear()
+                                    st.success(
+                                        "✅ Alterações da manutenção gravadas com sucesso!"
+                                    )
+                                    st.rerun()
+
+                            st.markdown("---")
+                            st.markdown("**📸 Editar / Trocar Fotos do Registro:**")
+                            fa_col, fd_col = st.columns(2)
+                            with fa_col:
+                                trocar_antes = st.file_uploader(
+                                    "🔄 Trocar fotos do ANTES (substitui as atuais do ANTES)",
+                                    type=["png", "jpg", "jpeg"],
+                                    accept_multiple_files=True,
+                                    key="sub_antes_"
+                                    + tag_codigo
+                                    + "_"
+                                    + str(indice_real),
+                                )
+                                if trocar_antes and st.button(
+                                    "💾 Aplicar Troca Fotos ANTES",
+                                    key="btn_sub_antes_"
+                                    + tag_codigo
+                                    + "_"
+                                    + str(indice_real),
+                                ):
+                                    reg_atual["fotos_antes_bytes"] = [
+                                        f.getvalue() for f in trocar_antes
+                                    ]
+                                    salvar_dados_disco(st.session_state.historico)
+                                    st.cache_data.clear()
+                                    st.success("✅ Fotos do ANTES substituídas!")
+                                    st.rerun()
+
+                                if fotos_antes_atuais and st.button(
+                                    "🗑️ Limpar Todas Fotos ANTES",
+                                    key="btn_clr_antes_"
+                                    + tag_codigo
+                                    + "_"
+                                    + str(indice_real),
+                                ):
+                                    reg_atual["fotos_antes_bytes"] = []
+                                    salvar_dados_disco(st.session_state.historico)
+                                    st.cache_data.clear()
+                                    st.success("✅ Fotos do ANTES removidas!")
+                                    st.rerun()
+
+                            with fd_col:
+                                trocar_depois = st.file_uploader(
+                                    "🔄 Trocar fotos do DEPOIS (substitui as atuais do DEPOIS)",
+                                    type=["png",

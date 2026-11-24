@@ -945,4 +945,330 @@ if opcao == "📋 Informações do Equipamento":
                             with fd_col:
                                 trocar_depois = st.file_uploader(
                                     "🔄 Trocar fotos do DEPOIS (substitui as atuais do DEPOIS)",
-                                    type=["png",
+                                    type=["png", "jpg", "jpeg"],
+                                    accept_multiple_files=True,
+                                    key="sub_depois_"
+                                    + tag_codigo
+                                    + "_"
+                                    + str(indice_real),
+                                )
+                                if trocar_depois and st.button(
+                                    "💾 Aplicar Troca Fotos DEPOIS",
+                                    key="btn_sub_depois_"
+                                    + tag_codigo
+                                    + "_"
+                                    + str(indice_real),
+                                ):
+                                    reg_atual["fotos_depois_bytes"] = [
+                                        f.getvalue() for f in trocar_depois
+                                    ]
+                                    salvar_dados_disco(st.session_state.historico)
+                                    st.cache_data.clear()
+                                    st.success("✅ Fotos do DEPOIS substituídas!")
+                                    st.rerun()
+
+                                if fotos_depois_atuais and st.button(
+                                    "🗑️ Limpar Todas Fotos DEPOIS",
+                                    key="btn_clr_depois_"
+                                    + tag_codigo
+                                    + "_"
+                                    + str(indice_real),
+                                ):
+                                    reg_atual["fotos_depois_bytes"] = []
+                                    salvar_dados_disco(st.session_state.historico)
+                                    st.cache_data.clear()
+                                    st.success("✅ Fotos do DEPOIS removidas!")
+                                    st.rerun()
+
+                        with st.expander(
+                            "➕ Adicionar mais fotos a esta manutenção ("
+                            + str(h.get("data", ""))
+                            + ")"
+                        ):
+                            novas_antes = st.file_uploader(
+                                "Selecionar fotos adicionais do ANTES",
+                                type=["png", "jpg", "jpeg"],
+                                accept_multiple_files=True,
+                                key="add_antes_" + tag_codigo + "_" + str(idx),
+                            )
+                            novas_depois = st.file_uploader(
+                                "Selecionar fotos adicionais do DEPOIS",
+                                type=["png", "jpg", "jpeg"],
+                                accept_multiple_files=True,
+                                key="add_depois_" + tag_codigo + "_" + str(idx),
+                            )
+                            if st.button(
+                                "💾 Anexar Novas Fotos ao Registro",
+                                key="btn_add_fotos_" + tag_codigo + "_" + str(idx),
+                            ):
+                                if novas_antes or novas_depois:
+                                    reg = st.session_state.historico[indice_real]
+                                    reg.setdefault("fotos_antes_bytes", [])
+                                    reg.setdefault("fotos_depois_bytes", [])
+                                    reg["fotos_antes_bytes"].extend(
+                                        [f.getvalue() for f in novas_antes]
+                                    )
+                                    reg["fotos_depois_bytes"].extend(
+                                        [f.getvalue() for f in novas_depois]
+                                    )
+                                    salvar_dados_disco(st.session_state.historico)
+                                    st.cache_data.clear()
+                                    st.success("Fotos adicionadas com sucesso!")
+                                    st.rerun()
+                                else:
+                                    st.warning("Selecione pelo menos uma foto para anexar.")
+
+                        if st.button(
+                            "🗑️ Excluir este Registro Incorreto",
+                            key="btn_del_" + tag_codigo + "_" + str(idx),
+                        ):
+                            del st.session_state.historico[indice_real]
+                            salvar_dados_disco(st.session_state.historico)
+                            st.cache_data.clear()
+                            st.success("Registro excluído com sucesso! Atualizando...")
+                            st.rerun()
+
+                    st.markdown("---")
+            else:
+                st.info("Nenhum histórico cadastrado para este aparelho.")
+
+elif opcao == "🛠️ Registrar Manutenção":
+    if not eh_admin:
+        st.warning("🔒 Área restrita ao Administrador.")
+    else:
+        st.header("🛠️ Registro de Manutenção Preventiva e Ocorrências (PMOC)")
+        instalados = [
+            e for e in st.session_state.equipamentos if e["status"] == "Instalado"
+        ]
+        tags = [e["tag"] + " - " + e["ambiente"] for e in instalados]
+
+        if tags:
+            tag_sel = st.selectbox("Selecione o Equipamento:", tags)
+            tag_codigo = tag_sel.split(" - ")[0]
+            hists_eq_atual = [
+                h for h in st.session_state.historico if h.get("tag") == tag_codigo
+            ]
+            prox_sugerido = proximo_ciclo_esperado(hists_eq_atual)
+            idx_ciclo = 1 if prox_sugerido == "Trimestral" else 0
+            hoje_formatado = datetime.date.today().strftime("%d/%m/%Y")
+
+            periodicidade = st.selectbox(
+                "Tipo de Manutenção / Periodicidade (Conforme PMOC):",
+                OPCOES_CICLO_MANUTENCAO,
+                index=idx_ciclo,
+            )
+
+            itens_padrao = (
+                ITENS_PADRAO_TRIMESTRAL
+                if "Trimestral" in periodicidade
+                else (
+                    set() if "Corretiva" in periodicidade else ITENS_PADRAO_SEMESTRAL
+                )
+            )
+
+            with st.form("form_manutencao", clear_on_submit=True):
+                col_d1, col_d2, col_d3 = st.columns(3)
+                with col_d1:
+                    data_manut = st.text_input(
+                        "Data da Manutenção (DD/MM/AAAA)", value=hoje_formatado
+                    )
+                with col_d2:
+                    tecnico = st.text_input(
+                        "Técnico Responsável", value="Antônio Sérgio Silva Gomes"
+                    )
+                with col_d3:
+                    visto = st.text_input("Visto / Responsável Conferência", value="")
+
+                st.markdown("---")
+                st.subheader("📋 Checklist Oficial do PMOC (Itens 4.1 a 4.18)")
+                st.caption(
+                    "M = Mensal | T = Trimestral | S = Semestral. Os itens padrão do ciclo selecionado já vêm marcados, e você pode alterar qualquer um."
+                )
+
+                checklist_inputs = {}
+                for item in CHECKLIST_PMOC_OFICIAL:
+                    checklist_inputs[item] = st.checkbox(
+                        item, value=(item in itens_padrao), key="chk_" + item[:4]
+                    )
+
+                st.markdown("---")
+                st.subheader(
+                    "📸 Registros Fotográficos (Múltiplas Fotos) e Ocorrências (Seção 6)"
+                )
+                st.caption("Selecione várias fotos de uma só vez nos campos abaixo.")
+                obs = st.text_area("Observações Técnicas / Registro de Ocorrências")
+
+                col_f1, col_f2 = st.columns(2)
+                with col_f1:
+                    fotos_antes = st.file_uploader(
+                        "📷 Fotos do ANTES",
+                        type=["png", "jpg", "jpeg"],
+                        accept_multiple_files=True,
+                    )
+                with col_f2:
+                    fotos_depois = st.file_uploader(
+                        "📷 Fotos do DEPOIS",
+                        type=["png", "jpg", "jpeg"],
+                        accept_multiple_files=True,
+                    )
+
+                if st.form_submit_button("💾 Salvar Registro de Manutenção"):
+                    st.session_state.historico.append(
+                        {
+                            "tag": tag_codigo,
+                            "data": data_manut,
+                            "periodicidade": periodicidade,
+                            "tecnico": tecnico,
+                            "visto": visto,
+                            "checklist": checklist_inputs,
+                            "obs": obs,
+                            "fotos_antes_bytes": (
+                                [f.getvalue() for f in fotos_antes]
+                                if fotos_antes
+                                else []
+                            ),
+                            "fotos_depois_bytes": (
+                                [f.getvalue() for f in fotos_depois]
+                                if fotos_depois
+                                else []
+                            ),
+                        }
+                    )
+                    salvar_dados_disco(st.session_state.historico)
+                    st.cache_data.clear()
+                    st.success("✅ Manutenção registrada com sucesso!")
+        else:
+            st.info("Não há equipamentos instalados no momento.")
+
+elif opcao == "✏️ Editar Previstos":
+    if not eh_admin:
+        st.warning("🔒 Área restrita ao Administrador.")
+    else:
+        st.header("✏️ Gerenciar, Cadastrar Novos e Substituir Equipamentos")
+        st.caption(
+            "Use esta tela para registrar dados de um equipamento novo ou atualizar dados do ambiente."
+        )
+
+        lista_todos = [
+            e["tag"] + " - " + e["ambiente"] + " (" + e["status"] + ")"
+            for e in st.session_state.equipamentos
+        ]
+        tag_sel_ed = st.selectbox(
+            "Selecione o Equipamento para Editar ou Substituir:", lista_todos
+        )
+        tag_codigo_ed = tag_sel_ed.split(" - ")[0]
+        equip_ed = next(
+            (e for e in st.session_state.equipamentos if e["tag"] == tag_codigo_ed),
+            None,
+        )
+
+        if equip_ed:
+            with st.form("form_edicao_geral"):
+                st.write(
+                    "**Ambiente:** "
+                    + equip_ed["ambiente"]
+                    + " | **TAG:** "
+                    + equip_ed["tag"]
+                )
+                novo_nome = st.text_input(
+                    "Marca / Modelo do Equipamento",
+                    value=limpar_numero_serie(equip_ed["equipamento"]),
+                )
+                novos_btus = st.text_input(
+                    "Potência / Carga Térmica (BTUs)", value=equip_ed["btus"]
+                )
+                col_a1, col_a2 = st.columns(2)
+                with col_a1:
+                    nova_area = st.text_input(
+                        "Área Climatizada (m²)",
+                        value=str(equip_ed.get("area_m2") or ""),
+                        placeholder="Ex.: 12,50",
+                    )
+                with col_a2:
+                    novo_ocup = st.text_input(
+                        "Ocupantes Máximos",
+                        value=str(equip_ed.get("ocupantes_max") or ""),
+                        placeholder="Ex.: 2",
+                    )
+                novo_status = st.selectbox(
+                    "Status de Instalação",
+                    ["Instalado", "Previsto"],
+                    index=0 if equip_ed["status"] == "Instalado" else 1,
+                )
+
+                if st.form_submit_button("✅ Salvar Alterações"):
+                    equip_ed["equipamento"] = limpar_numero_serie(novo_nome)
+                    equip_ed["btus"] = novos_btus.strip()
+                    equip_ed["numero_serie"] = ""
+                    equip_ed["area_m2"] = nova_area.strip()
+                    equip_ed["ocupantes_max"] = novo_ocup.strip()
+                    equip_ed["status"] = novo_status
+                    salvar_equipamentos_disco(st.session_state.equipamentos)
+                    st.cache_data.clear()
+                    st.success(
+                        "Equipamento "
+                        + tag_codigo_ed
+                        + " atualizado e salvo com sucesso!"
+                    )
+                    st.rerun()
+
+elif opcao == "🖨️ Etiquetas 5x5 cm (Individual)":
+    if not eh_admin:
+        st.warning("🔒 Área restrita ao Administrador.")
+    else:
+        st.header("🖨️ Pré-visualização de Etiqueta Individual 5x5 cm")
+        lista_eq_qr = [
+            e["tag"] + " - " + e["ambiente"] for e in st.session_state.equipamentos
+        ]
+        tag_sel_qr = st.selectbox("Selecione o Equipamento:", lista_eq_qr)
+        equip_sel = next(
+            (
+                e
+                for e in st.session_state.equipamentos
+                if e["tag"] == tag_sel_qr.split(" - ")[0]
+            ),
+            None,
+        )
+        if equip_sel:
+            st.markdown(renderizar_etiqueta_html(equip_sel), unsafe_allow_html=True)
+
+elif opcao == "📑 Lote A4 para Gráfica (Guilhotina)":
+    if not eh_admin:
+        st.warning("🔒 Área restrita ao Administrador.")
+    else:
+        st.header("📑 Gerador de Arquivo PDF Pronto para Gráfica (5x5 cm)")
+        todas_tags = [
+            e["tag"] + " - " + e["ambiente"] for e in st.session_state.equipamentos
+        ]
+        selecionar_todos = st.checkbox(
+            "Selecionar todos os equipamentos cadastrados", value=True
+        )
+        equipamentos_selecionados = (
+            todas_tags
+            if selecionar_todos
+            else st.multiselect(
+                "Selecione os equipamentos:", todas_tags, default=todas_tags[:6]
+            )
+        )
+
+        if st.button("🚀 Gerar PDF Oficial para Download"):
+            if not equipamentos_selecionados:
+                st.warning("Selecione pelo menos um equipamento.")
+            else:
+                with st.spinner("Gerando arquivo PDF..."):
+                    try:
+                        pdf_buffer = io.BytesIO()
+                        doc = SimpleDocTemplate(
+                            pdf_buffer,
+                            pagesize=A4,
+                            leftMargin=1.5 * cm,
+                            rightMargin=1.5 * cm,
+                            topMargin=1.0 * cm,
+                            bottomMargin=1.0 * cm,
+                        )
+                        story = []
+                        celulas_pagina = []
+
+                        estilo_header = ParagraphStyle(
+                            "EtqHeader",
+                            fontName

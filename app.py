@@ -1269,7 +1269,7 @@ elif opcao == "📑 Lote A4 para Gráfica (Guilhotina)":
                         story = []
                         celulas_pagina = []
 
-                       estilo_header = ParagraphStyle(
+                      estilo_header = ParagraphStyle(
                             "EtqHeader",
                             fontName="Helvetica-Bold",
                             fontSize=7.5,

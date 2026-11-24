@@ -584,4 +584,4 @@ if opcao == "📋 Informações do Equipamento":
             st.error("❌ Equipamento não encontrado para a TAG informada.")
     else:
         tags_lista = [e["tag"] + " - " + e["ambiente"] for e in st.session_state.equipamentos]
-        tag_selecionada = st.selectbox("
+        tag_selecionada = st.selectbox("Selecione a TAG do Equipamento:", tags_lista)
